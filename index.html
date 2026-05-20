@@ -384,57 +384,6 @@
   .badge.med .swatch { background: var(--sand); }
   .badge.hot .swatch { background: var(--ember); }
 
-  /* CTA / 메일 알림 */
-  .cta {
-    text-align: center;
-    padding: clamp(80px, 14vh, 140px) clamp(20px, 5vw, 56px);
-    max-width: 720px;
-    margin: 0 auto;
-  }
-  .cta .section-title { margin-bottom: 16px; }
-  .cta .section-lede { margin-left: auto; margin-right: auto; }
-
-  .signup {
-    display: flex;
-    gap: 8px;
-    margin: 32px auto 0;
-    max-width: 480px;
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 6px 6px 6px 18px;
-    box-shadow: 0 12px 32px rgba(15, 42, 46, 0.06);
-  }
-  .signup input {
-    flex: 1;
-    border: 0;
-    background: transparent;
-    outline: none;
-    font-size: 15px;
-    color: var(--ink);
-    font-family: inherit;
-  }
-  .signup input::placeholder { color: var(--ink-mute); }
-  .signup button {
-    border: 0;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: inherit;
-    font-weight: 600;
-    font-size: 14.5px;
-    padding: 12px 22px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: background .25s ease, transform .25s ease;
-  }
-  .signup button:hover { background: var(--accent); transform: translateY(-1px); }
-  .signup-note {
-    margin-top: 14px;
-    font-size: 12.5px;
-    color: var(--ink-mute);
-  }
-  .signup-note.ok { color: var(--accent); }
-
   /* Footer */
   footer {
     background: var(--bg-deep);
@@ -503,14 +452,6 @@
     .strip-inner { grid-template-columns: 1fr; gap: 28px; }
     .foot-inner { grid-template-columns: 1fr; }
     .nav { padding: 18px 20px; }
-    .signup {
-      flex-direction: column;
-      border-radius: 18px;
-      padding: 12px;
-      gap: 10px;
-    }
-    .signup input { padding: 10px 6px; }
-    .signup button { width: 100%; padding: 14px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -636,18 +577,6 @@
   </div>
 </section>
 
-<section class="cta" aria-labelledby="cta-title">
-  <h2 id="cta-title" class="section-title">먼저 알림 받기</h2>
-  <p class="section-lede">
-    정식 오픈일을 가장 먼저 알려드릴게요. 광고 메일은 보내지 않습니다.
-  </p>
-  <form class="signup" id="signupForm" novalidate>
-    <input type="email" id="signupEmail" name="email" placeholder="이메일을 입력하세요" autocomplete="email" required />
-    <button type="submit">알림 받기</button>
-  </form>
-  <p class="signup-note" id="signupNote">오픈 알림 외 다른 용도로 사용하지 않아요.</p>
-</section>
-
 <footer>
   <div class="foot-inner">
     <div>
@@ -676,31 +605,6 @@
     <span>곧 만나요 · Coming Soon</span>
   </div>
 </footer>
-
-<script>
-  (function () {
-    const form = document.getElementById('signupForm');
-    const input = document.getElementById('signupEmail');
-    const note = document.getElementById('signupNote');
-    if (!form) return;
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      const value = (input.value || '').trim();
-      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-      if (!ok) {
-        note.textContent = '올바른 이메일 주소를 입력해주세요.';
-        note.classList.remove('ok');
-        input.focus();
-        return;
-      }
-      // 정적 페이지이므로 실제 저장 없이 안내만 합니다.
-      note.textContent = '신청해주셔서 감사합니다. 오픈 소식이 준비되면 가장 먼저 알려드릴게요.';
-      note.classList.add('ok');
-      input.value = '';
-    });
-  })();
-</script>
 
 </body>
 </html>
