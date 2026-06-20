@@ -18,7 +18,7 @@ jobs:
     runs-on: [self-hosted, greedylabs]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve image tag
         run: echo "IMAGE=eumgil-web:${DEPLOY_ENV}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"

@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # ---------- base ----------
-# Pinned Node 20 (matches package.json engines ">=20") on Alpine for a small image.
-FROM node:20-alpine AS base
+# Pinned Node 24 (current Active LTS; satisfies package.json engines ">=20") on Alpine.
+FROM node:24-alpine AS base
 RUN corepack enable
 WORKDIR /app
 
