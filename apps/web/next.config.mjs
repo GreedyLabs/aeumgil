@@ -14,6 +14,8 @@ loadEnv({ path: resolve(monorepoRoot, ".env.local"), override: true });
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@eumgil/ui"],
+  // Emit a self-contained server bundle so the Docker runtime image stays slim.
+  output: "standalone",
   // Pin the workspace root so Next ignores stray lockfiles outside the monorepo.
   outputFileTracingRoot: monorepoRoot,
 };
