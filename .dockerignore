@@ -1,0 +1,36 @@
+# dependencies (reinstalled inside the image)
+**/node_modules
+.pnpm-store
+
+# build output
+**/.next
+**/out
+**/build
+**/dist
+**/*.tsbuildinfo
+next-env.d.ts
+
+# vcs / ci
+.git
+.github
+.gitignore
+
+# env / secrets
+**/.env
+**/.env*.local
+*.pem
+
+# os / editor
+.DS_Store
+.idea
+.vscode
+
+# docs & local assets not needed in the image
+docs
+*.png
+README.md
+
+# docker / compose files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml

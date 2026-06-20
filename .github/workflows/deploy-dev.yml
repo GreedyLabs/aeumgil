@@ -1,0 +1,42 @@
+name: Deploy (dev)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  DEPLOY_ENV: dev
+  HOST_PORT: "5181"
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, greedylabs]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        run: echo "IMAGE=eumgil-web:${DEPLOY_ENV}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build image
+        run: |
+          docker build \
+            --tag "eumgil-web:${DEPLOY_ENV}" \
+            --tag "${IMAGE}" \
+            --file Dockerfile .
+
+      - name: Deploy
+        run: docker compose -p "eumgil-${DEPLOY_ENV}" up -d --force-recreate
+
+      - name: Prune dangling images
+        if: always()
+        run: docker image prune -f
+
+      - name: Summary
+        if: success()
+        run: echo "Deployed **dev** \`${IMAGE}\` on host port ${HOST_PORT}." >> "$GITHUB_STEP_SUMMARY"
