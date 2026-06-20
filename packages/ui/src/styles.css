@@ -1,0 +1,4 @@
+/* Shared design tokens for @eumgil/ui. Imported by consuming apps. */
+:root {
+  --eumgil-radius: 1rem;
+}

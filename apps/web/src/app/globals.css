@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-eumgil-forest: #1f5d4c;
+  --color-eumgil-sea: #2b6cb0;
+  --color-eumgil-sand: #f5efe4;
+  --font-sans:
+    "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

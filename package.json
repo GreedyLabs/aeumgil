@@ -1,0 +1,22 @@
+{
+  "name": "eumgil",
+  "version": "0.1.0",
+  "private": true,
+  "description": "에움길 — 강원도 특화 테마 관광 추천 서비스",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @eumgil/web dev",
+    "build": "pnpm --filter @eumgil/web build",
+    "start": "pnpm --filter @eumgil/web start",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
+}
