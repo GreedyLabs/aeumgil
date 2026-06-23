@@ -75,6 +75,13 @@ export function CourseView({ theme, course, spots, eats, stays }: Props) {
         </div>
       )}
 
+      {course.reorderNote && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 20px 14px", padding: "10px 12px", background: "var(--calm-bg)", border: "1px solid color-mix(in oklab, var(--calm) 25%, transparent)", borderRadius: "var(--r-md)", fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+          <Icon.clock />
+          <span>{localized(course.reorderNote, lang)}</span>
+        </div>
+      )}
+
       {course.dayCount > 1 && (
         <div style={{ display: "flex", gap: 6, padding: "0 20px 10px" }}>
           {Array.from({ length: course.dayCount }).map((_, i) => {

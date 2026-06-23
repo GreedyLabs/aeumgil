@@ -133,18 +133,22 @@ export interface TourDetail extends TourItem {
   zipcode: string;
 }
 
-/** 콘텐츠 공통 상세(개요/주소/좌표/대표이미지) */
+/**
+ * 콘텐츠 공통 상세(개요/주소/좌표/대표이미지).
+ *
+ * ⚠ KorService2 detailCommon2 는 구버전(KorService1)의 YN 플래그
+ * (defaultYN/firstImageYN/addrinfoYN/mapinfoYN/overviewYN)를 받지 않는다.
+ * 해당 플래그를 넘기면 빈 응답이 와서 보강이 조용히 실패한다(verify:enrichment 로 확인,
+ * 2026-06-23). contentId 만 주면 공통 필드(개요/이미지/좌표)가 기본 포함된다.
+ */
 export async function getItemDetail(contentId: string): Promise<TourDetail | null> {
   const data = await callDataGoKr<RawListResponse & { response?: { body?: { items?: { item?: (RawItem & { overview?: string; homepage?: string; zipcode?: string })[] } } } }>(
     `${BASE}/detailCommon2`,
     {
       ...COMMON,
       contentId,
-      defaultYN: "Y",
-      firstImageYN: "Y",
-      addrinfoYN: "Y",
-      mapinfoYN: "Y",
-      overviewYN: "Y",
+      numOfRows: 1,
+      pageNo: 1,
     },
     { serviceKey: requireEnv("TOUR_API_SERVICE_KEY") },
   );

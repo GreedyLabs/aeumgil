@@ -35,10 +35,10 @@ export function matchThemes(
 
   const altIds: string[] = [];
   for (const id of [...matched.slice(1), ...themeIds]) {
+    if (altIds.length >= maxAlts) break;
     if (id && id !== primaryId && !altIds.includes(id)) {
       altIds.push(id);
     }
-    if (altIds.length >= maxAlts) break;
   }
 
   return { primaryId, altIds };

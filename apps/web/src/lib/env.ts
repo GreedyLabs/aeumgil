@@ -13,9 +13,15 @@ const schema = z.object({
   // 앱
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   DATA_SOURCE: z.enum(["mock", "live"]).default("mock"),
+  /** 디버그 로그 네임스페이스 (예: "1"=전체, "http,cache"=일부). server/log.ts */
+  EUMGIL_DEBUG: z.string().optional(),
+  /** 응답 캐시 파일 디렉터리 (기본: OS 임시). server/cache.ts */
+  EUMGIL_CACHE_DIR: z.string().optional(),
 
   // 데이터베이스
   DATABASE_URL: z.string().optional(),
+  /** 대상 PostgreSQL 스키마 (없거나 "public" 이면 public). db/schema.ts */
+  DATABASE_SCHEMA: z.string().optional(),
 
   // 공공데이터 OpenAPI
   TOUR_API_SERVICE_KEY: z.string().optional(),

@@ -55,6 +55,8 @@ export interface Spot {
   type: LocalizedText;
   region: LocalizedText;
   congestion: Congestion;
+  /** 혼잡 분산 안내 — 가장 한산한 추천 방문 시간대 (Phase 3 동적 산출, 없으면 미표시) */
+  crowdTip?: LocalizedText;
   /** 방문 적합성 점수 0~100 (Phase 3에서 실시간 산출 예정) */
   suitability: number;
   weather: Weather;
@@ -109,6 +111,8 @@ export interface Course {
   dayCount: number;
   /** 혼잡 분산 메모 (예: "붐비는 안목 대신 사천진 중심") */
   altNote?: LocalizedText;
+  /** 동적 혼잡 재정렬 안내 (Phase 3, LiveRepository 가 순서 조정 시 설정) */
+  reorderNote?: LocalizedText;
   items: CourseItem[];
 }
 

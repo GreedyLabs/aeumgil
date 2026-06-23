@@ -1,0 +1,319 @@
+// ─────────────────────────────────────────────
+// LiveRepository — 실데이터 기반 구현 (DATA_SOURCE=live).
+//
+// 설계 원칙:
+//   - 정적 큐레이션(테마/코스/식음·숙박/사용자/참조)은 MockRepository 를 그대로 상속.
+//     (제안서: 테마·코스·키워드 규칙은 사람이 설계한 큐레이션 → API 불필요)
+//   - 관광지(Spot)만 실데이터로 보강:
+//       · 기상청 단기예보 → weather
+//       · 에어코리아 → air
+//       · scoreSuitability(혼잡+날씨+대기질) → suitability + 사유(description)
+//       · (contentId 확정 시) TourAPI detailCommon2 → 개요/주소 보강
+//   - 회복력: 외부 호출 실패 시 해당 스팟은 mock 값으로 폴백 (화면 무중단).
+//   - 단기 TTL 캐시로 동적 호출 횟수 절감 (요청 폭주 방지).
+//
+// 화면은 Repository 인터페이스만 보므로 이 교체로 코드 수정이 없다.
+// ─────────────────────────────────────────────
+
+import type { Course, CourseItem, Spot, ThemeMatch } from "@/domain/types";
+import { scoreSuitability } from "@/domain/scoring";
+import { estimateCongestion } from "@/domain/congestion";
+import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
+import { getWeatherByCoords } from "@/server/public-api/kma";
+import { getAirForStation } from "@/server/public-api/airkorea";
+import { getItemDetail, listGangwonItems } from "@/server/public-api/tourapi";
+import { REGIONS, type RegionKey } from "@/server/public-api/regions";
+import { apiCache } from "@/server/cache";
+import { createLogger } from "@/server/log";
+import { L, type LocalizedText } from "@/lib/i18n";
+import { buildTools } from "@/server/agent/tools";
+import { planCourse, planItinerary } from "@/server/agent/planner";
+import { heuristicProvider, heuristicItineraryProvider } from "@/server/agent/llm";
+import type { AgentStep, SpotMeta, ToolContext } from "@/server/agent/types";
+import { MockRepository } from "../mock/repository";
+import { getSpotMapping } from "./spot-mapping";
+
+const log = createLogger("repo");
+
+// ── 영속 TTL 캐시 (메모리+파일, server/cache.ts) ──
+const TTL_MS = 10 * 60 * 1000; // 동적 데이터(날씨/대기질) 10분
+const DAY_MS = 24 * 60 * 60 * 1000; // 관광 상세 24시간
+const cached = apiCache.cached;
+
+/** 서버 TZ 무관하게 KST 벽시계를 로컬 필드로 갖는 Date. */
+function nowKst(): Date {
+  const k = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate(), k.getUTCHours(), k.getUTCMinutes());
+}
+
+/** "HH:MM" → 분(정렬용). 파싱 실패 시 720(정오). */
+function minutesOf(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return Number.isFinite(h) ? (h as number) * 60 + (Number.isFinite(m) ? (m as number) : 0) : 720;
+}
+
+/**
+ * 에이전트 trace 의 reorder_by_congestion 결과들을 base 코스에 반영해 최종 Course 를 만든다(순수).
+ * planItinerary 에 주입 — LLM 이 "어느 날을 정리할지" 정하면, 여기서 그 도구 결과를 코스에 적용한다.
+ * (각 스팟은 refId/체류시간 유지, 더 한산한 시각 슬롯으로만 이동)
+ */
+function applyReorderTrace(base: Course, trace: AgentStep[], rationale: LocalizedText): Course {
+  const items: CourseItem[] = base.items.map((it) => ({ ...it }));
+  let changed = false;
+
+  for (const s of trace) {
+    if (s.tool !== "reorder_by_congestion" || !s.ok) continue;
+    const r = s.result as { day?: number; changed?: boolean; order?: { refId: string; time: string }[] };
+    if (!r?.changed || !Array.isArray(r.order)) continue;
+    const timeFor = new Map(r.order.map((o) => [o.refId, o.time]));
+    for (const it of items) {
+      if (it.day === r.day && it.kind === "spot" && timeFor.has(it.refId)) {
+        it.time = timeFor.get(it.refId) as string;
+      }
+    }
+    changed = true;
+  }
+
+  if (!changed) return base;
+  items.sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
+  return { ...base, items, reorderNote: rationale };
+}
+
+export class LiveRepository extends MockRepository {
+  /** mock 스팟을 실시간 날씨/대기질/적합성으로 보강. 실패 시 원본 반환. */
+  private async enrich(spot: Spot): Promise<Spot> {
+    const m = getSpotMapping(spot.id);
+    if (!m) {
+      log.log(`enrich ${spot.id} → mock (no mapping)`);
+      return spot;
+    }
+
+    try {
+      const station = REGIONS[m.region].station;
+      const [weather, air] = await Promise.all([
+        cached(`wx:${spot.id}`, TTL_MS, () => getWeatherByCoords(m.lat, m.lon)),
+        cached(`air:${m.region}`, TTL_MS, () => getAirForStation(station)),
+      ]);
+
+      // 정적 큐레이션 혼잡도를 인기 prior 로 두고, 현재 시각(KST)·날씨로 동적 혼잡 산출.
+      const crowd = estimateCongestion({
+        baseline: spot.congestion,
+        kind: m.env,
+        at: nowKst(),
+        pop: weather.pop,
+        pty: weather.pty,
+      });
+
+      const { suitability, reason } = scoreSuitability({
+        congestion: crowd.level,
+        pop: weather.pop,
+        windMs: weather.windMs,
+        pty: weather.pty,
+        khaiGrade: air.khaiGrade,
+        kind: m.env,
+      });
+
+      // contentId 가 확정된 경우에만 TourAPI 개요로 설명 보강
+      let description = L(reason.ko, reason.en);
+      let tourMark = "tour–";
+      if (m.tourContentId) {
+        const detail = await cached(`tour:${m.tourContentId}`, DAY_MS, () =>
+          getItemDetail(m.tourContentId as string),
+        );
+        if (detail?.overview) {
+          description = L(detail.overview);
+          tourMark = "tour✓";
+        } else {
+          tourMark = "tour✗";
+        }
+      }
+
+      log.log(
+        `enrich ${spot.id} → live (wx✓ air✓ ${tourMark}) congestion=${crowd.level} suit=${suitability}`,
+      );
+      return {
+        ...spot,
+        congestion: crowd.level,
+        crowdTip: crowd.tip,
+        weather: { tempC: weather.tempC, desc: weather.desc, icon: weather.icon },
+        air: air.grade,
+        suitability,
+        description,
+      };
+    } catch (e) {
+      // 외부 데이터 실패 → 큐레이션(mock) 값 유지
+      log.warn(`enrich ${spot.id} → mock fallback (${e instanceof Error ? e.message : String(e)})`);
+      return spot;
+    }
+  }
+
+  override async getSpot(id: string): Promise<Spot | null> {
+    const base = await super.getSpot(id);
+    if (!base) return null;
+    return this.enrich(base);
+  }
+
+  override async listSpots(): Promise<Spot[]> {
+    const base = await super.listSpots();
+    return Promise.all(base.map((s) => this.enrich(s)));
+  }
+
+  override async getAlternatives(spotId: string): Promise<Spot[]> {
+    const base = await super.getAlternatives(spotId);
+    return Promise.all(base.map((s) => this.enrich(s)));
+  }
+
+  /**
+   * 테마 코스를 현재 혼잡 기준으로 정리한다 — 코스 플래닝 에이전트에 위임(getCourse 에이전트화).
+   *
+   * [학습 메모] LLM(heuristicItineraryProvider)은 "어느 날을 재정렬할지"를 오케스트레이션하고,
+   * 실제 재배치 수치는 reorder_by_congestion 도구(순수함수)가 계산한다. planItinerary 는 그
+   * 도구 결과(trace)를 base 코스에 반영(applyReorderTrace)할 뿐이다. 에이전트가 실패하면
+   * 기존 결정형 재정렬(reorderCourseDeterministic)으로 무중단 폴백 → 화면은 늘 Course 를 받는다.
+   */
+  override async getCourse(themeId: string): Promise<Course | null> {
+    const base = await super.getCourse(themeId);
+    if (!base) return base;
+
+    try {
+      const ctx = await this.buildAgentContext();
+      const result = await planItinerary(
+        { intent: `테마 ${themeId} 코스를 현재 혼잡 기준으로 정리`, lang: "ko", themeId, at: nowKst() },
+        {
+          llm: heuristicItineraryProvider(), // ← C단계: RealLlmProvider 로 교체
+          tools: buildTools(ctx),
+          baseCourse: base,
+          assemble: applyReorderTrace,
+          fallback: async () => ({
+            course: await this.reorderCourseDeterministic(themeId, base),
+            rationale: L(
+              "지금 혼잡 기준으로 한산한 시간대에 맞춰 장소 순서를 조정했어요.",
+              "Reordered stops to quieter time slots based on current crowding.",
+            ),
+          }),
+        },
+      );
+      log.log(`getCourse ${themeId} → ${result.source} steps=${result.trace.length}`);
+      return result.course;
+    } catch {
+      return base;
+    }
+  }
+
+  /**
+   * 결정형 코스 재정렬(에이전트 폴백). 하루별 스팟을 혼잡 최소가 되도록 시각 슬롯에 재배치.
+   * 네트워크 불필요(시간대 곡선=인기 prior×장소 성격). 변경 없으면 base 그대로 반환.
+   */
+  private async reorderCourseDeterministic(themeId: string, base: Course): Promise<Course> {
+    const at = nowKst();
+    const items: CourseItem[] = base.items.map((it) => ({ ...it }));
+    const days = [...new Set(items.map((it) => it.day))];
+    let changed = false;
+
+    for (const day of days) {
+      const spotItems = items.filter((it) => it.day === day && it.kind === "spot");
+      if (spotItems.length < 2) continue;
+
+      const scheduled: ScheduledSpot[] = [];
+      for (const it of spotItems) {
+        const baseSpot = await super.getSpot(it.refId); // mock(메모리) — 네트워크 없음
+        const env = getSpotMapping(it.refId)?.env ?? "inland";
+        const { hourly } = estimateCongestion({ baseline: baseSpot?.congestion ?? "moderate", kind: env, at });
+        scheduled.push({ refId: it.refId, time: it.time, hourly });
+      }
+
+      const res = reorderSpotsByCongestion(scheduled);
+      if (!res.changed) continue;
+      changed = true;
+      const timeFor = new Map(res.order.map((o) => [o.refId, o.time]));
+      for (const it of spotItems) it.time = timeFor.get(it.refId) ?? it.time;
+    }
+
+    if (!changed) return base;
+    items.sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
+    return {
+      ...base,
+      items,
+      reorderNote: L(
+        "지금 혼잡 기준으로 한산한 시간대에 맞춰 장소 순서를 조정했어요.",
+        "Reordered stops to quieter time slots based on current crowding.",
+      ),
+    };
+  }
+
+  // ───────────────────────────────────────────
+  // 에이전트 배선 (B단계) — 자연어 매칭을 Multi-step 에이전트에 위임한다.
+  //
+  // [학습 메모] Repository 인터페이스(matchThemes 시그니처)는 그대로다. 바뀐 건
+  // "내부에서 누가 테마를 고르느냐"뿐 — 기존엔 키워드 규칙(super.matchThemes)이,
+  // 이제는 LLM 에이전트(planCourse)가 도구를 호출해가며 고른다. 에이전트가 실패하면
+  // 같은 키워드 규칙으로 무중단 폴백하므로, 화면은 어느 경로든 동일한 ThemeMatch 를 받는다.
+  // 현재 LLM 자리에는 키 없는 heuristicProvider 가 들어가 있다(C단계에서 RealLlmProvider 로 교체).
+  // ───────────────────────────────────────────
+  override async matchThemes(query: string): Promise<ThemeMatch> {
+    const ctx = await this.buildAgentContext();
+    const result = await planCourse(
+      { intent: query, lang: "ko", at: nowKst() },
+      {
+        llm: heuristicProvider(), // ← C단계: RealLlmProvider 로 교체
+        tools: buildTools(ctx),
+        // 폴백: 에이전트 실패 시 기존 키워드 규칙(MockRepository.matchThemes) 그대로 사용.
+        fallback: async () => {
+          const m = await super.matchThemes(query);
+          return { primaryThemeId: m.primaryId, altThemeIds: m.altIds, rationale: L("키워드 규칙 매칭") };
+        },
+      },
+    );
+
+    // 보조 테마(혼잡 분산용)는 결정형 매칭으로 보강한다.
+    // (현재 heuristicProvider 는 대표 테마만 고름 → 대안은 키워드 규칙에서 가져옴)
+    const det = await super.matchThemes(query);
+    const primaryId = result.primaryThemeId || det.primaryId;
+    const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
+    const altIds = altSource.filter((id) => id && id !== primaryId).slice(0, 2);
+
+    log.log(`matchThemes "${query}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`);
+    return { primaryId, altIds };
+  }
+
+  /**
+   * 에이전트 도구가 데이터·공공 API 에 닿는 컨텍스트(포트)를 구성한다.
+   * 정적 데이터(테마/코스/스팟 메타)는 mock(메모리)에서, 동적 데이터(날씨/대기질/POI)는
+   * 공공 API 클라이언트 + 캐시에서 가져온다. 도구 코드는 이 포트만 보므로 출처를 모른다.
+   */
+  private async buildAgentContext(): Promise<ToolContext> {
+    const [themes, baseSpots] = await Promise.all([super.listThemes(), super.listSpots()]);
+
+    // 매핑이 있는 스팟만 도구의 행동 대상으로 노출(좌표·권역·성격 필요).
+    const spots: SpotMeta[] = [];
+    for (const s of baseSpots) {
+      const m = getSpotMapping(s.id);
+      if (!m) continue;
+      spots.push({ id: s.id, baseline: s.congestion, env: m.env, lat: m.lat, lon: m.lon, region: m.region });
+    }
+
+    return {
+      themes,
+      spots,
+      getCourse: (themeId) => super.getCourse(themeId),
+      weather: async (meta) => {
+        const w = await cached(`wx:${meta.id}`, TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
+        return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: w.desc };
+      },
+      air: async (region) => {
+        const info = REGIONS[region as RegionKey];
+        if (!info) throw new Error(`알 수 없는 권역: ${region}`);
+        const a = await cached(`air:${region}`, TTL_MS, () => getAirForStation(info.station));
+        return { khaiGrade: a.khaiGrade, grade: a.grade };
+      },
+      searchPois: async (keyword) => {
+        // listGangwonItems 는 지역기반 목록(키워드 검색 아님) → 받아온 뒤 제목으로 근사 필터.
+        const items = await cached(`pois:list`, DAY_MS, () => listGangwonItems({ numOfRows: 30 }));
+        const k = keyword.trim();
+        const hit = k ? items.filter((it) => it.title.includes(k)) : items;
+        return (hit.length > 0 ? hit : items).slice(0, 8).map((it) => ({ id: it.contentId, name: L(it.title) }));
+      },
+      now: () => nowKst(),
+    };
+  }
+}

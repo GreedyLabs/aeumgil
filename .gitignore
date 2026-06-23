@@ -33,3 +33,6 @@ pnpm-debug.log*
 # misc
 .turbo
 coverage/
+
+# 원자적 쓰기/파일 싱크 임시 잔여물 (0바이트, 소스 아님)
+_tmp_*

@@ -8,6 +8,15 @@
 // 여기서 URLSearchParams 로 한 번만 인코딩한다. (Encoding 키를 넣으면 이중 인코딩되어 실패)
 // ─────────────────────────────────────────────
 
+import { createLogger } from "../log";
+
+const log = createLogger("http");
+
+/** 엔드포인트 URL 에서 오퍼레이션명만 추출(로그용). */
+function opName(endpoint: string): string {
+  return endpoint.split("?")[0]?.split("/").pop() ?? endpoint;
+}
+
 export class PublicApiError extends Error {
   constructor(
     message: string,
@@ -42,6 +51,10 @@ export async function callDataGoKr<T = unknown>(
     url.searchParams.set(k, String(v));
   }
 
+  const op = opName(endpoint);
+  if (log.on) log.log(`⤳ ${op}`, params);
+  const elapsed = log.timer();
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 8000);
 
@@ -50,6 +63,7 @@ export async function callDataGoKr<T = unknown>(
     res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
   } catch (e) {
     const reason = e instanceof Error && e.name === "AbortError" ? "타임아웃" : "네트워크 오류";
+    log.error(`✗ ${op} ${reason} (${elapsed()}ms)`);
     throw new PublicApiError(`공공API 요청 실패 (${reason})`, endpoint);
   } finally {
     clearTimeout(timer);
@@ -57,14 +71,17 @@ export async function callDataGoKr<T = unknown>(
 
   const text = await res.text();
   if (!res.ok) {
+    log.error(`✗ ${op} HTTP ${res.status} (${elapsed()}ms)`);
     throw new PublicApiError(`공공API HTTP ${res.status}`, text.slice(0, 300));
   }
+  log.log(`✓ ${op} ${res.status} (${elapsed()}ms)`);
 
   // 키 오류 등은 JSON 을 요청해도 XML 에러 봉투로 오는 경우가 있다.
   const trimmed = text.trimStart();
   if (trimmed.startsWith("<")) {
     const msg = /<returnAuthMsg>(.*?)<\/returnAuthMsg>/.exec(trimmed)?.[1];
     const code = /<returnReasonCode>(.*?)<\/returnReasonCode>/.exec(trimmed)?.[1];
+    log.warn(`⚠ ${op} 오류 응답(XML)${msg ? ` ${msg}${code ? `/${code}` : ""}` : ""}`);
     throw new PublicApiError(
       `공공API 오류 응답${msg ? ` (${msg}${code ? ` / ${code}` : ""})` : ""}`,
       trimmed.slice(0, 300),

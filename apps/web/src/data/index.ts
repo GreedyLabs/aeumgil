@@ -9,18 +9,22 @@
 
 import { env } from "@/lib/env";
 import type { Repository } from "@/domain/repository";
+import { createLogger } from "@/server/log";
 import { MockRepository } from "./mock/repository";
+import { LiveRepository } from "./live/repository";
 
+const log = createLogger("repo");
 let instance: Repository | null = null;
 
 export function getRepository(): Repository {
   if (instance) return instance;
 
+  log.log(`active DATA_SOURCE = ${env.DATA_SOURCE}`);
   switch (env.DATA_SOURCE) {
     case "live":
-      // TODO(Phase 2): 공공 API + DB 기반 LiveRepository 로 교체.
-      // 아직 미구현이므로 안전하게 mock 으로 폴백한다.
-      instance = new MockRepository();
+      // 정적 큐레이션은 mock 상속, 관광지는 공공 API(기상청/에어코리아/TourAPI)로 보강.
+      // 외부 호출 실패 시 스팟 단위로 mock 폴백하므로 화면은 무중단.
+      instance = new LiveRepository();
       break;
     case "mock":
     default:

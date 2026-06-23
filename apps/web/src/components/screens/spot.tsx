@@ -139,6 +139,13 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             </div>
           </div>
 
+          {s.crowdTip && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "8px 10px", background: "var(--bg)", borderRadius: 8, fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+              <Icon.clock />
+              <span>{localized(s.crowdTip, lang)}</span>
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 10, color: "var(--ink-3)", marginBottom: 2, letterSpacing: "0.04em" }}>{lang === "ko" ? "날씨" : "Weather"}</div>
