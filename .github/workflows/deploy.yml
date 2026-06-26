@@ -1,8 +1,8 @@
-name: Deploy (prod)
+name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       no_cache:
@@ -20,13 +20,12 @@ jobs:
     with:
       image: ${{ github.repository_owner }}/eumgil-web
       dockerfile: ./Dockerfile
-      tag: prod
+      tag: latest
       version: ${{ github.run_number }}
       no_cache: ${{ inputs.no_cache || false }}
 
   deploy:
     needs: build
     uses: ./.github/workflows/_deploy-compose.yml
-    with:
-      deploy_env: prod
-      host_port: "5180"
+    secrets:
+      ENV_FILE: ${{ secrets.ENV_FILE }}

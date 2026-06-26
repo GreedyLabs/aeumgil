@@ -2,28 +2,20 @@ name: Deploy Compose
 
 on:
   workflow_call:
-    inputs:
-      deploy_env:
-        description: 'prod | dev'
-        required: true
-        type: string
-      host_port:
-        description: 'Host port to publish'
-        required: true
-        type: string
+    secrets:
+      ENV_FILE:
+        description: 'App .env file contents (passed to the container via env_file)'
+        required: false
 
 jobs:
   deploy:
     runs-on: greedylabs
     concurrency:
-      group: deploy-eumgil-${{ inputs.deploy_env }}
+      group: deploy-eumgil
       cancel-in-progress: false
     permissions:
       contents: read
       packages: read
-    env:
-      DEPLOY_ENV: ${{ inputs.deploy_env }}
-      HOST_PORT: ${{ inputs.host_port }}
     steps:
       - uses: actions/checkout@v6
 
@@ -34,8 +26,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Write env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          printf '%s' "$ENV_FILE" > .env
+          chmod 600 .env
+
       - name: Deploy
-        run: docker compose -p "eumgil-${DEPLOY_ENV}" up -d --remove-orphans
+        run: docker compose up -d --remove-orphans
 
       - name: Prune old images
         run: docker image prune -f
