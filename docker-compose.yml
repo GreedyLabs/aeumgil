@@ -1,18 +1,16 @@
-# Single compose definition, parameterized per environment.
-# The deploy workflows set IMAGE (full ghcr.io ref), DEPLOY_ENV and HOST_PORT,
-# and run with a distinct project name (-p eumgil-dev / -p eumgil-prod) so the
-# dev and prod stacks coexist on the same host without colliding.
 services:
   web:
-    image: ${IMAGE:?set IMAGE to the full ghcr.io image ref}
-    container_name: eumgil-web-${DEPLOY_ENV:?set DEPLOY_ENV}
+    image: ghcr.io/greedylabs/eumgil-web:${TAG:-${DEPLOY_ENV:-prod}}
+    container_name: eumgil-web-${DEPLOY_ENV:-prod}
+    pull_policy: always
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:?set HOST_PORT}:3000"
+      - "${HOST_PORT:-5180}:3000"
     environment:
       NODE_ENV: production
-      DEPLOY_ENV: ${DEPLOY_ENV}
+      DEPLOY_ENV: ${DEPLOY_ENV:-prod}
       PORT: "3000"
+      TZ: Asia/Seoul
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s

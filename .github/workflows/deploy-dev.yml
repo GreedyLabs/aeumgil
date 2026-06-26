@@ -4,39 +4,29 @@ on:
   push:
     branches: [dev]
   workflow_dispatch:
+    inputs:
+      no_cache:
+        description: '빌드 캐시 무시'
+        type: boolean
+        default: false
 
-concurrency:
-  group: deploy-dev
-  cancel-in-progress: false
-
-env:
-  DEPLOY_ENV: dev
-  HOST_PORT: "5181"
+permissions:
+  contents: read
+  packages: write
 
 jobs:
+  build:
+    uses: ./.github/workflows/_build-image.yml
+    with:
+      image: ${{ github.repository_owner }}/eumgil-web
+      dockerfile: ./Dockerfile
+      tag: dev
+      version: ${{ github.run_number }}
+      no_cache: ${{ inputs.no_cache || false }}
+
   deploy:
-    runs-on: [self-hosted, greedylabs]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Resolve image tag
-        run: echo "IMAGE=eumgil-web:${DEPLOY_ENV}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-
-      - name: Build image
-        run: |
-          docker build \
-            --tag "eumgil-web:${DEPLOY_ENV}" \
-            --tag "${IMAGE}" \
-            --file Dockerfile .
-
-      - name: Deploy
-        run: docker compose -p "eumgil-${DEPLOY_ENV}" up -d --force-recreate
-
-      - name: Prune dangling images
-        if: always()
-        run: docker image prune -f
-
-      - name: Summary
-        if: success()
-        run: echo "Deployed **dev** \`${IMAGE}\` on host port ${HOST_PORT}." >> "$GITHUB_STEP_SUMMARY"
+    needs: build
+    uses: ./.github/workflows/_deploy-compose.yml
+    with:
+      deploy_env: dev
+      host_port: "5181"
