@@ -1,7 +1,7 @@
 "use client";
 
 // CourseView — Phase 1b. 코스 타임라인(혼잡도 포함). 데이터는 서버에서 주입.
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { localized, type Lang } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -16,15 +16,42 @@ interface Props {
   spots: Record<string, Spot>;
   eats: Record<string, Eat>;
   stays: Record<string, Stay>;
+  initiallySaved: boolean;
+  onSaveTheme: (themeId: string, saved: boolean) => Promise<{ saved: boolean }>;
 }
 
-export function CourseView({ theme, course, spots, eats, stays }: Props) {
-  const { lang } = useAppState();
+export function CourseView({ theme, course, spots, eats, stays, initiallySaved, onSaveTheme }: Props) {
+  const { lang, requireAuth, showToast } = useAppState();
   const { nav } = useAppNav();
   const [day, setDay] = useState(1);
+  const [isSaved, setIsSaved] = useState(initiallySaved);
+  const [isPending, startTransition] = useTransition();
 
   const items = course.items.filter((it) => it.day === day);
   const busy = items.some((it) => it.kind === "spot" && spots[it.refId]?.congestion === "busy");
+  const saveLabel = isSaved
+    ? lang === "ko"
+      ? "저장 해제"
+      : "Unsave trip"
+    : lang === "ko"
+      ? "내 여행에 저장"
+      : "Save trip";
+
+  const toggleSave = () => {
+    requireAuth("save", () => {
+      const next = !isSaved;
+      setIsSaved(next);
+      startTransition(async () => {
+        try {
+          await onSaveTheme(theme.id, next);
+          showToast(next ? "내 여행에 저장했어요" : "저장을 해제했어요");
+        } catch {
+          setIsSaved(!next);
+          showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요");
+        }
+      });
+    });
+  };
 
   return (
     <div className="screen-enter">
@@ -33,8 +60,8 @@ export function CourseView({ theme, course, spots, eats, stays }: Props) {
         onBack={() => nav("theme", { themeId: theme.id })}
         right={
           <>
-            <button className="icon-btn">
-              <Icon.bookmark />
+            <button className="icon-btn" onClick={toggleSave} disabled={isPending} style={isSaved ? { color: "var(--brand)" } : undefined}>
+              {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />}
             </button>
             <button className="icon-btn">
               <Icon.share />
@@ -116,8 +143,8 @@ export function CourseView({ theme, course, spots, eats, stays }: Props) {
       </div>
 
       <div style={{ padding: "22px 20px 32px", display: "flex", gap: 10 }}>
-        <button className="btn btn-primary btn-block" style={{ flex: 1 }} onClick={() => nav("saved")}>
-          <Icon.bookmark /> {lang === "ko" ? "내 여행에 저장" : "Save trip"}
+        <button className="btn btn-primary btn-block" style={{ flex: 1 }} onClick={toggleSave} disabled={isPending}>
+          {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />} {isPending ? (lang === "ko" ? "저장 중..." : "Saving...") : saveLabel}
         </button>
       </div>
     </div>

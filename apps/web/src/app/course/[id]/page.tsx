@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { setThemeSavedAction } from "@/app/actions/saved";
 import { CourseView } from "@/components/screens/course";
 import { getRepository } from "@/data";
 import type { Eat, Spot, Stay } from "@/domain/types";
@@ -9,7 +10,11 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const repo = getRepository();
 
-  const [theme, course] = await Promise.all([repo.getTheme(id), repo.getCourse(id)]);
+  const [theme, course, savedThemeIds] = await Promise.all([
+    repo.getTheme(id),
+    repo.getCourse(id),
+    repo.listSavedThemeIds(),
+  ]);
   if (!theme || !course) notFound();
 
   const spotIds = uniq(course.items.filter((it) => it.kind === "spot").map((it) => it.refId));
@@ -29,5 +34,15 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   const stays: Record<string, Stay> = {};
   stayArr.forEach((s) => s && (stays[s.id] = s));
 
-  return <CourseView theme={theme} course={course} spots={spots} eats={eats} stays={stays} />;
+  return (
+    <CourseView
+      theme={theme}
+      course={course}
+      spots={spots}
+      eats={eats}
+      stays={stays}
+      initiallySaved={savedThemeIds.includes(theme.id)}
+      onSaveTheme={setThemeSavedAction}
+    />
+  );
 }

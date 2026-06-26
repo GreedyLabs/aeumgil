@@ -46,10 +46,14 @@ export interface Repository {
   listStays(): Promise<Stay[]>;
 
   // ── 사용자 ──
-  /** 현재 로그인 사용자 (Phase 0: 고정 mock, 미로그인 시 null) */
+  /** 현재 로그인 사용자 (mock: 고정 사용자 / live: 세션→DB, 미로그인 시 mock 폴백) */
   getCurrentUser(): Promise<User | null>;
   listReviews(): Promise<Review[]>;
   listVisits(): Promise<Visit[]>;
+  /** 현재 사용자가 저장한 테마 id 목록 (미로그인/DB부재 시 큐레이션 시드) */
+  listSavedThemeIds(): Promise<string[]>;
+  /** 테마 저장/해제 (멱등). 미로그인/DB부재 시 프로세스 메모리에만 반영(데모). */
+  setThemeSaved(themeId: string, saved: boolean): Promise<void>;
 
   // ── 참조 데이터 ──
   listGrades(): Promise<Grade[]>;

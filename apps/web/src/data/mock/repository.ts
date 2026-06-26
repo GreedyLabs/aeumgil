@@ -159,8 +159,14 @@ function mapProvider(p: any): AuthProvider {
   return { id: p.id, label: L(p.label_ko, p.label_en), bg: p.bg, fg: p.fg, border: p.border };
 }
 
+/** 미로그인/DB부재 시 보여줄 저장 테마 시드(데모용 큐레이션 값). */
+const SAVED_THEME_SEED = ["quiet-inland", "east-sea-sunrise", "cafe-viewpoint"];
+
 // ── 구현 ──────────────────────────────────
 export class MockRepository implements Repository {
+  /** 데모용 저장 상태 — 프로세스 메모리(요청 간 공유, 재시작 시 초기화). */
+  protected savedThemeIds: Set<string> = new Set(SAVED_THEME_SEED);
+
   async listThemes(): Promise<Theme[]> {
     return (D.THEMES as any[]).map(mapTheme);
   }
@@ -234,6 +240,15 @@ export class MockRepository implements Repository {
       date: v.date,
       congestionThen: v.congestionThen as Congestion,
     }));
+  }
+
+  async listSavedThemeIds(): Promise<string[]> {
+    return [...this.savedThemeIds];
+  }
+
+  async setThemeSaved(themeId: string, saved: boolean): Promise<void> {
+    if (saved) this.savedThemeIds.add(themeId);
+    else this.savedThemeIds.delete(themeId);
   }
 
   async listGrades(): Promise<Grade[]> {

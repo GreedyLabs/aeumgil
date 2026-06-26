@@ -2,15 +2,15 @@ import { SavedView } from "@/components/screens/saved";
 import { getRepository } from "@/data";
 import type { Spot } from "@/domain/types";
 
-// 저장 목록은 Phase 4 에서 사용자 DB 연동. 지금은 큐레이션 시드.
-const SAVED_THEME_IDS = ["quiet-inland", "east-sea-sunrise"];
+// 저장 테마는 Repository 로 일원화(live: 세션→DB / mock: 인메모리 시드). 최근 본 곳은 데모 시드.
 const RECENT_SPOT_IDS = ["sacheon-beach", "woljeongsa-trail", "dongmyeong-port"];
 
 export default async function SavedPage() {
   const repo = getRepository();
+  const savedThemeIds = await repo.listSavedThemeIds();
 
   const savedRaw = await Promise.all(
-    SAVED_THEME_IDS.map(async (id) => ({
+    savedThemeIds.map(async (id) => ({
       theme: await repo.getTheme(id),
       course: await repo.getCourse(id),
     })),

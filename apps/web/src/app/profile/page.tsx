@@ -2,16 +2,14 @@ import { ProfileView, type ReviewWithSpot } from "@/components/screens/profile";
 import { getRepository } from "@/data";
 import type { Theme } from "@/domain/types";
 
-const SAVED_THEME_IDS = ["quiet-inland", "east-sea-sunrise", "cafe-viewpoint"];
-
 export default async function ProfilePage() {
   const repo = getRepository();
-  const user = await repo.getCurrentUser();
+  const [user, savedThemeIds] = await Promise.all([repo.getCurrentUser(), repo.listSavedThemeIds()]);
 
   const interestIds = user?.interests ?? [];
   const [interestThemes, savedThemes, reviews] = await Promise.all([
     Promise.all(interestIds.map((id) => repo.getTheme(id))).then((a) => a.filter((t): t is Theme => t !== null)),
-    Promise.all(SAVED_THEME_IDS.map((id) => repo.getTheme(id))).then((a) => a.filter((t): t is Theme => t !== null)),
+    Promise.all(savedThemeIds.map((id) => repo.getTheme(id))).then((a) => a.filter((t): t is Theme => t !== null)),
     repo.listReviews(),
   ]);
 

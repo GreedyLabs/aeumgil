@@ -32,6 +32,14 @@ const Brand = {
       <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C39.9 36.4 44 30.8 44 24c0-1.3-.1-2.6-.4-3.5z"/>
     </svg>
   ),
+  keycloak: (p = {}) => (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true" {...p}>
+      <path d="M7 10V8.2C7 5.4 9.1 3.5 12 3.5s5 1.9 5 4.7V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M5.5 10h13A1.5 1.5 0 0 1 20 11.5v6A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-6A1.5 1.5 0 0 1 5.5 10Z" fill="currentColor" opacity=".12"/>
+      <path d="M5.5 10h13A1.5 1.5 0 0 1 20 11.5v6A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-6A1.5 1.5 0 0 1 5.5 10Z" stroke="currentColor" strokeWidth="2"/>
+      <path d="M12 14v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
 };
 
 export { Brand };

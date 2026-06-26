@@ -5,10 +5,11 @@
 //
 // 기존 design/App.tsx 의 상태머신을 실제 라우팅 구조로 옮긴 것.
 // 라우트 전환 간 유지돼야 하는 상태(auth/saved/toast)를 Context 로 제공한다.
-// Phase 1: auth/user 는 mock(DATA.USER). Phase 4 에서 실제 세션으로 교체.
+// Phase 4: auth 는 Auth.js 세션으로 판정하고, 저장/리뷰 등 사용자 데이터는 Repository 로 영속화한다.
 // ─────────────────────────────────────────────
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { DATA } from "@/design/data";
 import { Sidebar, TabBar } from "@/design/ui";
@@ -52,11 +53,24 @@ export function useAppState(): AppState {
 }
 
 const PROVIDER_NAMES: Record<string, string> = {
+  keycloak: "통합 계정",
   kakao: "카카오",
   naver: "네이버",
   google: "Google",
   apple: "Apple",
 };
+
+function userFromSession(sessionUser: { name?: string | null; email?: string | null; image?: string | null } | undefined): typeof DATA.USER {
+  if (!sessionUser) return DATA.USER;
+  const name = sessionUser.name || DATA.USER.name_ko;
+  return {
+    ...DATA.USER,
+    name_ko: name,
+    name_en: name,
+    email: sessionUser.email ?? DATA.USER.email,
+    avatar: sessionUser.image ?? DATA.USER.avatar,
+  };
+}
 
 function activeTabFor(pathname: string): string {
   if (pathname === "/" || pathname.startsWith("/result")) return "home";
@@ -69,14 +83,21 @@ function activeTabFor(pathname: string): string {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session, status } = useSession();
 
   const lang = TWEAKS.lang;
   const palette = TWEAKS.palette;
 
-  const [auth, setAuth] = useState<AuthState>({ member: false, user: DATA.USER });
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const auth = useMemo<AuthState>(
+    () => ({
+      member: status === "authenticated",
+      user: userFromSession(session?.user),
+    }),
+    [session?.user, status],
+  );
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -122,18 +143,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     (providerId: string) => {
-      setAuth({ member: true, user: DATA.USER });
       showToast(`${PROVIDER_NAMES[providerId] ?? ""}로 로그인했어요`);
-      router.back();
+      void signIn(providerId, { callbackUrl: "/profile" });
     },
-    [router, showToast],
+    [showToast],
   );
 
   const logout = useCallback(() => {
-    setAuth({ member: false, user: DATA.USER });
     showToast("로그아웃했어요");
-    router.push("/profile");
-  }, [router, showToast]);
+    void signOut({ callbackUrl: "/profile" });
+  }, [showToast]);
 
   const addToCourse = useCallback(() => {
     requireAuth("course", () => showToast("내 코스에 담았어요"));

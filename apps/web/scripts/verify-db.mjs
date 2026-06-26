@@ -6,7 +6,7 @@
 //   pnpm --filter @eumgil/web verify:db
 //   (또는) node --env-file=.env apps/web/scripts/verify-db.mjs
 //
-// 출력: 연결 성공 여부 + 서버 버전 + Phase 4 테이블 7종 존재 여부.
+// 출력: 연결 성공 여부 + 서버 버전 + Phase 4 앱 도메인 테이블 존재 여부.
 //   ✓ 있음 / – 없음(db:push 필요). 'postgres' 패키지는 pnpm install 후 사용 가능.
 // ─────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ try {
   process.exit(1);
 }
 
-const EXPECTED = ["user", "account", "session", "verificationToken", "saved_theme", "review", "visit"];
+const EXPECTED = ["saved_theme", "review", "visit"];
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 const masked = URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");
 console.log(`\nDB 연결 검증 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`);

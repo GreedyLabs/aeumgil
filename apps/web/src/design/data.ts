@@ -437,10 +437,7 @@ const COMPANIONS = [
 
 // 소셜 로그인 제공자
 const PROVIDERS = [
-  { id: 'kakao', label_ko: '카카오로 시작하기', label_en: 'Continue with Kakao', bg: '#FEE500', fg: '#191600', border: 'transparent' },
-  { id: 'naver', label_ko: '네이버로 시작하기', label_en: 'Continue with Naver', bg: '#03C75A', fg: '#FFFFFF', border: 'transparent' },
-  { id: 'google', label_ko: 'Google로 시작하기', label_en: 'Continue with Google', bg: '#FFFFFF', fg: '#1F1F1F', border: '#E2E2E2' },
-  { id: 'apple', label_ko: 'Apple로 시작하기', label_en: 'Continue with Apple', bg: '#000000', fg: '#FFFFFF', border: 'transparent' },
+  { id: 'keycloak', label_ko: '통합 계정으로 시작하기', label_en: 'Continue with Eumgil SSO', bg: '#FFFFFF', fg: '#1F1F1F', border: '#E2E2E2' },
 ];
 
 export const DATA = {

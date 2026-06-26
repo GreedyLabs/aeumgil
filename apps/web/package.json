@@ -21,7 +21,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@auth/drizzle-adapter": "^1.7.4",
     "@eumgil/ui": "workspace:*",
     "drizzle-orm": "^0.36.4",
     "next": "^15.1.6",

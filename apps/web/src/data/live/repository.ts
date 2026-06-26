@@ -15,7 +15,15 @@
 // 화면은 Repository 인터페이스만 보므로 이 교체로 코드 수정이 없다.
 // ─────────────────────────────────────────────
 
-import type { Course, CourseItem, Spot, ThemeMatch } from "@/domain/types";
+import type { Course, CourseItem, Review, Spot, ThemeMatch, User, Visit } from "@/domain/types";
+import { getDb } from "@/server/db";
+import {
+  computeStats,
+  fetchReviews,
+  fetchSavedThemeIds,
+  fetchVisits,
+  setSavedTheme,
+} from "@/server/db/user-data";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
@@ -239,6 +247,72 @@ export class LiveRepository extends MockRepository {
         "Reordered stops to quieter time slots based on current crowding.",
       ),
     };
+  }
+
+  // ───────────────────────────────────────────
+  // 사용자 데이터 (Phase 4) — Keycloak 세션→앱 DB. 미로그인/DB부재 시 mock 으로 무중단 폴백.
+  //
+  // [설계 메모] Keycloak 이 사용자 원장과 세션을 책임진다. 앱은 auth() 세션의 `user.id`
+  // (OIDC subject/sub)를 받아 서비스 데이터의 user_id 로만 쓴다. 즉 앱 DB 는 인증 DB 가 아니라
+  // 도메인 DB 다. DB 가 없거나 로그인하지 않았으면 기존 데모처럼 mock 으로 폴백한다.
+  // ───────────────────────────────────────────
+
+  /** 현재 세션 사용자 (로그인 없으면 null → 호출자가 mock 폴백). */
+  private async sessionUser(): Promise<{ id: string; name?: string | null; email?: string | null; image?: string | null } | null> {
+    try {
+      const { auth } = await import("@/server/auth");
+      const session = await auth();
+      const user = session?.user as { id?: string; name?: string | null; email?: string | null; image?: string | null } | undefined;
+      return user?.id ? { id: user.id, name: user.name, email: user.email, image: user.image } : null;
+    } catch (e) {
+      log.warn(`sessionUser → null (${e instanceof Error ? e.message : String(e)})`);
+      return null;
+    }
+  }
+
+  override async getCurrentUser(): Promise<User | null> {
+    const sessionUser = await this.sessionUser();
+    const db = getDb();
+    if (!sessionUser || !db) return super.getCurrentUser();
+
+    // 신원(name/email/image)은 Keycloak 세션, 통계는 앱 DB, 큐레이션 필드는 mock 기본값.
+    const base = (await super.getCurrentUser()) as User;
+    const stats = await computeStats(db, sessionUser.id);
+    return {
+      ...base,
+      name: sessionUser.name ? L(sessionUser.name) : base.name,
+      email: sessionUser.email ?? base.email,
+      avatarUrl: sessionUser.image ?? base.avatarUrl,
+      stats,
+    };
+  }
+
+  override async listReviews(): Promise<Review[]> {
+    const uid = (await this.sessionUser())?.id;
+    const db = getDb();
+    if (!uid || !db) return super.listReviews();
+    return fetchReviews(db, uid);
+  }
+
+  override async listVisits(): Promise<Visit[]> {
+    const uid = (await this.sessionUser())?.id;
+    const db = getDb();
+    if (!uid || !db) return super.listVisits();
+    return fetchVisits(db, uid);
+  }
+
+  override async listSavedThemeIds(): Promise<string[]> {
+    const uid = (await this.sessionUser())?.id;
+    const db = getDb();
+    if (!uid || !db) return super.listSavedThemeIds();
+    return fetchSavedThemeIds(db, uid);
+  }
+
+  override async setThemeSaved(themeId: string, saved: boolean): Promise<void> {
+    const uid = (await this.sessionUser())?.id;
+    const db = getDb();
+    if (!uid || !db) return super.setThemeSaved(themeId, saved);
+    await setSavedTheme(db, uid, themeId, saved);
   }
 
   // ───────────────────────────────────────────

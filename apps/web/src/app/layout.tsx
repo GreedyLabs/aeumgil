@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "../design/styles.css";
 import { AppShell } from "@/components/app-shell";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "에움길 — 강원 관광 추천",
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <AppShell>{children}</AppShell>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

@@ -33,14 +33,9 @@ const schema = z.object({
   // 인증
   AUTH_SECRET: z.string().optional(),
   AUTH_URL: z.string().url().optional(),
-  AUTH_KAKAO_ID: z.string().optional(),
-  AUTH_KAKAO_SECRET: z.string().optional(),
-  AUTH_NAVER_ID: z.string().optional(),
-  AUTH_NAVER_SECRET: z.string().optional(),
-  AUTH_GOOGLE_ID: z.string().optional(),
-  AUTH_GOOGLE_SECRET: z.string().optional(),
-  AUTH_APPLE_ID: z.string().optional(),
-  AUTH_APPLE_SECRET: z.string().optional(),
+  AUTH_KEYCLOAK_ID: z.string().optional(),
+  AUTH_KEYCLOAK_SECRET: z.string().optional(),
+  AUTH_KEYCLOAK_ISSUER: z.string().url().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
