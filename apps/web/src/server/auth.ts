@@ -61,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // 로컬 Keycloak 을 나중에 바로 띄워 붙일 수 있게 개발 기본값을 둔다.
       // 실제 검증 시에는 .env 의 AUTH_KEYCLOAK_* 값이 우선된다.
       clientId: env.AUTH_KEYCLOAK_ID || "eumgil-web",
-      clientSecret: env.AUTH_KEYCLOAK_SECRET || "dev-placeholder",
+      clientSecret: env.AUTH_KEYCLOAK_SECRET || "eumgil-local-dev-secret",
       issuer: KEYCLOAK_ISSUER,
     }),
   ],

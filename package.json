@@ -13,7 +13,11 @@
     "start": "pnpm --filter @eumgil/web start",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "keycloak:up": "docker compose -f docker-compose.keycloak.yml up -d",
+    "keycloak:down": "docker compose -f docker-compose.keycloak.yml down",
+    "keycloak:logs": "docker compose -f docker-compose.keycloak.yml logs -f keycloak",
+    "keycloak:reset": "docker compose -f docker-compose.keycloak.yml down -v"
   },
   "devDependencies": {
     "prettier": "^3.4.2",

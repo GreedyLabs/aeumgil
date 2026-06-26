@@ -15,6 +15,7 @@
     "find:content": "node --env-file=../../.env scripts/find-content-ids.mjs",
     "verify:enrichment": "node --env-file=../../.env scripts/verify-enrichment.mjs",
     "verify:db": "node --env-file=../../.env scripts/verify-db.mjs",
+    "verify:keycloak": "node --env-file=../../.env scripts/verify-keycloak.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

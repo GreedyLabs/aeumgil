@@ -56,12 +56,12 @@ AUTH_SECRET="..." # openssl rand -base64 32
 AUTH_URL="http://localhost:3000"
 
 AUTH_KEYCLOAK_ID="eumgil-web"
-AUTH_KEYCLOAK_SECRET="..."
+AUTH_KEYCLOAK_SECRET="eumgil-local-dev-secret"
 AUTH_KEYCLOAK_ISSUER="http://localhost:8080/realms/eumgil"
 ```
 
 개발 기본값은 `AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/eumgil`,
-`AUTH_KEYCLOAK_ID=eumgil-web` 이다. 실제 로그인 검증에는 client secret 이 필요하다.
+`AUTH_KEYCLOAK_ID=eumgil-web`, `AUTH_KEYCLOAK_SECRET=eumgil-local-dev-secret` 이다.
 
 ## 3. 세션/JWT 정책
 
@@ -122,6 +122,40 @@ Auth.js의 `user/account/session/verificationToken` 테이블은 만들지 않�
 
 ## 5. Keycloak 준비
 
+로컬 Keycloak 은 별도 compose 파일로 제공한다.
+
+```bash
+pnpm keycloak:up
+pnpm keycloak:logs
+```
+
+Docker Desktop 또는 Docker daemon 이 실행 중이어야 한다.
+
+구성 파일:
+
+| 파일 | 역할 |
+| --- | --- |
+| `docker-compose.keycloak.yml` | 로컬 Keycloak + Keycloak 전용 Postgres |
+| `infra/keycloak/import/eumgil-realm.json` | `eumgil` realm/client/test user import |
+| `infra/keycloak/README.md` | 로컬 Keycloak 실행 메모 |
+
+기본 접속:
+
+- Admin console: `http://localhost:8080`
+- Admin: `admin` / `admin`
+- Realm issuer: `http://localhost:8080/realms/eumgil`
+- Client: `eumgil-web`
+- Client secret: `eumgil-local-dev-secret`
+- Demo user: `demo` / `demo1234`
+- Admin test user: `admin-user` / `admin1234`
+
+Realm import 는 빈 Keycloak DB에서 처음 뜰 때 적용된다. import JSON 변경을 다시 반영하려면:
+
+```bash
+pnpm keycloak:reset
+pnpm keycloak:up
+```
+
 Keycloak 서버가 준비되면:
 
 1. Realm 생성: `eumgil`
@@ -161,6 +195,7 @@ https://서비스도메인/api/auth/callback/keycloak
 pnpm --filter @eumgil/web typecheck
 pnpm --filter @eumgil/web test
 pnpm --filter @eumgil/web build
+pnpm --filter @eumgil/web verify:keycloak
 pnpm dev
 ```
 
