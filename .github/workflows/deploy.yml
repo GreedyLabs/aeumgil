@@ -18,7 +18,7 @@ jobs:
   build:
     uses: ./.github/workflows/_build-image.yml
     with:
-      image: ${{ github.repository_owner }}/eumgil-web
+      image: ${{ github.repository_owner }}/eumgil
       dockerfile: ./Dockerfile
       tag: latest
       version: ${{ github.run_number }}
@@ -26,6 +26,10 @@ jobs:
 
   deploy:
     needs: build
-    uses: ./.github/workflows/_deploy-compose.yml
-    secrets:
-      ENV_FILE: ${{ secrets.ENV_FILE }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dockhand redeploy
+        uses: GreedyLabs/action-dockhand-webhook@v1
+        with:
+          url: ${{ secrets.DOCKHAND_WEBHOOK_URL }}
+          secret: ${{ secrets.DOCKHAND_WEBHOOK_SECRET }}
