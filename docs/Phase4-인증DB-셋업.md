@@ -63,6 +63,23 @@ AUTH_KEYCLOAK_ISSUER="http://localhost:8080/realms/eumgil"
 개발 기본값은 `AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/eumgil`,
 `AUTH_KEYCLOAK_ID=eumgil-web`, `AUTH_KEYCLOAK_SECRET=eumgil-local-dev-secret` 이다.
 
+GreedyLabs 공용 Keycloak 을 쓰는 경우:
+
+```env
+AUTH_KEYCLOAK_ID="eumgil"
+AUTH_KEYCLOAK_ISSUER="https://auth.greedylabs.kr/realms/eumgil"
+```
+
+이때 Keycloak client 의 Valid redirect URI / Web origins 는 앱 도메인별로 추가해야 한다.
+
+```text
+http://localhost:3000/api/auth/callback/keycloak
+https://서비스도메인/api/auth/callback/keycloak
+```
+
+로그아웃 후 돌아올 주소는 `NEXT_PUBLIC_APP_URL` 이므로, 운영 배포에서는 `AUTH_URL` 과
+`NEXT_PUBLIC_APP_URL` 을 실제 서비스 URL 로 맞춘다.
+
 ## 3. 세션/JWT 정책
 
 에움길은 앱 DB에 세션 테이블을 만들지 않는다. 세션 계층은 다음처럼 나눈다.
@@ -88,7 +105,9 @@ Auth.js
 - `session.strategy = "jwt"`: Auth.js adapter DB 세션을 쓰지 않는다.
 - `session.maxAge = jwt.maxAge = 8시간`: 운영 전 Keycloak realm session timeout 과 함께 조정한다.
 - `jwt` callback: Keycloak `sub`, `access_token`, `id_token`, `refresh_token`, roles 를 서버 쿠키(JWE)에 정리한다.
+- `jwt` callback: access token 만료 60초 전부터 Keycloak token endpoint 에 refresh token grant 로 갱신한다.
 - `session` callback: 브라우저에는 `id`와 `roles`만 노출한다. provider access token 은 client session 으로 내보내지 않는다.
+- 로그아웃: 앱 세션 삭제 전에 `/api/auth/keycloak/logout?format=json` 으로 `id_token_hint` 포함 end-session URL 을 받은 뒤 Auth.js 쿠키를 지우고 Keycloak SSO 세션까지 종료한다.
 
 학습 포인트:
 
@@ -218,11 +237,27 @@ curl -s http://localhost:3000/api/auth/session
 
 비로그인 상태에서 session 은 `null`, providers 는 `keycloak` 하나를 반환하면 정상이다.
 
+`verify:keycloak` 이 `fetch failed` 를 내면:
+
+```bash
+docker compose -f docker-compose.keycloak.yml ps
+curl -sS http://localhost:8080/realms/eumgil/.well-known/openid-configuration
+```
+
+컨테이너가 `healthy` 이고 브라우저에서 discovery URL 이 열리면 Keycloak은 정상이다. Codex 샌드박스처럼
+격리된 실행 환경에서는 일반 권한 프로세스가 호스트 `localhost:8080`에 붙지 못해 같은 오류가 날 수 있다.
+
+원격 GreedyLabs Keycloak discovery 검증:
+
+```bash
+AUTH_KEYCLOAK_ISSUER="https://auth.greedylabs.kr/realms/eumgil" \
+  pnpm --filter @eumgil/web verify:keycloak
+```
+
+2026-06-29 기준 `https://auth.greedylabs.kr/realms/eumgil/.well-known/openid-configuration` 은 HTTP 200.
+
 ## 8. 다음 작업
 
-- 로컬 Keycloak Docker Compose 추가.
-- Keycloak realm/client/import JSON 작성.
-- Google → Kakao → Naver 순으로 Keycloak identity provider 검증.
-- Keycloak end-session endpoint 로 SSO 로그아웃 연결.
-- 보호 라우트 세션 가드 적용.
-- 리뷰/방문 쓰기 Server Action/Form 추가.
+- Google → Kakao → Naver 순 Keycloak identity provider 검증은 후순위.
+- 리뷰/방문 수정·삭제 액션 추가.
+- 스팟 북마크 UX 를 테마 저장 모델과 정리.

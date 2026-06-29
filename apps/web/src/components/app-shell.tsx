@@ -35,10 +35,8 @@ interface AppState {
   lang: Lang;
   tweaks: typeof TWEAKS;
   auth: AuthState;
-  saved: Set<string>;
   login: (providerId: string) => void;
   logout: () => void;
-  toggleSave: (id: string) => void;
   requireAuth: (reason: string, onOk?: () => void) => boolean;
   addToCourse: () => void;
   showToast: (msg: string) => void;
@@ -88,7 +86,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const lang = TWEAKS.lang;
   const palette = TWEAKS.palette;
 
-  const [saved, setSaved] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const auth = useMemo<AuthState>(
@@ -122,25 +119,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [auth.member, router],
   );
 
-  const toggleSave = useCallback(
-    (id: string) => {
-      requireAuth("save", () => {
-        setSaved((prev) => {
-          const next = new Set(prev);
-          if (next.has(id)) {
-            next.delete(id);
-            showToast("저장 해제했어요");
-          } else {
-            next.add(id);
-            showToast("저장한 장소에 담았어요");
-          }
-          return next;
-        });
-      });
-    },
-    [requireAuth, showToast],
-  );
-
   const login = useCallback(
     (providerId: string) => {
       showToast(`${PROVIDER_NAMES[providerId] ?? ""}로 로그인했어요`);
@@ -149,9 +127,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [showToast],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     showToast("로그아웃했어요");
-    void signOut({ callbackUrl: "/profile" });
+    const logoutUrl = await fetch("/api/auth/keycloak/logout?format=json")
+      .then((r) => r.json() as Promise<{ url?: string }>)
+      .then((r) => r.url)
+      .catch(() => undefined);
+    await signOut({ redirect: false });
+    window.location.assign(logoutUrl || "/api/auth/keycloak/logout");
   }, [showToast]);
 
   const addToCourse = useCallback(() => {
@@ -162,10 +145,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     lang,
     tweaks: TWEAKS,
     auth,
-    saved,
     login,
     logout,
-    toggleSave,
     requireAuth,
     addToCourse,
     showToast,

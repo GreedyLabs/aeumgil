@@ -12,6 +12,19 @@ pnpm --filter @eumgil/web verify:keycloak
 
 Docker Desktop 또는 Docker daemon 이 먼저 실행 중이어야 한다.
 
+## Discovery 오류 점검
+
+`verify:keycloak` 이 `fetch failed` 를 내면 먼저 컨테이너 상태를 확인한다.
+
+```bash
+docker compose -f docker-compose.keycloak.yml ps
+curl -sS http://localhost:8080/realms/eumgil/.well-known/openid-configuration
+```
+
+`ps` 에서 `eumgil-keycloak` 이 `healthy` 이고 브라우저에서 discovery URL 이 열리면 Keycloak은 정상이다.
+Codex 샌드박스 같은 격리된 실행 환경에서는 일반 권한 프로세스가 호스트 `localhost:8080`에 붙지 못해
+같은 오류가 날 수 있다.
+
 접속:
 
 - Admin console: http://localhost:8080
@@ -34,6 +47,14 @@ AUTH_KEYCLOAK_SECRET="eumgil-local-dev-secret"
 AUTH_KEYCLOAK_ISSUER="http://localhost:8080/realms/eumgil"
 AUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+GreedyLabs 공용 Keycloak 을 쓰는 경우 issuer 만 원격 realm 으로 바꾼다. client secret 은 해당
+Keycloak client 의 값으로 맞춘다.
+
+```env
+AUTH_KEYCLOAK_ID="eumgil"
+AUTH_KEYCLOAK_ISSUER="https://auth.greedylabs.kr/realms/eumgil"
 ```
 
 Auth.js callback URL:

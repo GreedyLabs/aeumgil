@@ -2,6 +2,8 @@
 
 // SpotView — Phase 1b. 관광지 상세(혼잡도·방문 적합성·대체지 CTA).
 // 방문 적합성/시간대별 혼잡은 Phase 3 에서 실데이터로 대체될 지점.
+import { useState, useTransition } from "react";
+import { createReviewAction, createVisitAction } from "@/app/actions/reviews";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -21,10 +23,12 @@ interface Props {
 const HOURLY = [22, 28, 38, 55, 68, 82, 95, 78, 62, 48, 40, 32];
 
 export function SpotView({ spot: s, alts, eats, stays }: Props) {
-  const { lang, saved, toggleSave, addToCourse } = useAppState();
+  const { lang, addToCourse, requireAuth, showToast } = useAppState();
   const { nav, back } = useAppNav();
+  const [rating, setRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  const isSaved = saved.has(s.id);
   const suitabilityLabel =
     s.suitability >= 80
       ? lang === "ko"
@@ -39,6 +43,25 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           : "Reconsider";
   const congVar = s.congestion === "calm" ? "calm" : s.congestion === "moderate" ? "moderate" : "busy";
 
+  const markVisited = () => {
+    requireAuth("review", () => {
+      startTransition(async () => {
+        const res = await createVisitAction({ spotId: s.id, congestionThen: s.congestion });
+        showToast(res.ok ? "방문 기록에 남겼어요" : res.error);
+      });
+    });
+  };
+
+  const submitReview = () => {
+    requireAuth("review", () => {
+      startTransition(async () => {
+        const res = await createReviewAction({ spotId: s.id, rating, text: reviewText });
+        if (res.ok) setReviewText("");
+        showToast(res.ok ? "리뷰를 저장했어요" : res.error);
+      });
+    });
+  };
+
   return (
     <div className="screen-enter">
       <div style={{ position: "relative" }}>
@@ -51,12 +74,8 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             <button className="icon-btn filled">
               <Icon.share />
             </button>
-            <button
-              className="icon-btn filled"
-              onClick={() => toggleSave(s.id)}
-              style={isSaved ? { color: "var(--brand)" } : undefined}
-            >
-              {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />}
+            <button className="icon-btn filled" onClick={() => addToCourse()} aria-label={lang === "ko" ? "내 코스에 추가" : "Add to course"}>
+              <Icon.plus />
             </button>
           </div>
         </div>
@@ -189,6 +208,50 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
         {s.tags.map((tg) => (
           <Chip key={tg.ko}>{localized(tg, lang)}</Chip>
         ))}
+      </div>
+
+      <div style={{ padding: "22px 20px 0" }}>
+        <div className="card" style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <div>
+              <div className="section-label" style={{ marginBottom: 3 }}>
+                {lang === "ko" ? "내 기록" : "My log"}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>{lang === "ko" ? "다녀온 곳으로 남기기" : "Mark this visit"}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.45 }}>
+                {lang === "ko" ? "방문 기록과 리뷰는 내 정보에서 다시 볼 수 있어요." : "Visits and reviews appear in your profile."}
+              </div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={markVisited} disabled={isPending}>
+              <Icon.pin />
+              {lang === "ko" ? "방문 기록" : "Visited"}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{lang === "ko" ? "짧은 리뷰" : "Quick review"}</div>
+              <div style={{ display: "flex", gap: 2 }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} className="icon-btn" style={{ width: 28, height: 28, color: n <= rating ? "var(--accent)" : "var(--ink-4)" }} onClick={() => setRating(n)} aria-label={`${n}점`}>
+                    <Icon.star />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              placeholder={lang === "ko" ? "좋았던 점을 5자 이상 적어주세요" : "Write at least 5 characters"}
+              rows={3}
+              style={{ marginTop: 10, width: "100%", resize: "vertical", border: "1px solid var(--line)", borderRadius: 10, background: "var(--bg)", color: "var(--ink)", padding: "10px 12px", fontSize: 13, lineHeight: 1.45 }}
+            />
+            <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={submitReview} disabled={isPending}>
+              <Icon.star />
+              {lang === "ko" ? "리뷰 저장" : "Save review"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {alts.length > 0 && (

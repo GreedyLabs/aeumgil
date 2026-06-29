@@ -2,8 +2,10 @@ import { ReviewsView, type VisitWithSpot } from "@/components/screens/reviews";
 import { type ReviewWithSpot } from "@/components/screens/profile";
 import { getRepository } from "@/data";
 import { str, type SearchParams } from "@/lib/search-params";
+import { requireUserSession } from "@/server/require-session";
 
 export default async function ReviewsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireUserSession("review");
   const sp = await searchParams;
   const repo = getRepository();
   const [reviewsRaw, visitsRaw] = await Promise.all([repo.listReviews(), repo.listVisits()]);

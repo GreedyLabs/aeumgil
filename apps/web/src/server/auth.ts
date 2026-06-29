@@ -13,10 +13,14 @@
 
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
+import type { JWT } from "next-auth/jwt";
 import { env } from "@/lib/env";
 
 const KEYCLOAK_ISSUER = env.AUTH_KEYCLOAK_ISSUER || "http://localhost:8080/realms/eumgil";
+const KEYCLOAK_CLIENT_ID = env.AUTH_KEYCLOAK_ID || "eumgil-web";
+const KEYCLOAK_CLIENT_SECRET = env.AUTH_KEYCLOAK_SECRET || "eumgil-local-dev-secret";
 const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
+const TOKEN_REFRESH_MARGIN_SECONDS = 60;
 
 interface KeycloakProfile {
   sub?: string | null;
@@ -41,9 +45,51 @@ function rolesFromProfile(profile: unknown): string[] {
   return [...roles].sort();
 }
 
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  if (!token.refreshToken) return { ...token, error: "RefreshAccessTokenError" };
+
+  try {
+    const res = await fetch(`${KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: KEYCLOAK_CLIENT_ID,
+        client_secret: KEYCLOAK_CLIENT_SECRET,
+        refresh_token: token.refreshToken,
+      }),
+    });
+    const refreshed = (await res.json()) as {
+      access_token?: string;
+      expires_in?: number;
+      refresh_token?: string;
+      id_token?: string;
+      error?: string;
+      error_description?: string;
+    };
+
+    if (!res.ok || !refreshed.access_token) {
+      throw new Error(refreshed.error_description || refreshed.error || `HTTP ${res.status}`);
+    }
+
+    return {
+      ...token,
+      accessToken: refreshed.access_token,
+      accessTokenExpiresAt: Math.floor(Date.now() / 1000) + (refreshed.expires_in ?? SESSION_MAX_AGE_SECONDS),
+      refreshToken: refreshed.refresh_token ?? token.refreshToken,
+      idToken: refreshed.id_token ?? token.idToken,
+      error: undefined,
+    };
+  } catch (e) {
+    console.error("[auth] Keycloak token refresh failed", e);
+    return { ...token, error: "RefreshAccessTokenError" };
+  }
+}
+
 export function keycloakEndSessionUrl(idToken?: string): string {
   const url = new URL(`${KEYCLOAK_ISSUER}/protocol/openid-connect/logout`);
   url.searchParams.set("post_logout_redirect_uri", env.NEXT_PUBLIC_APP_URL);
+  url.searchParams.set("client_id", KEYCLOAK_CLIENT_ID);
   if (idToken) url.searchParams.set("id_token_hint", idToken);
   return url.toString();
 }
@@ -60,15 +106,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Keycloak({
       // 로컬 Keycloak 을 나중에 바로 띄워 붙일 수 있게 개발 기본값을 둔다.
       // 실제 검증 시에는 .env 의 AUTH_KEYCLOAK_* 값이 우선된다.
-      clientId: env.AUTH_KEYCLOAK_ID || "eumgil-web",
-      clientSecret: env.AUTH_KEYCLOAK_SECRET || "eumgil-local-dev-secret",
+      clientId: KEYCLOAK_CLIENT_ID,
+      clientSecret: KEYCLOAK_CLIENT_SECRET,
       issuer: KEYCLOAK_ISSUER,
     }),
   ],
   callbacks: {
     // 로그인 직후 Keycloak token/profile 에서 앱에 필요한 claim 을 Auth.js 내부 JWT 로 정규화한다.
     // access/id/refresh token 은 서버 쿠키(JWE) 안에만 보관하고, client session 으로는 내보내지 않는다.
-    jwt({ token, account, profile }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.sub = profile?.sub ?? token.sub;
         token.accessToken = account.access_token;
@@ -77,6 +123,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessTokenExpiresAt = account.expires_at;
         token.roles = rolesFromProfile(profile);
       }
+      const expiresAt = typeof token.accessTokenExpiresAt === "number" ? token.accessTokenExpiresAt : 0;
+      if (expiresAt > Math.floor(Date.now() / 1000) + TOKEN_REFRESH_MARGIN_SECONDS) return token;
+      if (token.refreshToken) return refreshAccessToken(token);
       return token;
     },
     // 브라우저가 읽는 세션에는 식별자와 표시 정보, 권한만 둔다. 민감한 provider token 은 제외한다.
@@ -85,6 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (token.sub) session.user.id = token.sub;
         session.user.roles = stringArray(token.roles);
       }
+      session.authError = typeof token.error === "string" ? token.error : undefined;
       return session;
     },
   },

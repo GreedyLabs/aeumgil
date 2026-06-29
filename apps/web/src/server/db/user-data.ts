@@ -61,6 +61,33 @@ export async function setSavedTheme(
   }
 }
 
+/** 방문 기록 추가. 같은 장소를 여러 번 방문할 수 있으므로 append-only 로 둔다. */
+export async function createVisit(
+  db: Database,
+  userId: string,
+  input: { spotId: string; congestionThen: Congestion },
+): Promise<void> {
+  await db.insert(visits).values({
+    userId,
+    spotId: input.spotId,
+    congestionThen: input.congestionThen,
+  });
+}
+
+/** 리뷰 작성. 수정/삭제는 다음 단계에서 id 기준 액션으로 확장한다. */
+export async function createReview(
+  db: Database,
+  userId: string,
+  input: { spotId: string; rating: number; text: string },
+): Promise<void> {
+  await db.insert(reviews).values({
+    userId,
+    spotId: input.spotId,
+    rating: input.rating,
+    text: input.text,
+  });
+}
+
 /** YYYY-MM-DD (도메인 Review/Visit.date 형식). */
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);

@@ -2,6 +2,8 @@ import type { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
+    /** 서버 토큰 갱신 실패 등 클라이언트가 재로그인을 유도할 때 쓰는 비민감 오류 코드. */
+    authError?: string;
     user?: DefaultSession["user"] & {
       /** Keycloak subject(sub). 앱 DB 의 user_id 로 사용한다. */
       id?: string;
@@ -23,5 +25,7 @@ declare module "next-auth/jwt" {
     refreshToken?: string;
     /** access token 만료 epoch seconds. */
     accessTokenExpiresAt?: number;
+    /** 서버 토큰 갱신 실패 등 비민감 오류 코드. */
+    error?: string;
   }
 }
