@@ -23,6 +23,7 @@ import type {
   User,
   Visit,
 } from "./types";
+import type { ComposeCourseOptions } from "./course-compose";
 
 export interface Repository {
   // ── 테마 ──
@@ -39,7 +40,7 @@ export interface Repository {
   getAlternatives(spotId: string): Promise<Spot[]>;
 
   // ── 코스 / 식음·숙박 ──
-  getCourse(themeId: string): Promise<Course | null>;
+  getCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null>;
   getEat(id: string): Promise<Eat | null>;
   getStay(id: string): Promise<Stay | null>;
   listEats(): Promise<Eat[]>;

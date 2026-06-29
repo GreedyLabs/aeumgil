@@ -69,6 +69,9 @@ export interface Spot {
   reviewCount: number;
   tags: LocalizedText[];
   description?: LocalizedText;
+  /** 코스 생성/이동거리 근사용 좌표. 없으면 권역 기반 점수만 사용한다. */
+  lat?: number;
+  lon?: number;
 }
 
 // ── 음식점 / 숙박 ─────────────────────────

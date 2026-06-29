@@ -12,8 +12,9 @@
 // C단계에서 RealLlmProvider(키 필요)를 추가하면 이 파일의 인터페이스만 구현하면 된다.
 // ─────────────────────────────────────────────
 
+import { env } from "@/lib/env";
 import { L } from "@/lib/i18n";
-import type { AgentStep, LlmDecideInput, LlmDecision, LlmProvider } from "./types";
+import type { AgentStep, FinalAnswer, LlmDecideInput, LlmDecision, LlmProvider } from "./types";
 
 // ── 1) 스크립트 재생 대역 ─────────────────────
 
@@ -151,11 +152,36 @@ function reorderedDay(trace: AgentStep[], day: number): boolean {
   return trace.some((s) => s.tool === "reorder_by_congestion" && Number(s.args["day"]) === day);
 }
 
+function changedReorderCount(trace: AgentStep[]): number {
+  return trace.filter(
+    (s) => s.tool === "reorder_by_congestion" && s.ok && (s.result as { changed?: boolean }).changed,
+  ).length;
+}
+
+function alternativeKeyword(themeId: string, intent: string): string {
+  const text = `${themeId} ${intent}`;
+  if (/sea|beach|sunrise|바다|해변|일출/.test(text)) return "해변";
+  if (/market|local|시장|상권|항구/.test(text)) return "시장";
+  if (/mountain|trek|산|트레킹|숲/.test(text)) return "산";
+  if (/cafe|view|카페|전망/.test(text)) return "카페";
+  if (/family|experience|가족|체험/.test(text)) return "체험";
+  return "관광";
+}
+
+function poiNames(result: unknown): string[] {
+  if (!Array.isArray(result)) return [];
+  return result
+    .map((p) => (typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined))
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 3);
+}
+
 /**
  * 코스 정리 에이전트 대역.
  * [학습 메모] 흐름: get_course 로 코스를 받고 → 스팟이 있는 날마다 reorder_by_congestion 을
- * 호출해(혼잡 최소 재배치) → 끝낸다. "어느 날을 정리할지"는 이 루프(=LLM 자리)가 정하고,
- * 실제 재배치 계산은 reorder_by_congestion 도구(순수함수)가 한다 → 판단은 LLM, 수치는 코드.
+ * 호출해(혼잡 최소 재배치) → 변경이 있으면 search_pois 로 같은 테마 대체 후보를 한 번 찾고
+ * 끝낸다. "어느 날을 정리할지/대체 후보가 필요한지"는 이 루프(=LLM 자리)가 정하고,
+ * 실제 재배치 계산·POI 조회는 도구가 한다 → 판단은 LLM, 데이터와 수치는 코드.
  */
 export function heuristicItineraryProvider(): LlmProvider {
   return {
@@ -175,15 +201,26 @@ export function heuristicItineraryProvider(): LlmProvider {
         }
       }
 
-      // 3) 종료 — 재정렬 결과를 요약해 근거 생성
-      const changed = trace.filter(
-        (s) => s.tool === "reorder_by_congestion" && s.ok && (s.result as { changed?: boolean }).changed,
-      ).length;
+      // 3) 실제 재배치가 발생했다면 대체 후보도 한 번 탐색한다.
+      // 혼잡을 시간대로만 풀기 어려운 경우 사용자가 대체지 화면으로 넘어갈 근거가 된다.
+      const changed = changedReorderCount(trace);
+      if (changed > 0 && !called(trace, "search_pois")) {
+        return {
+          kind: "tool",
+          tool: { name: "search_pois", args: { keyword: alternativeKeyword(themeId, request.intent) } },
+        };
+      }
+
+      // 4) 종료 — 재정렬/대체 후보 결과를 요약해 근거 생성
+      const alternatives = poiNames(lastResult(trace, "search_pois"));
+      const altKo = alternatives.length > 0 ? ` 대체 후보로 ${alternatives.join(", ")}도 함께 확인했어요.` : "";
+      const altEn =
+        alternatives.length > 0 ? ` Also checked alternatives such as ${alternatives.join(", ")}.` : "";
       const rationale =
         changed > 0
           ? L(
-              `현재 혼잡 기준으로 ${changed}개 날의 동선을 더 한산한 시간대로 재배치했어요.`,
-              `Reordered ${changed} day(s) to quieter time slots based on current crowding.`,
+              `현재 혼잡 기준으로 ${changed}개 날의 동선을 더 한산한 시간대로 재배치했어요.${altKo}`,
+              `Reordered ${changed} day(s) to quieter time slots based on current crowding.${altEn}`,
             )
           : L(
               "현재 혼잡 기준으로 이미 잘 분산돼 있어 기존 순서를 유지했어요.",
@@ -192,4 +229,188 @@ export function heuristicItineraryProvider(): LlmProvider {
       return { kind: "final", final: { rationale } };
     },
   };
+}
+
+// ── 4) 실 LLM Provider (OpenAI-compatible Chat Completions) ──
+
+type FetchLike = (input: string, init: RequestInit) => Promise<Pick<Response, "ok" | "status" | "text">>;
+
+interface OpenAiChatProviderOptions {
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+  fetcher?: FetchLike;
+}
+
+interface ChatToolCall {
+  function?: { name?: string; arguments?: string };
+}
+
+interface ChatChoice {
+  message?: {
+    content?: string | null;
+    tool_calls?: ChatToolCall[];
+  };
+}
+
+interface ChatResponse {
+  choices?: ChatChoice[];
+}
+
+function toolSchema({ name, description, parameters }: LlmDecideInput["tools"][number]) {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+
+  for (const [key, p] of Object.entries(parameters)) {
+    const schema: Record<string, unknown> =
+      p.type === "string[]"
+        ? { type: "array", items: { type: "string" } }
+        : { type: p.type };
+    schema.description = p.description;
+    if (p.enum) schema.enum = p.enum;
+    properties[key] = schema;
+    if (p.required) required.push(key);
+  }
+
+  return {
+    type: "function",
+    function: {
+      name,
+      description,
+      parameters: {
+        type: "object",
+        properties,
+        required,
+        additionalProperties: false,
+      },
+    },
+  };
+}
+
+function parseArgs(raw: string | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  const parsed = JSON.parse(raw) as unknown;
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+}
+
+function parseFinal(content: string | null | undefined): LlmDecision {
+  if (!content) throw new Error("LLM final 응답이 비어 있습니다.");
+  const parsed = JSON.parse(content) as Partial<FinalAnswer>;
+  if (!parsed.rationale?.ko || !parsed.rationale?.en) {
+    throw new Error("LLM final 응답에 rationale.ko/en 이 없습니다.");
+  }
+  const altThemeIds = Array.isArray(parsed.altThemeIds)
+    ? parsed.altThemeIds.filter((id: unknown): id is string => typeof id === "string")
+    : [];
+  return {
+    kind: "final",
+    final: {
+      primaryThemeId: typeof parsed.primaryThemeId === "string" ? parsed.primaryThemeId : undefined,
+      altThemeIds,
+      rationale: parsed.rationale,
+    },
+  };
+}
+
+function compactTrace(trace: AgentStep[]) {
+  return trace.map((s) => ({
+    tool: s.tool,
+    args: s.args,
+    ok: s.ok,
+    error: s.error,
+    result: s.ok ? s.result : undefined,
+  }));
+}
+
+/**
+ * 실 LLM Provider.
+ *
+ * [학습 메모] 여기서도 LLM 에게 전체 권한을 주지 않는다. 모델은 Chat Completions 의
+ * tool_calls 로 "다음 도구 이름+인자"만 선택하고, 실제 실행/검증/중복 차단은 planner.ts 가 한다.
+ * 즉 실 LLM 은 heuristicProvider 를 대체하는 "판단 엔진"일 뿐, 시스템 경계는 그대로다.
+ */
+export function openAiChatProvider(options: OpenAiChatProviderOptions): LlmProvider {
+  const fetcher = options.fetcher ?? fetch;
+  const baseUrl = (options.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
+  const model = options.model ?? "gpt-4o-mini";
+
+  return {
+    async decide(input: LlmDecideInput): Promise<LlmDecision> {
+      const res = await fetcher(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${options.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          tools: input.tools.map(toolSchema),
+          tool_choice: "auto",
+          messages: [
+            {
+              role: "system",
+              content: [
+                "너는 에움길 강원 관광 추천 에이전트의 planner다.",
+                "반드시 제공된 도구만 호출한다.",
+                "도구가 더 필요하면 tool_calls 를 사용한다.",
+                "충분하면 JSON object 로만 최종 답을 낸다.",
+                "최종 JSON 형식: {\"primaryThemeId\":\"optional\",\"altThemeIds\":[],\"rationale\":{\"ko\":\"...\",\"en\":\"...\"}}",
+                "테마/스팟/코스 id 는 도구 결과에 있는 값만 사용한다.",
+              ].join("\n"),
+            },
+            {
+              role: "user",
+              content: JSON.stringify({
+                request: input.request,
+                trace: compactTrace(input.trace),
+                availableTools: input.tools.map((t) => ({
+                  name: t.name,
+                  description: t.description,
+                  parameters: t.parameters,
+                })),
+              }),
+            },
+          ],
+        }),
+      });
+
+      const text = await res.text();
+      if (!res.ok) throw new Error(`LLM 호출 실패(${res.status}): ${text.slice(0, 240)}`);
+
+      const data = JSON.parse(text) as ChatResponse;
+      const msg = data.choices?.[0]?.message;
+      const call = msg?.tool_calls?.[0];
+      const name = call?.function?.name;
+      if (name) {
+        return { kind: "tool", tool: { name, args: parseArgs(call.function?.arguments) } };
+      }
+      return parseFinal(msg?.content);
+    },
+  };
+}
+
+/** env 로 실 LLM 을 선택한다. 키가 없으면 기존 heuristic 을 유지한다. */
+export function courseProviderFromEnv(): LlmProvider {
+  if (env.EUMGIL_AGENT_LLM === "openai" && env.OPENAI_API_KEY) {
+    return openAiChatProvider({
+      apiKey: env.OPENAI_API_KEY,
+      model: env.OPENAI_MODEL,
+      baseUrl: env.OPENAI_BASE_URL,
+    });
+  }
+  return heuristicProvider();
+}
+
+/** 코스 정리용 provider 선택. 현재는 같은 OpenAI provider 를 쓰고, 키 없으면 heuristic. */
+export function itineraryProviderFromEnv(): LlmProvider {
+  if (env.EUMGIL_AGENT_LLM === "openai" && env.OPENAI_API_KEY) {
+    return openAiChatProvider({
+      apiKey: env.OPENAI_API_KEY,
+      model: env.OPENAI_MODEL,
+      baseUrl: env.OPENAI_BASE_URL,
+    });
+  }
+  return heuristicItineraryProvider();
 }

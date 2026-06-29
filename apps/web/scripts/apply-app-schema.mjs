@@ -182,6 +182,126 @@ async function ensureUserProfile() {
   await addPrimaryKey("user_profile", ["user_id"]);
 }
 
+async function ensureSpotProfile() {
+  await sql.unsafe(`
+    create table if not exists ${qTable("spot_profile")} (
+      spot_id text primary key,
+      name_ko text not null,
+      name_en text,
+      type_ko text not null,
+      type_en text,
+      region_ko text not null,
+      region_en text,
+      theme_ids jsonb not null default '[]'::jsonb,
+      tags_ko jsonb not null default '[]'::jsonb,
+      tags_en jsonb not null default '[]'::jsonb,
+      baseline_congestion text not null default 'moderate',
+      suitability integer not null default 70,
+      rating double precision not null default 0,
+      review_count integer not null default 0,
+      default_duration_min integer not null default 60,
+      lat double precision,
+      lon double precision,
+      env text not null default 'inland',
+      source text not null default 'seed',
+      source_content_id text,
+      updated_at timestamp not null default now()
+    )
+  `);
+  const columns = [
+    ["spot_id", "text"],
+    ["name_ko", "text"],
+    ["name_en", "text"],
+    ["type_ko", "text"],
+    ["type_en", "text"],
+    ["region_ko", "text"],
+    ["region_en", "text"],
+    ["theme_ids", "jsonb"],
+    ["tags_ko", "jsonb"],
+    ["tags_en", "jsonb"],
+    ["baseline_congestion", "text"],
+    ["suitability", "integer"],
+    ["rating", "double precision"],
+    ["review_count", "integer"],
+    ["default_duration_min", "integer"],
+    ["lat", "double precision"],
+    ["lon", "double precision"],
+    ["env", "text"],
+    ["source", "text"],
+    ["source_content_id", "text"],
+    ["updated_at", "timestamp"],
+  ];
+  for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("spot_profile")} add column if not exists ${quoteIdent(name)} ${type}`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set theme_ids = '[]'::jsonb where theme_ids is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set tags_ko = '[]'::jsonb where tags_ko is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set tags_en = '[]'::jsonb where tags_en is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set baseline_congestion = 'moderate' where baseline_congestion is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set suitability = 70 where suitability is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set rating = 0 where rating is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set review_count = 0 where review_count is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set default_duration_min = 60 where default_duration_min is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set env = 'inland' where env is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set source = 'seed' where source is null`);
+  await sql.unsafe(`update ${qTable("spot_profile")} set updated_at = now() where updated_at is null`);
+  for (const col of ["spot_id", "name_ko", "type_ko", "region_ko", "theme_ids", "tags_ko", "tags_en", "baseline_congestion", "suitability", "rating", "review_count", "default_duration_min", "env", "source", "updated_at"]) {
+    await setNotNullIfClean("spot_profile", col);
+  }
+  await addPrimaryKey("spot_profile", ["spot_id"]);
+}
+
+async function ensureCourseTemplate() {
+  await sql.unsafe(`
+    create table if not exists ${qTable("course_template")} (
+      id text primary key,
+      theme_id text not null,
+      title_ko text not null,
+      title_en text,
+      day_count integer not null,
+      alt_note_ko text,
+      alt_note_en text,
+      is_default boolean not null default true,
+      updated_at timestamp not null default now()
+    )
+  `);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists id text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists theme_id text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists title_ko text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists title_en text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists day_count integer`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists alt_note_ko text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists alt_note_en text`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists is_default boolean default true`);
+  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists updated_at timestamp default now()`);
+  await sql.unsafe(`update ${qTable("course_template")} set is_default = true where is_default is null`);
+  await sql.unsafe(`update ${qTable("course_template")} set updated_at = now() where updated_at is null`);
+  for (const col of ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"]) await setNotNullIfClean("course_template", col);
+  await addPrimaryKey("course_template", ["id"]);
+}
+
+async function ensureCourseTemplateItem() {
+  await sql.unsafe(`
+    create table if not exists ${qTable("course_template_item")} (
+      template_id text not null,
+      seq integer not null,
+      kind text not null,
+      day integer not null,
+      time text not null,
+      ref_id text not null,
+      duration_min integer,
+      primary key (template_id, seq)
+    )
+  `);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists template_id text`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists seq integer`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists kind text`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists day integer`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists time text`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists ref_id text`);
+  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists duration_min integer`);
+  for (const col of ["template_id", "seq", "kind", "day", "time", "ref_id"]) await setNotNullIfClean("course_template_item", col);
+  await addPrimaryKey("course_template_item", ["template_id", "seq"]);
+}
+
 console.log(`\n앱 DB 스키마 적용 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`);
 
 try {
@@ -194,6 +314,9 @@ try {
   await ensureVisit();
   await ensureOnboardingPreference();
   await ensureUserProfile();
+  await ensureSpotProfile();
+  await ensureCourseTemplate();
+  await ensureCourseTemplateItem();
   console.log(`${C.green}✓ 앱 도메인 테이블 준비 완료${C.reset}`);
 } catch (e) {
   console.error(`${C.red}✗ 적용 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);

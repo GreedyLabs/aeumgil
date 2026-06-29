@@ -9,6 +9,8 @@
 
 import { z } from "zod";
 
+const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
+
 const schema = z.object({
   // 앱
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
@@ -17,6 +19,8 @@ const schema = z.object({
   EUMGIL_DEBUG: z.string().optional(),
   /** 응답 캐시 파일 디렉터리 (기본: OS 임시). server/cache.ts */
   EUMGIL_CACHE_DIR: z.string().optional(),
+  /** 에이전트 LLM 선택. 기본 heuristic 은 키 없이 동작한다. */
+  EUMGIL_AGENT_LLM: z.enum(["heuristic", "openai"]).default("heuristic"),
 
   // 데이터베이스
   DATABASE_URL: z.string().optional(),
@@ -36,6 +40,11 @@ const schema = z.object({
   AUTH_KEYCLOAK_ID: z.string().optional(),
   AUTH_KEYCLOAK_SECRET: z.string().optional(),
   AUTH_KEYCLOAK_ISSUER: z.string().url().optional(),
+
+  // Agent C단계: OpenAI-compatible Chat Completions
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().optional(),
+  OPENAI_BASE_URL: optionalUrl,
 });
 
 const parsed = schema.safeParse(process.env);

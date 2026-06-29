@@ -10,6 +10,7 @@ import { DATA } from "@/design/data";
 import { L } from "@/lib/i18n";
 import { matchThemes } from "@/domain/matching";
 import type { Repository } from "@/domain/repository";
+import type { ComposeCourseOptions } from "@/domain/course-compose";
 import type {
   AuthProvider,
   Companion,
@@ -203,7 +204,7 @@ export class MockRepository implements Repository {
       .map(mapSpot);
   }
 
-  async getCourse(themeId: string): Promise<Course | null> {
+  async getCourse(themeId: string, _options?: ComposeCourseOptions): Promise<Course | null> {
     const c = (D.COURSES as Record<string, any>)[themeId];
     return c ? mapCourse(c) : null;
   }

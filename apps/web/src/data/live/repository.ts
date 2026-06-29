@@ -17,6 +17,7 @@
 
 import type { Course, CourseItem, Review, Spot, ThemeMatch, User, Visit } from "@/domain/types";
 import { getDb } from "@/server/db";
+import { fetchDefaultCourseTemplate, fetchSpotProfile, fetchSpotProfilesForTheme } from "@/server/db/course-catalog";
 import {
   computeStats,
   fetchOnboardingPreference,
@@ -29,6 +30,7 @@ import {
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
+import { composeCourse, type ComposeCourseOptions } from "@/domain/course-compose";
 import { getWeatherByCoords } from "@/server/public-api/kma";
 import { getAirForStation } from "@/server/public-api/airkorea";
 import { getItemDetail, listGangwonItems } from "@/server/public-api/tourapi";
@@ -38,7 +40,7 @@ import { createLogger } from "@/server/log";
 import { L, type LocalizedText } from "@/lib/i18n";
 import { buildTools } from "@/server/agent/tools";
 import { planCourse, planItinerary } from "@/server/agent/planner";
-import { heuristicProvider, heuristicItineraryProvider } from "@/server/agent/llm";
+import { courseProviderFromEnv, itineraryProviderFromEnv } from "@/server/agent/llm";
 import type { AgentStep, SpotMeta, ToolContext } from "@/server/agent/types";
 import { MockRepository } from "../mock/repository";
 import { getSpotMapping } from "./spot-mapping";
@@ -60,6 +62,20 @@ function nowKst(): Date {
 function minutesOf(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return Number.isFinite(h) ? (h as number) * 60 + (Number.isFinite(m) ? (m as number) : 0) : 720;
+}
+
+function poiNamesFromTrace(trace: AgentStep[]): string[] {
+  const step = [...trace].reverse().find((s) => s.tool === "search_pois" && s.ok);
+  if (!Array.isArray(step?.result)) return [];
+  return step.result
+    .map((p) => (typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined))
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 3);
+}
+
+function withSpotMappingCoords(spot: Spot): Spot {
+  const mapping = getSpotMapping(spot.id);
+  return mapping ? { ...spot, lat: mapping.lat, lon: mapping.lon } : spot;
 }
 
 /**
@@ -84,9 +100,18 @@ function applyReorderTrace(base: Course, trace: AgentStep[], rationale: Localize
     changed = true;
   }
 
-  if (!changed) return base;
+  const poiNames = poiNamesFromTrace(trace);
+  const altNote =
+    poiNames.length > 0
+      ? L(
+          `혼잡이 계속 높으면 같은 테마의 실시간 POI 후보(${poiNames.join(", ")})를 대체지로 검토할 수 있어요.`,
+          `If crowding stays high, consider live POI alternatives in the same theme: ${poiNames.join(", ")}.`,
+        )
+      : base.altNote;
+
+  if (!changed) return altNote === base.altNote ? base : { ...base, altNote };
   items.sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
-  return { ...base, items, reorderNote: rationale };
+  return { ...base, items, altNote, reorderNote: rationale };
 }
 
 export class LiveRepository extends MockRepository {
@@ -159,7 +184,7 @@ export class LiveRepository extends MockRepository {
 
   override async getSpot(id: string): Promise<Spot | null> {
     const base = await super.getSpot(id);
-    if (!base) return null;
+    if (!base) return this.getDbSpotProfile(id);
     return this.enrich(base);
   }
 
@@ -181,8 +206,8 @@ export class LiveRepository extends MockRepository {
    * 도구 결과(trace)를 base 코스에 반영(applyReorderTrace)할 뿐이다. 에이전트가 실패하면
    * 기존 결정형 재정렬(reorderCourseDeterministic)으로 무중단 폴백 → 화면은 늘 Course 를 받는다.
    */
-  override async getCourse(themeId: string): Promise<Course | null> {
-    const base = await super.getCourse(themeId);
+  override async getCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
+    const base = await this.composeSeedCourse(themeId, options);
     if (!base) return base;
 
     try {
@@ -190,7 +215,7 @@ export class LiveRepository extends MockRepository {
       const result = await planItinerary(
         { intent: `테마 ${themeId} 코스를 현재 혼잡 기준으로 정리`, lang: "ko", themeId, at: nowKst() },
         {
-          llm: heuristicItineraryProvider(), // ← C단계: RealLlmProvider 로 교체
+          llm: itineraryProviderFromEnv(),
           tools: buildTools(ctx),
           baseCourse: base,
           assemble: applyReorderTrace,
@@ -207,6 +232,79 @@ export class LiveRepository extends MockRepository {
       return result.course;
     } catch {
       return base;
+    }
+  }
+
+  /**
+   * 코스 생성 MVP — DB/시드 후보 기반 결정형 조합.
+   *
+   * [학습 메모] LLM 없이도 가능한 핵심 단계다. 기존 정적 코스는 "시간 슬롯 템플릿"으로만 쓰고,
+   * 실제 항목은 테마·혼잡·대체지·권역 기준으로 다시 고른다. 이후 DB 테이블이 생기면
+   * 여기서 읽는 후보 풀만 DB 쿼리로 바꾸고 `composeCourse` 순수 함수는 그대로 둔다.
+   */
+  private async composeSeedCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
+    const [theme, seedCourse, seedSpots, eats, stays] = await Promise.all([
+      super.getTheme(themeId),
+      super.getCourse(themeId),
+      super.listSpots(),
+      super.listEats(),
+      super.listStays(),
+    ]);
+    if (!theme) return null;
+    const baseCourse = (await this.getDbCourseTemplate(themeId)) ?? seedCourse;
+    const dbSpots = await this.getDbSpotProfilesForTheme(themeId);
+    const spots = dbSpots.length > 0 ? dbSpots : seedSpots.map(withSpotMappingCoords);
+
+    const spotIds = [...new Set((baseCourse?.items ?? []).filter((it) => it.kind === "spot").map((it) => it.refId))];
+    const altEntries: [string, Spot[]][] = await Promise.all(
+      spotIds.map(async (id) => {
+        const seedAlternatives = await super.getAlternatives(id);
+        const dbAlternatives = dbSpots.length > 0 ? dbSpots.filter((spot) => spot.id !== id) : [];
+        return [id, [...dbAlternatives, ...seedAlternatives.map(withSpotMappingCoords)]];
+      }),
+    );
+    const alternativesBySpot = Object.fromEntries(altEntries);
+
+    return composeCourse({
+      theme,
+      baseCourse,
+      spots,
+      eats,
+      stays,
+      alternativesBySpot,
+    }, options);
+  }
+
+  private async getDbSpotProfilesForTheme(themeId: string): Promise<Spot[]> {
+    const db = getDb();
+    if (!db) return [];
+    try {
+      return await fetchSpotProfilesForTheme(db, themeId);
+    } catch (e) {
+      log.warn(`spot profiles ${themeId} → seed fallback (${e instanceof Error ? e.message : String(e)})`);
+      return [];
+    }
+  }
+
+  private async getDbSpotProfile(spotId: string): Promise<Spot | null> {
+    const db = getDb();
+    if (!db) return null;
+    try {
+      return await fetchSpotProfile(db, spotId);
+    } catch (e) {
+      log.warn(`spot profile ${spotId} → null (${e instanceof Error ? e.message : String(e)})`);
+      return null;
+    }
+  }
+
+  private async getDbCourseTemplate(themeId: string): Promise<Course | null> {
+    const db = getDb();
+    if (!db) return null;
+    try {
+      return await fetchDefaultCourseTemplate(db, themeId);
+    } catch (e) {
+      log.warn(`course template ${themeId} → seed fallback (${e instanceof Error ? e.message : String(e)})`);
+      return null;
     }
   }
 
@@ -330,14 +428,14 @@ export class LiveRepository extends MockRepository {
   // "내부에서 누가 테마를 고르느냐"뿐 — 기존엔 키워드 규칙(super.matchThemes)이,
   // 이제는 LLM 에이전트(planCourse)가 도구를 호출해가며 고른다. 에이전트가 실패하면
   // 같은 키워드 규칙으로 무중단 폴백하므로, 화면은 어느 경로든 동일한 ThemeMatch 를 받는다.
-  // 현재 LLM 자리에는 키 없는 heuristicProvider 가 들어가 있다(C단계에서 RealLlmProvider 로 교체).
+  // 현재 LLM 자리는 env 로 선택한다. 기본은 키 없는 heuristic, EUMGIL_AGENT_LLM=openai 이면 실 LLM.
   // ───────────────────────────────────────────
   override async matchThemes(query: string): Promise<ThemeMatch> {
     const ctx = await this.buildAgentContext();
     const result = await planCourse(
       { intent: query, lang: "ko", at: nowKst() },
       {
-        llm: heuristicProvider(), // ← C단계: RealLlmProvider 로 교체
+        llm: courseProviderFromEnv(),
         tools: buildTools(ctx),
         // 폴백: 에이전트 실패 시 기존 키워드 규칙(MockRepository.matchThemes) 그대로 사용.
         fallback: async () => {
@@ -377,7 +475,7 @@ export class LiveRepository extends MockRepository {
     return {
       themes,
       spots,
-      getCourse: (themeId) => super.getCourse(themeId),
+      getCourse: (themeId) => this.composeSeedCourse(themeId),
       weather: async (meta) => {
         const w = await cached(`wx:${meta.id}`, TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
         return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: w.desc };

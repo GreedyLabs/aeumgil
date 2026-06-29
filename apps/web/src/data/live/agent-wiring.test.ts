@@ -43,19 +43,20 @@ describe("LiveRepository.getCourse — 코스 정리 에이전트(planItinerary)
     throw new Error("코스가 있는 테마가 없음(픽스처 문제)");
   }
 
-  it("코스 항목을 보존하면서(추가/삭제 없이) 정리된 Course 를 반환한다", async () => {
+  it("코스 항목 수를 유지하고 실제 후보 안의 refId 로 조합된 Course 를 반환한다", async () => {
     const live = new LiveRepository();
     const mock = new MockRepository();
     const themeId = await someThemeWithCourse(mock);
 
     const base = await mock.getCourse(themeId);
+    const [spots, eats, stays] = await Promise.all([mock.listSpots(), mock.listEats(), mock.listStays()]);
+    const validRefs = new Set([...spots.map((s) => s.id), ...eats.map((e) => e.id), ...stays.map((s) => s.id)]);
     const out = await live.getCourse(themeId);
 
     expect(out).not.toBeNull();
-    // 에이전트는 시각만 재배치할 뿐, 항목 집합(refId)은 그대로여야 한다(헛것·누락 금지).
+    // 코스 생성 엔진은 대체지/권역 기준으로 refId 를 바꿀 수 있지만, 헛것을 만들면 안 된다.
     expect(out!.items.length).toBe(base!.items.length);
-    const sortIds = (c: { items: { refId: string }[] }) => c.items.map((i) => i.refId).sort();
-    expect(sortIds(out!)).toEqual(sortIds(base!));
+    for (const item of out!.items) expect(validRefs.has(item.refId)).toBe(true);
   });
 
   it("없는 테마는 null 을 반환한다", async () => {

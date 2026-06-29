@@ -109,6 +109,13 @@ export function CourseView({ theme, course, spots, eats, stays, initiallySaved, 
         </div>
       )}
 
+      {course.altNote && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 20px 14px", padding: "10px 12px", background: "var(--paper)", border: "1px solid var(--line-2)", borderRadius: "var(--r-md)", fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+          <Icon.refresh />
+          <span>{localized(course.altNote, lang)}</span>
+        </div>
+      )}
+
       {course.dayCount > 1 && (
         <div style={{ display: "flex", gap: 6, padding: "0 20px 10px" }}>
           {Array.from({ length: course.dayCount }).map((_, i) => {

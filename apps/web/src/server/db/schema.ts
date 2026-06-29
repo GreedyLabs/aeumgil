@@ -10,7 +10,17 @@
 // 안정적인 subject 를 외래 사용자 식별자로 보관한다. 이 방식이 여러 서비스 운영에 유리하다.
 // ─────────────────────────────────────────────
 
-import { integer, jsonb, pgSchema, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  doublePrecision,
+  integer,
+  jsonb,
+  pgSchema,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 // 대상 스키마: DATABASE_SCHEMA(없거나 "public" 이면 기본 public).
 // public 이 아니면 pgSchema(name).table 로 해당 스키마에 정의한다.
@@ -80,4 +90,71 @@ export const userProfiles = table("user_profile", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
-export const schema = { savedThemes, reviews, visits, onboardingPreferences, userProfiles };
+/**
+ * 관광지 생성 후보 프로필.
+ *
+ * TourAPI 등 외부 원천에서 가져온 POI를 앱의 코스 생성 엔진이 쓸 수 있게 보강한 테이블이다.
+ * spot_id 는 큐레이션/외부 contentId/내부 slug 중 하나로 정규화된 앱 식별자이며, FK 는 걸지 않는다.
+ */
+export const spotProfiles = table("spot_profile", {
+  spotId: text("spot_id").primaryKey(),
+  nameKo: text("name_ko").notNull(),
+  nameEn: text("name_en"),
+  typeKo: text("type_ko").notNull(),
+  typeEn: text("type_en"),
+  regionKo: text("region_ko").notNull(),
+  regionEn: text("region_en"),
+  themeIds: jsonb("theme_ids").$type<string[]>().notNull().default([]),
+  tagsKo: jsonb("tags_ko").$type<string[]>().notNull().default([]),
+  tagsEn: jsonb("tags_en").$type<string[]>().notNull().default([]),
+  baselineCongestion: text("baseline_congestion").notNull().default("moderate"),
+  suitability: integer("suitability").notNull().default(70),
+  rating: doublePrecision("rating").notNull().default(0),
+  reviewCount: integer("review_count").notNull().default(0),
+  defaultDurationMin: integer("default_duration_min").notNull().default(60),
+  lat: doublePrecision("lat"),
+  lon: doublePrecision("lon"),
+  env: text("env").notNull().default("inland"),
+  source: text("source").notNull().default("seed"),
+  sourceContentId: text("source_content_id"),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/** 코스 템플릿 헤더 — 시간 슬롯과 제목을 제공하고, 실제 후보 조합은 composeCourse 가 수행한다. */
+export const courseTemplates = table("course_template", {
+  id: text("id").primaryKey(),
+  themeId: text("theme_id").notNull(),
+  titleKo: text("title_ko").notNull(),
+  titleEn: text("title_en"),
+  dayCount: integer("day_count").notNull(),
+  altNoteKo: text("alt_note_ko"),
+  altNoteEn: text("alt_note_en"),
+  isDefault: boolean("is_default").notNull().default(true),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/** 코스 템플릿 항목 — kind/ref_id 는 앱 도메인 id 이며, composer 가 필요 시 교체한다. */
+export const courseTemplateItems = table(
+  "course_template_item",
+  {
+    templateId: text("template_id").notNull(),
+    seq: integer("seq").notNull(),
+    kind: text("kind").notNull(),
+    day: integer("day").notNull(),
+    time: text("time").notNull(),
+    refId: text("ref_id").notNull(),
+    durationMin: integer("duration_min"),
+  },
+  (t) => [primaryKey({ columns: [t.templateId, t.seq] })],
+);
+
+export const schema = {
+  savedThemes,
+  reviews,
+  visits,
+  onboardingPreferences,
+  userProfiles,
+  spotProfiles,
+  courseTemplates,
+  courseTemplateItems,
+};

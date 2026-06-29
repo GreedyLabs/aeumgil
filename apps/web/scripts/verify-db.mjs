@@ -34,6 +34,20 @@ const EXPECTED = {
   visit: ["id", "user_id", "spot_id", "visited_at", "congestion_then"],
   onboarding_preference: ["user_id", "interest_theme_ids", "pace_id", "companion_id", "updated_at"],
   user_profile: ["user_id", "display_name", "bio", "updated_at"],
+  spot_profile: [
+    "spot_id",
+    "name_ko",
+    "type_ko",
+    "region_ko",
+    "theme_ids",
+    "tags_ko",
+    "baseline_congestion",
+    "suitability",
+    "default_duration_min",
+    "env",
+  ],
+  course_template: ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"],
+  course_template_item: ["template_id", "seq", "kind", "day", "time", "ref_id"],
 };
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 const masked = URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");

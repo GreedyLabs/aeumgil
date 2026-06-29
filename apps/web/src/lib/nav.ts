@@ -29,8 +29,14 @@ export function urlFor(name: string, params: NavParams = {}): string {
       const s = qs.toString();
       return `/theme/${enc(params.themeId)}${s ? `?${s}` : ""}`;
     }
-    case "course":
-      return `/course/${enc(params.themeId)}`;
+    case "course": {
+      const qs = new URLSearchParams();
+      for (const key of ["days", "pace", "companion", "startRegion"]) {
+        if (params[key]) qs.set(key, String(params[key]));
+      }
+      const s = qs.toString();
+      return `/course/${enc(params.themeId)}${s ? `?${s}` : ""}`;
+    }
     case "spot":
       return `/spot/${enc(params.spotId)}`;
     case "alternative": {

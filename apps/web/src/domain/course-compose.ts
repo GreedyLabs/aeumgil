@@ -1,0 +1,351 @@
+// ─────────────────────────────────────────────
+// 시드/DB 후보 기반 코스 생성 MVP.
+//
+// [학습 메모] LLM 없이도 코스 생성의 핵심은 결정형 엔진으로 먼저 세울 수 있다.
+// 이 함수는 "테마/POI/식당/숙소 후보 풀"을 받아 코스를 조합한다. 지금은 mock 시드가
+// 후보 풀이지만, 나중에 DB 테이블에서 읽어온 데이터로 바뀌어도 함수 계약은 유지된다.
+//
+// MVP 범위:
+//   - 기존 큐레이션 코스는 시간 슬롯 템플릿으로 사용한다.
+//   - 혼잡한 스팟은 같은 테마/권역 대체 후보 중 점수가 높은 곳으로 교체한다.
+//   - 식당/숙소는 같은 날 스팟 권역에 맞춰 다시 고른다.
+//   - baseCourse 가 없으면 후보 스팟 상위 N개로 간단한 당일/1박 코스를 생성한다.
+// ─────────────────────────────────────────────
+
+import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "./types";
+import { L, localized } from "@/lib/i18n";
+
+export interface ComposeCourseInput {
+  theme: Theme;
+  baseCourse?: Course | null;
+  spots: Spot[];
+  eats: Eat[];
+  stays: Stay[];
+  /** 원본 spotId → 같은 테마/인근 대체 후보 */
+  alternativesBySpot?: Record<string, Spot[]>;
+  /** baseCourse 가 없을 때 생성할 일수. 기본은 테마 duration 에서 추정. */
+  dayCount?: number;
+}
+
+export interface ComposeCourseOptions {
+  /** 혼잡 회피 우선. 기본 true. */
+  avoidBusy?: boolean;
+  /** 원하는 여행 일수. base 템플릿이 없을 때 우선 적용. */
+  days?: number;
+  /** 여행 페이스. calm=적게/여유롭게, active=더 많이 배치. */
+  pace?: string;
+  /** 동행 유형. family 는 체험/실내/안전 후보를 약간 우선한다. */
+  companion?: string;
+  /** 시작 권역. 후보 점수에서 해당 권역을 우선한다. */
+  startRegion?: string;
+  /** 하루에 배치할 최대 스팟 수. 기본 3. */
+  maxSpotsPerDay?: number;
+}
+
+interface NormalizedComposeOptions {
+  avoidBusy: boolean;
+  days?: number;
+  pace?: string;
+  companion?: string;
+  startRegion?: string;
+  maxSpotsPerDay: number;
+}
+
+const DEFAULT_TIMES = ["10:00", "14:00", "16:30"];
+
+function congestionScore(spot: Spot): number {
+  if (spot.congestion === "calm") return 24;
+  if (spot.congestion === "moderate") return 8;
+  return -28;
+}
+
+function textBag(...parts: string[]): string {
+  return parts.join(" ").toLowerCase();
+}
+
+function themeText(theme: Theme): string {
+  return textBag(
+    localized(theme.title, "ko"),
+    localized(theme.tag, "ko"),
+    localized(theme.region, "ko"),
+    ...theme.mood.map((m) => localized(m, "ko")),
+  );
+}
+
+function spotText(spot: Spot): string {
+  return textBag(
+    localized(spot.name, "ko"),
+    localized(spot.type, "ko"),
+    localized(spot.region, "ko"),
+    ...spot.tags.map((t) => localized(t, "ko")),
+  );
+}
+
+function keywordOverlapScore(theme: Theme, spot: Spot): number {
+  const src = themeText(theme);
+  const target = spotText(spot);
+  const tokens = src.split(/\s+|·|,|\//).map((t) => t.trim()).filter((t) => t.length >= 2);
+  const unique = [...new Set(tokens)];
+  return unique.reduce((sum, token) => sum + (target.includes(token) ? 14 : 0), 0);
+}
+
+function regionOfSpot(spotsById: Map<string, Spot>, id: string): string | undefined {
+  const spot = spotsById.get(id);
+  return spot ? localized(spot.region, "ko") : undefined;
+}
+
+function scoreSpot(
+  theme: Theme,
+  spot: Spot,
+  original: Spot | undefined,
+  options: NormalizedComposeOptions,
+): number {
+  const sameRegion = original && localized(original.region, "ko") === localized(spot.region, "ko") ? 10 : 0;
+  const originalBias = original?.id === spot.id ? 4 : 0;
+  const crowd = options.avoidBusy ? congestionScore(spot) : 0;
+  const distance = original ? distancePenalty(original, spot) : 0;
+  return (
+    spot.suitability +
+    crowd +
+    keywordOverlapScore(theme, spot) +
+    sameRegion +
+    originalBias +
+    spot.rating +
+    preferenceScore(spot, options) -
+    distance
+  );
+}
+
+function hasCoords(spot: Spot): spot is Spot & { lat: number; lon: number } {
+  return typeof spot.lat === "number" && typeof spot.lon === "number";
+}
+
+function distanceKm(a: Spot, b: Spot): number | null {
+  if (!hasCoords(a) || !hasCoords(b)) return null;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const r = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * 대체지는 "좋지만 너무 먼 곳"보다 "조금 덜 좋아도 같은 동선 안의 곳"이 낫다.
+ * 실제 길찾기 API 전 단계에서는 직선거리로 1차 근사한다.
+ */
+function distancePenalty(original: Spot, candidate: Spot): number {
+  if (original.id === candidate.id) return 0;
+  const km = distanceKm(original, candidate);
+  if (km === null) return 0;
+  if (km <= 8) return 0;
+  return Math.min(34, (km - 8) * 0.9);
+}
+
+function preferenceScore(spot: Spot, options: NormalizedComposeOptions): number {
+  let score = 0;
+  const region = localized(spot.region, "ko");
+  const tags = spot.tags.map((tag) => localized(tag, "ko")).join(" ");
+  const type = localized(spot.type, "ko");
+
+  if (options.startRegion && region.includes(options.startRegion)) score += 18;
+
+  if (options.companion === "family") {
+    if (/가족|체험|실내|안전|목장|박물관/.test(`${tags} ${type}`)) score += 14;
+    if (/트레킹|등산|체력/.test(`${tags} ${type}`)) score -= 8;
+  }
+
+  if (options.pace === "calm") {
+    if (spot.congestion === "busy") score -= 12;
+    if (/한적|숲|산책|명상/.test(`${tags} ${type}`)) score += 8;
+  } else if (options.pace === "active") {
+    if (/트레킹|전망|시장|체험/.test(`${tags} ${type}`)) score += 8;
+  }
+
+  return score;
+}
+
+function uniqueById(spots: Spot[]): Spot[] {
+  const seen = new Set<string>();
+  const out: Spot[] = [];
+  for (const s of spots) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push(s);
+  }
+  return out;
+}
+
+function pickSpotForSlot(
+  theme: Theme,
+  original: Spot | undefined,
+  alternatives: Spot[],
+  used: Set<string>,
+  options: NormalizedComposeOptions,
+): Spot | undefined {
+  const candidates = uniqueById([...(original ? [original] : []), ...alternatives]).filter(
+    (s) => !used.has(s.id) || s.id === original?.id,
+  );
+  if (candidates.length === 0) return original;
+  return candidates.sort((a, b) => scoreSpot(theme, b, original, options) - scoreSpot(theme, a, original, options))[0];
+}
+
+function pickByRegion<T extends Eat | Stay>(items: T[], region: string | undefined, used: Set<string>): T | undefined {
+  if (items.length === 0) return undefined;
+  const available = items.filter((it) => !used.has(it.id));
+  const pool = available.length > 0 ? available : items;
+  return [...pool].sort((a, b) => {
+    const aRegion = localized(a.region, "ko") === region ? 1 : 0;
+    const bRegion = localized(b.region, "ko") === region ? 1 : 0;
+    return bRegion - aRegion || b.rating - a.rating;
+  })[0];
+}
+
+function inferDayCount(theme: Theme): number {
+  const duration = localized(theme.duration, "ko");
+  if (duration.includes("2일")) return 2;
+  if (duration.includes("3일")) return 3;
+  return 1;
+}
+
+function spotsPerDayForPace(pace: string | undefined): number {
+  if (pace === "calm") return 2;
+  if (pace === "active") return 4;
+  return 3;
+}
+
+function minutesOf(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return Number.isFinite(h) ? (h as number) * 60 + (Number.isFinite(m) ? (m as number) : 0) : 720;
+}
+
+function sortItems(items: CourseItem[]): CourseItem[] {
+  return [...items].sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
+}
+
+function note(changedSpotIds: string[], changedCommerce: boolean): Course["altNote"] {
+  if (changedSpotIds.length === 0 && !changedCommerce) return undefined;
+  const koParts: string[] = [];
+  const enParts: string[] = [];
+  if (changedSpotIds.length > 0) {
+    koParts.push(`혼잡도가 높은 ${changedSpotIds.length}개 장소를 같은 테마의 후보지로 교체`);
+    enParts.push(`swapped ${changedSpotIds.length} crowded stop(s) for same-theme alternatives`);
+  }
+  if (changedCommerce) {
+    koParts.push("식사·숙박을 이동 권역에 맞춰 재배치");
+    enParts.push("reselected meals/stays by route region");
+  }
+  return L(`코스 생성 엔진: ${koParts.join(", ")}했어요.`, `Course composer ${enParts.join(" and ")}.`);
+}
+
+function composeFromTemplate(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
+  const base = input.baseCourse as Course;
+  const spotsById = new Map(input.spots.map((s) => [s.id, s]));
+  const usedSpots = new Set<string>();
+  const usedEats = new Set<string>();
+  const usedStays = new Set<string>();
+  const changedSpotIds: string[] = [];
+  let changedCommerce = false;
+
+  const spotRegionByDay = new Map<number, string>();
+  const firstPass: CourseItem[] = base.items.map((it) => {
+    if (it.kind !== "spot") return { ...it };
+    const original = spotsById.get(it.refId);
+    const picked = pickSpotForSlot(
+      input.theme,
+      original,
+      input.alternativesBySpot?.[it.refId] ?? [],
+      usedSpots,
+      options,
+    );
+    if (!picked) return { ...it };
+    usedSpots.add(picked.id);
+    if (!spotRegionByDay.has(it.day)) spotRegionByDay.set(it.day, localized(picked.region, "ko"));
+    if (picked.id !== it.refId) changedSpotIds.push(it.refId);
+    return { ...it, refId: picked.id };
+  });
+
+  const items = firstPass.map((it) => {
+    if (it.kind === "eat") {
+      const region = spotRegionByDay.get(it.day) ?? regionOfSpot(spotsById, firstPass.find((x) => x.day === it.day && x.kind === "spot")?.refId ?? "");
+      const picked = pickByRegion(input.eats, region, usedEats);
+      if (!picked) return it;
+      usedEats.add(picked.id);
+      if (picked.id !== it.refId) changedCommerce = true;
+      return { ...it, refId: picked.id };
+    }
+    if (it.kind === "stay") {
+      const region = spotRegionByDay.get(it.day);
+      const picked = pickByRegion(input.stays, region, usedStays);
+      if (!picked) return it;
+      usedStays.add(picked.id);
+      if (picked.id !== it.refId) changedCommerce = true;
+      return { ...it, refId: picked.id };
+    }
+    return it;
+  });
+
+  return {
+    ...base,
+    altNote: note(changedSpotIds, changedCommerce) ?? base.altNote,
+    items: sortItems(items),
+  };
+}
+
+function composeFromScratch(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
+  const dayCount = options.days ?? input.dayCount ?? inferDayCount(input.theme);
+  const maxSpots = dayCount * options.maxSpotsPerDay;
+  const pickedSpots = [...input.spots]
+    .sort((a, b) => scoreSpot(input.theme, b, undefined, options) - scoreSpot(input.theme, a, undefined, options))
+    .slice(0, maxSpots);
+
+  const usedEats = new Set<string>();
+  const usedStays = new Set<string>();
+  const items: CourseItem[] = [];
+
+  for (let i = 0; i < pickedSpots.length; i++) {
+    const day = Math.floor(i / options.maxSpotsPerDay) + 1;
+    const slot = i % options.maxSpotsPerDay;
+    const spot = pickedSpots[i]!;
+    items.push({ kind: "spot", day, time: DEFAULT_TIMES[slot] ?? "16:30", refId: spot.id, durationMin: slot === 0 ? 90 : 60 });
+    if (slot === 0) {
+      const eat = pickByRegion(input.eats, localized(spot.region, "ko"), usedEats);
+      if (eat) {
+        usedEats.add(eat.id);
+        items.push({ kind: "eat", day, time: "12:30", refId: eat.id });
+      }
+    }
+    if (day < dayCount && slot === options.maxSpotsPerDay - 1) {
+      const stay = pickByRegion(input.stays, localized(spot.region, "ko"), usedStays);
+      if (stay) {
+        usedStays.add(stay.id);
+        items.push({ kind: "stay", day, time: "18:30", refId: stay.id });
+      }
+    }
+  }
+
+  return {
+    themeId: input.theme.id,
+    title: L(`${localized(input.theme.title, "ko")} 맞춤 코스`, `${localized(input.theme.title, "en")} custom itinerary`),
+    dayCount,
+    altNote: L("코스 생성 엔진: 후보 POI·식사·숙박을 테마와 권역 기준으로 조합했어요.", "Course composer assembled stops, meals, and stays by theme and region."),
+    items: sortItems(items),
+  };
+}
+
+export function composeCourse(input: ComposeCourseInput, options: ComposeCourseOptions = {}): Course | null {
+  const normalized: NormalizedComposeOptions = {
+    avoidBusy: options.avoidBusy ?? true,
+    days: options.days,
+    pace: options.pace,
+    companion: options.companion,
+    startRegion: options.startRegion,
+    maxSpotsPerDay: options.maxSpotsPerDay ?? spotsPerDayForPace(options.pace),
+  };
+
+  if (input.baseCourse) return composeFromTemplate(input, normalized);
+  if (input.spots.length === 0) return null;
+  return composeFromScratch(input, normalized);
+}

@@ -2,17 +2,40 @@ import { notFound } from "next/navigation";
 import { setThemeSavedAction } from "@/app/actions/saved";
 import { CourseView } from "@/components/screens/course";
 import { getRepository } from "@/data";
+import type { ComposeCourseOptions } from "@/domain/course-compose";
 import type { Eat, Spot, Stay } from "@/domain/types";
+import { str, type SearchParams } from "@/lib/search-params";
 
 const uniq = (arr: string[]) => [...new Set(arr)];
 
-export default async function CoursePage({ params }: { params: Promise<{ id: string }> }) {
+function courseOptions(sp: Awaited<SearchParams>): ComposeCourseOptions {
+  const daysRaw = Number(str(sp.days));
+  const options: ComposeCourseOptions = {};
+  if (Number.isInteger(daysRaw) && daysRaw >= 1 && daysRaw <= 5) options.days = daysRaw;
+  const pace = str(sp.pace);
+  if (pace) options.pace = pace;
+  const companion = str(sp.companion);
+  if (companion) options.companion = companion;
+  const startRegion = str(sp.startRegion);
+  if (startRegion) options.startRegion = startRegion;
+  return options;
+}
+
+export default async function CoursePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const options = courseOptions(sp);
   const repo = getRepository();
 
   const [theme, course, savedThemeIds] = await Promise.all([
     repo.getTheme(id),
-    repo.getCourse(id),
+    repo.getCourse(id, options),
     repo.listSavedThemeIds(),
   ]);
   if (!theme || !course) notFound();
