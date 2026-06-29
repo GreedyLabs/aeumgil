@@ -9,7 +9,7 @@
 //     앱 DB 에 저장되는 서비스 데이터(저장/리뷰/방문)와 통계만 책임진다 → 관심사 분리.
 // ─────────────────────────────────────────────
 
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import type { Database } from "./index";
 import { onboardingPreferences, reviews, savedThemes, userProfiles, visits } from "./schema";
 import { L } from "@/lib/i18n";
@@ -176,12 +176,36 @@ export async function deleteVisit(db: Database, userId: string, id: string): Pro
   await db.delete(visits).where(and(eq(visits.userId, userId), eq(visits.id, id)));
 }
 
-/** 리뷰 작성. */
+/**
+ * 리뷰 작성.
+ *
+ * 정책: 사용자 1명은 스팟 1개에 리뷰 1개만 가진다.
+ * 이미 작성한 리뷰가 있으면 새 행을 만들지 않고 최신 리뷰를 갱신한다.
+ * 과거에 중복 행이 생긴 경우에는 최신 1개를 남기고 나머지를 정리한다.
+ */
 export async function createReview(
   db: Database,
   userId: string,
   input: { spotId: string; rating: number; text: string },
 ): Promise<void> {
+  const [existing] = await db
+    .select({ id: reviews.id })
+    .from(reviews)
+    .where(and(eq(reviews.userId, userId), eq(reviews.spotId, input.spotId)))
+    .orderBy(desc(reviews.createdAt))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(reviews)
+      .set({ rating: input.rating, text: input.text, createdAt: new Date() })
+      .where(and(eq(reviews.userId, userId), eq(reviews.id, existing.id)));
+    await db
+      .delete(reviews)
+      .where(and(eq(reviews.userId, userId), eq(reviews.spotId, input.spotId), ne(reviews.id, existing.id)));
+    return;
+  }
+
   await db.insert(reviews).values({
     userId,
     spotId: input.spotId,

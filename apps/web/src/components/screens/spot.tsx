@@ -248,7 +248,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             />
             <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={submitReview} disabled={isPending}>
               <Icon.star />
-              {lang === "ko" ? "리뷰 저장" : "Save review"}
+              {lang === "ko" ? "리뷰 저장·갱신" : "Save or update review"}
             </button>
           </div>
         </div>
