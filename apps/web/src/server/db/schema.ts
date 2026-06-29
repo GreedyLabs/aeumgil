@@ -3,14 +3,14 @@
 //
 // Keycloak 전환 후 앱 DB 는 인증 원장을 갖지 않는다.
 // - 사용자/세션/소셜 계정/권한: Keycloak DB 의 책임.
-// - 에움길 서비스 데이터: 이 스키마의 saved_theme / review / visit 에 저장.
+// - 에움길 서비스 데이터: 이 스키마의 saved_theme / review / visit / onboarding_preference / user_profile 에 저장.
 // - user_id 는 Keycloak 토큰의 `sub` 클레임(문자열)이다. 외부 IdP 사용자라 FK 를 걸지 않는다.
 //
 // [학습 메모] 중앙 SSO 를 쓰면 각 서비스 DB 는 인증 테이블을 중복하지 않고, IdP 가 발급한
 // 안정적인 subject 를 외래 사용자 식별자로 보관한다. 이 방식이 여러 서비스 운영에 유리하다.
 // ─────────────────────────────────────────────
 
-import { integer, pgSchema, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgSchema, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 // 대상 스키마: DATABASE_SCHEMA(없거나 "public" 이면 기본 public).
 // public 이 아니면 pgSchema(name).table 로 해당 스키마에 정의한다.
@@ -60,4 +60,24 @@ export const visits = table("visit", {
   congestionThen: text("congestion_then"),
 });
 
-export const schema = { savedThemes, reviews, visits };
+/** 온보딩 선호 — 사용자별 최신 선호 1행. 추천 개인화 입력으로 사용한다. */
+export const onboardingPreferences = table("onboarding_preference", {
+  /** Keycloak user subject(sub) */
+  userId: text("user_id").primaryKey(),
+  /** 관심 테마 id 목록. 큐레이션 코드값이라 FK 는 걸지 않는다. */
+  interestThemeIds: jsonb("interest_theme_ids").$type<string[]>().notNull(),
+  paceId: text("pace_id").notNull(),
+  companionId: text("companion_id").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/** 앱 프로필 — Keycloak 신원 위에 얹는 서비스 표시 정보. */
+export const userProfiles = table("user_profile", {
+  /** Keycloak user subject(sub) */
+  userId: text("user_id").primaryKey(),
+  displayName: text("display_name").notNull(),
+  bio: text("bio").notNull().default(""),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const schema = { savedThemes, reviews, visits, onboardingPreferences, userProfiles };

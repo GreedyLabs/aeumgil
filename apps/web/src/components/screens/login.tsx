@@ -14,6 +14,7 @@ const REASON_COPY: Record<string, { ko: string; en: string }> = {
   save: { ko: "저장하려면 로그인이 필요해요", en: "Sign in to save places" },
   course: { ko: "내 코스를 만들려면 로그인이 필요해요", en: "Sign in to build your course" },
   review: { ko: "리뷰를 남기려면 로그인이 필요해요", en: "Sign in to write a review" },
+  onboarding: { ko: "관심사를 저장하려면 로그인이 필요해요", en: "Sign in to save your preferences" },
   profile: { ko: "내 여행 기록을 보려면 로그인하세요", en: "Sign in to see your trips" },
 };
 

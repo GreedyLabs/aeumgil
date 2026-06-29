@@ -1,6 +1,6 @@
 # Phase 4 — Keycloak SSO · 앱 DB(PostgreSQL) 셋업
 
-이 문서는 에움길을 **Keycloak 기반 SSO**에 붙이고, 앱 DB에는 저장/리뷰/방문 같은 서비스 데이터만
+이 문서는 에움길을 **Keycloak 기반 SSO**에 붙이고, 앱 DB에는 저장/리뷰/방문/온보딩 선호 같은 서비스 데이터만
 보관하는 기준 절차다.
 
 > 샌드박스에선 Keycloak·DB 실검증이 제한될 수 있다. 아래 검증은 로컬 실행 기준.
@@ -14,7 +14,7 @@
   → Kakao/Naver/Google 같은 외부 IdP 브로커링
 
 에움길 DB(PostgreSQL)
-  → saved_theme / review / visit
+  → saved_theme / review / visit / onboarding_preference / user_profile
   → user_id = Keycloak token 의 sub
 ```
 
@@ -31,8 +31,8 @@
 | --- | --- |
 | `apps/web/src/server/auth.ts` | Auth.js 설정. Keycloak provider 하나만 사용, 세션은 JWT 전략 |
 | `apps/web/src/types/next-auth.d.ts` | `session.user.id`(Keycloak sub)·`roles` 타입 확장 |
-| `apps/web/src/server/db/schema.ts` | 앱 도메인 테이블(saved_theme/review/visit). Auth.js adapter 테이블 없음 |
-| `apps/web/src/server/db/user-data.ts` | `(db, keycloakSub)` 기준 저장/리뷰/방문 조회·쓰기 |
+| `apps/web/src/server/db/schema.ts` | 앱 도메인 테이블(saved_theme/review/visit/onboarding_preference/user_profile). Auth.js adapter 테이블 없음 |
+| `apps/web/src/server/db/user-data.ts` | `(db, keycloakSub)` 기준 저장/리뷰/방문/온보딩 선호/앱 프로필 조회·쓰기 |
 | `apps/web/src/data/live/repository.ts` | `auth()` 세션의 `session.user.id`(Keycloak sub) → 앱 DB 조회 |
 | `apps/web/src/app/api/auth/[...nextauth]/route.ts` | `/api/auth/*` 핸들러 |
 
@@ -96,7 +96,7 @@ Auth.js
   - Keycloak roles → session.user.roles
 
 에움길 DB
-  - saved_theme/review/visit
+  - saved_theme/review/visit/onboarding_preference/user_profile
   - user_id = session.user.id = Keycloak sub
 ```
 
@@ -128,7 +128,17 @@ docker run --name eumgil-pg -e POSTGRES_PASSWORD=eumgil -e POSTGRES_DB=eumgil \
 
 ```bash
 pnpm --filter @eumgil/web verify:db
-pnpm --filter @eumgil/web db:push
+pnpm --filter @eumgil/web db:apply
+pnpm --filter @eumgil/web verify:db
+```
+
+`db:push`는 기존 DB 전체를 diff 하면서 `review`/`visit` primary key 제약을 건드릴 수 있다.
+이 프로젝트의 현재 로컬 개발 DB에는 `db:apply`를 기본 경로로 쓴다. 이 스크립트는 앱 도메인 테이블만
+`create/alter if not exists`로 생성·보정하고 기존 데이터를 drop 하지 않는다.
+
+```bash
+pnpm --filter @eumgil/web db:apply
+pnpm --filter @eumgil/web verify:db
 ```
 
 생성 대상 테이블:
@@ -136,6 +146,8 @@ pnpm --filter @eumgil/web db:push
 - `saved_theme`
 - `review`
 - `visit`
+- `onboarding_preference`
+- `user_profile`
 
 Auth.js의 `user/account/session/verificationToken` 테이블은 만들지 않는다.
 

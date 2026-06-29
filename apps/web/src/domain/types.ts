@@ -142,6 +142,13 @@ export interface User {
   stats: UserStats;
 }
 
+export interface OnboardingPreference {
+  interestThemeIds: string[];
+  paceId: string;
+  companionId: string;
+  updatedAt?: string;
+}
+
 export interface Grade {
   level: number;
   name: LocalizedText;
@@ -159,6 +166,8 @@ export interface Review {
 }
 
 export interface Visit {
+  /** DB 방문 기록 id. mock seed 에는 없을 수 있다. */
+  id?: string;
   spotId: string;
   date: string;
   congestionThen: Congestion;

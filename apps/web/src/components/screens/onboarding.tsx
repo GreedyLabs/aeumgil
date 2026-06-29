@@ -1,7 +1,8 @@
 "use client";
 
 // OnboardingView — Phase 4(부분). 3단계 온보딩(관심사→스타일→완료). 저장은 mock.
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { setOnboardingPreferenceAction } from "@/app/actions/onboarding";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -15,24 +16,41 @@ interface Props {
 }
 
 export function OnboardingView({ themes, paces, companions }: Props) {
-  const { lang, showToast } = useAppState();
+  const { lang, requireAuth, showToast } = useAppState();
   const { nav } = useAppNav();
 
   const [step, setStep] = useState(0);
   const [interests, setInterests] = useState<string[]>(["quiet-inland"]);
   const [pace, setPace] = useState("calm");
   const [companion, setCompanion] = useState("couple");
+  const [isPending, startTransition] = useTransition();
 
   const STEPS = 3;
   const toggleInterest = (id: string) =>
     setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const finish = () => {
-    showToast("관심사를 저장했어요");
+  const skip = () => {
     nav("home");
   };
+  const finish = () => {
+    requireAuth("onboarding", () => {
+      startTransition(async () => {
+        const res = await setOnboardingPreferenceAction({
+          interestThemeIds: interests,
+          paceId: pace,
+          companionId: companion,
+        });
+        if (!res.ok) {
+          showToast(res.error);
+          return;
+        }
+        showToast("관심사를 저장했어요");
+        nav("home");
+      });
+    });
+  };
   const next = () => (step < STEPS - 1 ? setStep(step + 1) : finish());
-  const canNext = step === 0 ? interests.length > 0 : true;
+  const canNext = (step === 0 ? interests.length > 0 : true) && !isPending;
 
   const selectedTags = interests
     .map((id) => themes.find((t) => t.id === id))
@@ -44,7 +62,7 @@ export function OnboardingView({ themes, paces, companions }: Props) {
   return (
     <div className="screen-enter" style={{ minHeight: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <div className="onb-top">
-        <button className="onb-back" onClick={() => (step === 0 ? finish() : setStep(step - 1))}>
+        <button className="onb-back" onClick={() => (step === 0 ? skip() : setStep(step - 1))}>
           {step === 0 ? <Icon.close /> : <Icon.back />}
         </button>
         <div className="onb-progress">
@@ -52,7 +70,7 @@ export function OnboardingView({ themes, paces, companions }: Props) {
             <span key={i} className={"onb-dot" + (i <= step ? " on" : "")} />
           ))}
         </div>
-        <button className="onb-skip" onClick={finish}>
+        <button className="onb-skip" onClick={skip}>
           {lang === "ko" ? "건너뛰기" : "Skip"}
         </button>
       </div>
@@ -164,7 +182,17 @@ export function OnboardingView({ themes, paces, companions }: Props) {
 
       <div className="onb-cta">
         <button className="btn btn-primary btn-block" disabled={!canNext} style={{ opacity: canNext ? 1 : 0.45 }} onClick={next}>
-          {step < STEPS - 1 ? (lang === "ko" ? "다음" : "Next") : lang === "ko" ? "강원도 둘러보기" : "Explore Gangwon"}
+          {step < STEPS - 1
+            ? lang === "ko"
+              ? "다음"
+              : "Next"
+            : isPending
+              ? lang === "ko"
+                ? "저장 중..."
+                : "Saving..."
+              : lang === "ko"
+                ? "강원도 둘러보기"
+                : "Explore Gangwon"}
         </button>
       </div>
     </div>

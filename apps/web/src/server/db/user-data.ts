@@ -11,9 +11,15 @@
 
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import type { Database } from "./index";
-import { reviews, savedThemes, visits } from "./schema";
+import { onboardingPreferences, reviews, savedThemes, userProfiles, visits } from "./schema";
 import { L } from "@/lib/i18n";
-import type { Congestion, Review, UserStats, Visit } from "@/domain/types";
+import type { Congestion, OnboardingPreference, Review, UserStats, Visit } from "@/domain/types";
+
+export interface UserProfileData {
+  displayName: string;
+  bio: string;
+  updatedAt?: string;
+}
 
 /** 저장/리뷰/방문 카운트 + 방문 권역 수(prefix 근사)로 UserStats 산출. */
 export async function computeStats(db: Database, userId: string): Promise<UserStats> {
@@ -61,6 +67,85 @@ export async function setSavedTheme(
   }
 }
 
+/** 온보딩 선호 조회. 없으면 null 을 돌려 mock 기본값을 유지하게 한다. */
+export async function fetchOnboardingPreference(db: Database, userId: string): Promise<OnboardingPreference | null> {
+  const [row] = await db
+    .select()
+    .from(onboardingPreferences)
+    .where(eq(onboardingPreferences.userId, userId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    interestThemeIds: row.interestThemeIds,
+    paceId: row.paceId,
+    companionId: row.companionId,
+    updatedAt: isoDate(row.updatedAt),
+  };
+}
+
+/** 온보딩 선호 저장. 사용자별 최신값 1행을 upsert 한다. */
+export async function setOnboardingPreference(
+  db: Database,
+  userId: string,
+  input: { interestThemeIds: string[]; paceId: string; companionId: string },
+): Promise<void> {
+  await db
+    .insert(onboardingPreferences)
+    .values({
+      userId,
+      interestThemeIds: input.interestThemeIds,
+      paceId: input.paceId,
+      companionId: input.companionId,
+    })
+    .onConflictDoUpdate({
+      target: onboardingPreferences.userId,
+      set: {
+        interestThemeIds: input.interestThemeIds,
+        paceId: input.paceId,
+        companionId: input.companionId,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/** 앱 프로필 조회. Keycloak 신원 위에 표시명/소개만 덮어쓰는 용도. */
+export async function fetchUserProfile(db: Database, userId: string): Promise<UserProfileData | null> {
+  const [row] = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    displayName: row.displayName,
+    bio: row.bio,
+    updatedAt: isoDate(row.updatedAt),
+  };
+}
+
+/** 앱 프로필 저장. 사용자별 최신값 1행을 upsert 한다. */
+export async function setUserProfile(
+  db: Database,
+  userId: string,
+  input: { displayName: string; bio: string },
+): Promise<void> {
+  await db
+    .insert(userProfiles)
+    .values({
+      userId,
+      displayName: input.displayName,
+      bio: input.bio,
+    })
+    .onConflictDoUpdate({
+      target: userProfiles.userId,
+      set: {
+        displayName: input.displayName,
+        bio: input.bio,
+        updatedAt: new Date(),
+      },
+    });
+}
+
 /** 방문 기록 추가. 같은 장소를 여러 번 방문할 수 있으므로 append-only 로 둔다. */
 export async function createVisit(
   db: Database,
@@ -74,7 +159,24 @@ export async function createVisit(
   });
 }
 
-/** 리뷰 작성. 수정/삭제는 다음 단계에서 id 기준 액션으로 확장한다. */
+/** 방문 기록 수정. userId 조건을 같이 걸어 소유자 범위를 보장한다. */
+export async function updateVisit(
+  db: Database,
+  userId: string,
+  input: { id: string; congestionThen: Congestion },
+): Promise<void> {
+  await db
+    .update(visits)
+    .set({ congestionThen: input.congestionThen })
+    .where(and(eq(visits.userId, userId), eq(visits.id, input.id)));
+}
+
+/** 방문 기록 삭제. userId 조건을 같이 걸어 소유자 범위를 보장한다. */
+export async function deleteVisit(db: Database, userId: string, id: string): Promise<void> {
+  await db.delete(visits).where(and(eq(visits.userId, userId), eq(visits.id, id)));
+}
+
+/** 리뷰 작성. */
 export async function createReview(
   db: Database,
   userId: string,
@@ -86,6 +188,23 @@ export async function createReview(
     rating: input.rating,
     text: input.text,
   });
+}
+
+/** 리뷰 수정. userId 조건을 같이 걸어 소유자 범위를 보장한다. */
+export async function updateReview(
+  db: Database,
+  userId: string,
+  input: { id: string; rating: number; text: string },
+): Promise<void> {
+  await db
+    .update(reviews)
+    .set({ rating: input.rating, text: input.text })
+    .where(and(eq(reviews.userId, userId), eq(reviews.id, input.id)));
+}
+
+/** 리뷰 삭제. userId 조건을 같이 걸어 소유자 범위를 보장한다. */
+export async function deleteReview(db: Database, userId: string, id: string): Promise<void> {
+  await db.delete(reviews).where(and(eq(reviews.userId, userId), eq(reviews.id, id)));
 }
 
 /** YYYY-MM-DD (도메인 Review/Visit.date 형식). */
@@ -118,6 +237,7 @@ export async function fetchVisits(db: Database, userId: string): Promise<Visit[]
     .where(eq(visits.userId, userId))
     .orderBy(desc(visits.visitedAt));
   return rows.map((r) => ({
+    id: r.id,
     spotId: r.spotId,
     date: isoDate(r.visitedAt),
     congestionThen: (r.congestionThen as Congestion | null) ?? "moderate",

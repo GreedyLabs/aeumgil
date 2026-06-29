@@ -8,7 +8,7 @@
 //      → 데모/`pnpm dev`(mock)·DB 미배포 환경 무중단 보장.
 
 import { describe, expect, it } from "vitest";
-import { fetchReviews, fetchVisits } from "@/server/db/user-data";
+import { fetchOnboardingPreference, fetchReviews, fetchUserProfile, fetchVisits } from "@/server/db/user-data";
 import type { Database } from "@/server/db";
 import { MockRepository } from "../mock/repository";
 import { LiveRepository } from "./repository";
@@ -24,6 +24,32 @@ function fakeDb(rows: unknown[]): Database {
 }
 
 describe("user-data 매핑", () => {
+  it("앱 프로필 행을 표시 프로필로 정규화한다", async () => {
+    const db = fakeDb([
+      { displayName: "에움길러", bio: "조용한 강원 여행", updatedAt: new Date("2026-06-29T03:00:00Z") },
+    ]);
+    const out = await fetchUserProfile(db, "u1");
+    expect(out).toEqual({ displayName: "에움길러", bio: "조용한 강원 여행", updatedAt: "2026-06-29" });
+  });
+
+  it("온보딩 선호 행을 도메인 OnboardingPreference 로 정규화한다", async () => {
+    const db = fakeDb([
+      {
+        interestThemeIds: ["quiet-inland", "food-market"],
+        paceId: "calm",
+        companionId: "couple",
+        updatedAt: new Date("2026-06-29T00:30:00Z"),
+      },
+    ]);
+    const out = await fetchOnboardingPreference(db, "u1");
+    expect(out).toEqual({
+      interestThemeIds: ["quiet-inland", "food-market"],
+      paceId: "calm",
+      companionId: "couple",
+      updatedAt: "2026-06-29",
+    });
+  });
+
   it("리뷰 행을 도메인 Review 로 정규화한다(ISO 날짜·필드 통과)", async () => {
     const db = fakeDb([
       { id: "r1", spotId: "sokcho-market", rating: 5, text: "좋아요", helpful: 3, createdAt: new Date("2026-06-01T09:30:00Z") },
@@ -36,11 +62,11 @@ describe("user-data 매핑", () => {
 
   it("방문 행을 정규화하고 congestionThen null 은 moderate 로 기본값 처리한다", async () => {
     const db = fakeDb([
-      { spotId: "dongmyeong-port", visitedAt: new Date("2026-05-20T01:00:00Z"), congestionThen: "busy" },
-      { spotId: "anmok-beach", visitedAt: new Date("2026-05-21T01:00:00Z"), congestionThen: null },
+      { id: "v1", spotId: "dongmyeong-port", visitedAt: new Date("2026-05-20T01:00:00Z"), congestionThen: "busy" },
+      { id: "v2", spotId: "anmok-beach", visitedAt: new Date("2026-05-21T01:00:00Z"), congestionThen: null },
     ]);
     const out = await fetchVisits(db, "u1");
-    expect(out[0]).toMatchObject({ spotId: "dongmyeong-port", date: "2026-05-20", congestionThen: "busy" });
+    expect(out[0]).toMatchObject({ id: "v1", spotId: "dongmyeong-port", date: "2026-05-20", congestionThen: "busy" });
     expect(out[1]!.congestionThen).toBe("moderate");
   });
 });

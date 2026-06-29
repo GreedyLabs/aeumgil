@@ -28,7 +28,13 @@ try {
   process.exit(1);
 }
 
-const EXPECTED = ["saved_theme", "review", "visit"];
+const EXPECTED = {
+  saved_theme: ["user_id", "theme_id", "saved_at"],
+  review: ["id", "user_id", "spot_id", "rating", "text", "helpful", "created_at"],
+  visit: ["id", "user_id", "spot_id", "visited_at", "congestion_then"],
+  onboarding_preference: ["user_id", "interest_theme_ids", "pace_id", "companion_id", "updated_at"],
+  user_profile: ["user_id", "display_name", "bio", "updated_at"],
+};
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 const masked = URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");
 console.log(`\nDB 연결 검증 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`);
@@ -38,18 +44,41 @@ try {
   const [info] = await sql`select version() as version`;
   console.log(`${C.green}✓ 연결 성공${C.reset}  ${C.gray}${String(info.version).split(",")[0]}${C.reset}`);
 
-  const rows = await sql`select table_name from information_schema.tables where table_schema = ${SCHEMA}`;
-  const present = new Set(rows.map((r) => r.table_name));
-  console.log(`\n테이블 상태 (${SCHEMA}):`);
-  for (const t of EXPECTED) {
-    console.log(present.has(t) ? `  ${C.green}✓ ${t}${C.reset}` : `  ${C.yellow}– ${t} (없음)${C.reset}`);
+  const rows = await sql`
+    select table_name, column_name
+    from information_schema.columns
+    where table_schema = ${SCHEMA}
+      and table_name in ${sql(Object.keys(EXPECTED))}
+    order by table_name, ordinal_position
+  `;
+  const present = new Map();
+  for (const r of rows) {
+    const cols = present.get(r.table_name) ?? new Set();
+    cols.add(r.column_name);
+    present.set(r.table_name, cols);
   }
-  const missing = EXPECTED.filter((t) => !present.has(t));
+  console.log(`\n테이블 상태 (${SCHEMA}):`);
+  const missing = [];
+  for (const [t, expectedColumns] of Object.entries(EXPECTED)) {
+    const cols = present.get(t);
+    if (!cols) {
+      missing.push(t);
+      console.log(`  ${C.yellow}– ${t} (없음)${C.reset}`);
+      continue;
+    }
+    const missingColumns = expectedColumns.filter((c) => !cols.has(c));
+    if (missingColumns.length > 0) {
+      missing.push(`${t}.${missingColumns.join(",")}`);
+      console.log(`  ${C.yellow}– ${t} (컬럼 누락: ${missingColumns.join(", ")})${C.reset}`);
+      continue;
+    }
+    console.log(`  ${C.green}✓ ${t}${C.reset}`);
+  }
   console.log(
     "\n" +
       (missing.length === 0
         ? `${C.green}모든 테이블 존재 — 스키마 적용 완료.${C.reset}`
-        : `${C.yellow}누락 ${missing.length}개 → ${C.cyan}pnpm --filter @eumgil/web db:push${C.reset}${C.yellow} 로 생성하세요.${C.reset}`),
+        : `${C.yellow}누락/불완전 ${missing.length}개 → ${C.cyan}pnpm --filter @eumgil/web db:apply${C.reset}${C.yellow} 로 보정하세요.${C.reset}`),
   );
 } catch (e) {
   console.error(`${C.red}✗ 연결/쿼리 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);

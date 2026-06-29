@@ -4,11 +4,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/server/auth";
 import { getDb } from "@/server/db";
-import { createReview, createVisit } from "@/server/db/user-data";
+import { createReview, createVisit, deleteReview, deleteVisit, updateReview, updateVisit } from "@/server/db/user-data";
 
 const spotIdSchema = z.string().min(1).max(80);
+const idSchema = z.string().min(1).max(80);
 const congestionSchema = z.enum(["calm", "moderate", "busy"]);
 const reviewSchema = z.object({
+  spotId: spotIdSchema,
+  rating: z.number().int().min(1).max(5),
+  text: z.string().trim().min(5).max(600),
+});
+const reviewUpdateSchema = z.object({
+  id: idSchema,
   spotId: spotIdSchema,
   rating: z.number().int().min(1).max(5),
   text: z.string().trim().min(5).max(600),
@@ -52,6 +59,54 @@ export async function createReviewAction(input: { spotId: string; rating: number
   if ("ok" in ctx) return ctx;
 
   await createReview(ctx.db, ctx.userId, parsed.data);
+  revalidateUserData(parsed.data.spotId);
+  return { ok: true };
+}
+
+export async function updateReviewAction(input: { id: string; spotId: string; rating: number; text: string }): Promise<ActionResult> {
+  const parsed = reviewUpdateSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "리뷰는 별점과 5자 이상 내용이 필요해요." };
+
+  const ctx = await requireActionContext();
+  if ("ok" in ctx) return ctx;
+
+  await updateReview(ctx.db, ctx.userId, parsed.data);
+  revalidateUserData(parsed.data.spotId);
+  return { ok: true };
+}
+
+export async function deleteReviewAction(input: { id: string; spotId: string }): Promise<ActionResult> {
+  const parsed = z.object({ id: idSchema, spotId: spotIdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "삭제할 리뷰 값이 올바르지 않아요." };
+
+  const ctx = await requireActionContext();
+  if ("ok" in ctx) return ctx;
+
+  await deleteReview(ctx.db, ctx.userId, parsed.data.id);
+  revalidateUserData(parsed.data.spotId);
+  return { ok: true };
+}
+
+export async function updateVisitAction(input: { id: string; spotId: string; congestionThen: "calm" | "moderate" | "busy" }): Promise<ActionResult> {
+  const parsed = z.object({ id: idSchema, spotId: spotIdSchema, congestionThen: congestionSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "방문 기록 값이 올바르지 않아요." };
+
+  const ctx = await requireActionContext();
+  if ("ok" in ctx) return ctx;
+
+  await updateVisit(ctx.db, ctx.userId, parsed.data);
+  revalidateUserData(parsed.data.spotId);
+  return { ok: true };
+}
+
+export async function deleteVisitAction(input: { id: string; spotId: string }): Promise<ActionResult> {
+  const parsed = z.object({ id: idSchema, spotId: spotIdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "삭제할 방문 기록 값이 올바르지 않아요." };
+
+  const ctx = await requireActionContext();
+  if ("ok" in ctx) return ctx;
+
+  await deleteVisit(ctx.db, ctx.userId, parsed.data.id);
   revalidateUserData(parsed.data.spotId);
   return { ok: true };
 }

@@ -19,8 +19,10 @@ import type { Course, CourseItem, Review, Spot, ThemeMatch, User, Visit } from "
 import { getDb } from "@/server/db";
 import {
   computeStats,
+  fetchOnboardingPreference,
   fetchReviews,
   fetchSavedThemeIds,
+  fetchUserProfile,
   fetchVisits,
   setSavedTheme,
 } from "@/server/db/user-data";
@@ -277,12 +279,18 @@ export class LiveRepository extends MockRepository {
 
     // 신원(name/email/image)은 Keycloak 세션, 통계는 앱 DB, 큐레이션 필드는 mock 기본값.
     const base = (await super.getCurrentUser()) as User;
-    const stats = await computeStats(db, sessionUser.id);
+    const [stats, preference, profile] = await Promise.all([
+      computeStats(db, sessionUser.id),
+      fetchOnboardingPreference(db, sessionUser.id),
+      fetchUserProfile(db, sessionUser.id),
+    ]);
     return {
       ...base,
-      name: sessionUser.name ? L(sessionUser.name) : base.name,
+      name: profile?.displayName ? L(profile.displayName) : sessionUser.name ? L(sessionUser.name) : base.name,
       email: sessionUser.email ?? base.email,
       avatarUrl: sessionUser.image ?? base.avatarUrl,
+      bio: profile ? L(profile.bio) : base.bio,
+      interests: preference?.interestThemeIds ?? base.interests,
       stats,
     };
   }
