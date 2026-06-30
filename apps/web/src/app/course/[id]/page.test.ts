@@ -49,7 +49,7 @@ const course: Course = {
 };
 
 describe("/course/[id] page", () => {
-  it("days/pace/companion/startRegion 쿼리를 Repository 옵션으로 전달한다", async () => {
+  it("days/pace/companion/startRegion/transport 쿼리를 Repository 옵션으로 전달한다", async () => {
     vi.stubGlobal("React", React);
     const { default: CoursePage } = await import("./page");
     const repo = {
@@ -69,6 +69,7 @@ describe("/course/[id] page", () => {
         pace: "calm",
         companion: "family",
         startRegion: "강릉",
+        transport: "transit",
       }),
     });
 
@@ -77,6 +78,7 @@ describe("/course/[id] page", () => {
       pace: "calm",
       companion: "family",
       startRegion: "강릉",
+      transport: "transit",
     });
   });
 });

@@ -169,6 +169,25 @@ describe("composeCourse", () => {
     expect(spotRefs).not.toContain("pyeongchang-detour");
   });
 
+  it("도보 이동 조건은 멀리 떨어진 후보를 더 강하게 낮춘다", () => {
+    const farWalkCandidate = spot("walk-too-far", "속초", "calm", 88, ["바다", "한적"], { lat: 38.204, lon: 128.5906 });
+    const nearWalkCandidate = spot("walk-near", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.773, lon: 128.946 });
+    const course = composeCourse(
+      {
+        theme,
+        spots: [busyBeach, farWalkCandidate, nearWalkCandidate],
+        eats,
+        stays,
+        dayCount: 1,
+      },
+      { days: 1, maxSpotsPerDay: 1, startRegion: "강릉", transport: "walk" },
+    );
+
+    const spotRefs = course!.items.filter((it) => it.kind === "spot").map((it) => it.refId);
+    expect(spotRefs).toContain("walk-near");
+    expect(spotRefs).not.toContain("walk-too-far");
+  });
+
   it("days 와 calm pace 조건은 하루 스팟 수를 줄인다", () => {
     const course = composeCourse(
       {

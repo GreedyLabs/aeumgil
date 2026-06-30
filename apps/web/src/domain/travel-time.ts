@@ -13,14 +13,18 @@ export interface Coord {
   region?: string;
 }
 
+export type TravelMode = "car" | "transit" | "walk";
+
 export interface RouteContext {
   prev?: Coord;
   next?: Coord;
+  mode?: TravelMode;
 }
 
 export interface TravelEstimate {
   distanceKm: number;
   driveMinutes: number;
+  mode: TravelMode;
 }
 
 function hasCoord(v: unknown): v is Coord {
@@ -46,27 +50,39 @@ function regionFactor(a: Coord, b: Coord): number {
   return 1.24;
 }
 
-function averageSpeedKmh(distanceKm: number, a: Coord, b: Coord): number {
+function averageSpeedKmh(distanceKm: number, a: Coord, b: Coord, mode: TravelMode): number {
+  if (mode === "walk") return 4.2;
+  if (mode === "transit") {
+    if (distanceKm < 4) return 13;
+    if (distanceKm < 18) return 24;
+    return 36;
+  }
+
   const mountain = [a.region, b.region].some((r) => r && /평창|정선|인제|설악|오대산/.test(r));
   if (distanceKm < 4) return mountain ? 24 : 28;
   if (distanceKm < 18) return mountain ? 36 : 42;
   return mountain ? 48 : 58;
 }
 
-export function estimateDrive(a: Coord, b: Coord): TravelEstimate | null {
+function modeOverhead(distanceKm: number, mode: TravelMode): number {
+  if (mode === "walk") return 1;
+  if (mode === "transit") return distanceKm < 6 ? 10 : 16;
+  return distanceKm < 6 ? 4 : 7;
+}
+
+export function estimateDrive(a: Coord, b: Coord, mode: TravelMode = "car"): TravelEstimate | null {
   if (!hasCoord(a) || !hasCoord(b)) return null;
   const straight = haversineKm(a, b);
   const distanceKm = straight * regionFactor(a, b);
-  const minutes = (distanceKm / averageSpeedKmh(distanceKm, a, b)) * 60;
-  const localOverhead = distanceKm < 6 ? 4 : 7;
-  return { distanceKm, driveMinutes: Math.round(minutes + localOverhead) };
+  const minutes = (distanceKm / averageSpeedKmh(distanceKm, a, b, mode)) * 60;
+  return { distanceKm, driveMinutes: Math.round(minutes + modeOverhead(distanceKm, mode)), mode };
 }
 
-export function estimateRouteMinutes(points: Coord[]): number | null {
+export function estimateRouteMinutes(points: Coord[], mode: TravelMode = "car"): number | null {
   if (points.length < 2) return 0;
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    const leg = estimateDrive(points[i - 1]!, points[i]!);
+    const leg = estimateDrive(points[i - 1]!, points[i]!, mode);
     if (!leg) return null;
     total += leg.driveMinutes;
   }
@@ -74,17 +90,18 @@ export function estimateRouteMinutes(points: Coord[]): number | null {
 }
 
 export function extraRouteMinutes(original: Coord, candidate: Coord, context: RouteContext): number | null {
+  const mode = context.mode ?? "car";
   const before = [context.prev, original, context.next].filter(hasCoord);
   const after = [context.prev, candidate, context.next].filter(hasCoord);
 
   // 전후 방문지가 없으면 원래 장소→후보 거리만 보조 패널티로 쓴다.
   if (before.length < 2 || after.length < 2) {
-    const direct = estimateDrive(original, candidate);
+    const direct = estimateDrive(original, candidate, mode);
     return direct ? Math.max(0, direct.driveMinutes - 12) : null;
   }
 
-  const beforeMinutes = estimateRouteMinutes(before);
-  const afterMinutes = estimateRouteMinutes(after);
+  const beforeMinutes = estimateRouteMinutes(before, mode);
+  const afterMinutes = estimateRouteMinutes(after, mode);
   if (beforeMinutes === null || afterMinutes === null) return null;
   return Math.max(0, afterMinutes - beforeMinutes);
 }

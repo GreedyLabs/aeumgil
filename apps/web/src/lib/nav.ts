@@ -31,7 +31,7 @@ export function urlFor(name: string, params: NavParams = {}): string {
     }
     case "course": {
       const qs = new URLSearchParams();
-      for (const key of ["days", "pace", "companion", "startRegion"]) {
+      for (const key of ["days", "pace", "companion", "startRegion", "transport"]) {
         if (params[key]) qs.set(key, String(params[key]));
       }
       const s = qs.toString();

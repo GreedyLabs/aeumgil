@@ -7,6 +7,7 @@ import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
 import type { ComposeCourseOptions } from "@/domain/course-compose";
+import type { TravelMode } from "@/domain/travel-time";
 import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "@/domain/types";
 
 const { TopBar, Signal, Placeholder } = UI;
@@ -33,6 +34,11 @@ const companionChoices = [
   { id: "couple", ko: "둘이", en: "Couple" },
   { id: "family", ko: "가족", en: "Family" },
 ];
+const transportChoices = [
+  { id: "car", ko: "자동차", en: "Car" },
+  { id: "transit", ko: "대중교통", en: "Transit" },
+  { id: "walk", ko: "도보", en: "Walk" },
+] satisfies { id: TravelMode; ko: string; en: string }[];
 const regionChoices = ["강릉", "속초", "평창", "양양"];
 
 export function CourseView({ theme, course, spots, eats, stays, options, initiallySaved, onSaveTheme }: Props) {
@@ -43,6 +49,7 @@ export function CourseView({ theme, course, spots, eats, stays, options, initial
   const [draftDays, setDraftDays] = useState(options.days ?? course.dayCount);
   const [draftPace, setDraftPace] = useState(options.pace ?? "balanced");
   const [draftCompanion, setDraftCompanion] = useState(options.companion ?? "couple");
+  const [draftTransport, setDraftTransport] = useState<TravelMode>(options.transport ?? "car");
   const [draftRegion, setDraftRegion] = useState(options.startRegion ?? localized(theme.region, "ko").split(" · ")[0] ?? "강릉");
   const [isSaved, setIsSaved] = useState(initiallySaved);
   const [isPending, startTransition] = useTransition();
@@ -57,6 +64,7 @@ export function CourseView({ theme, course, spots, eats, stays, options, initial
     Boolean(options.days) ||
     Boolean(options.pace) ||
     Boolean(options.companion) ||
+    Boolean(options.transport) ||
     Boolean(options.startRegion);
   const saveLabel = isSaved
     ? lang === "ko"
@@ -89,6 +97,7 @@ export function CourseView({ theme, course, spots, eats, stays, options, initial
       days: draftDays,
       pace: draftPace,
       companion: draftCompanion,
+      transport: draftTransport,
       startRegion: draftRegion,
     });
   };
@@ -97,6 +106,7 @@ export function CourseView({ theme, course, spots, eats, stays, options, initial
     setDraftDays(course.dayCount);
     setDraftPace("balanced");
     setDraftCompanion("couple");
+    setDraftTransport("car");
     setDraftRegion(localized(theme.region, "ko").split(" · ")[0] ?? "강릉");
     setShowTune(false);
     nav("course", { themeId: theme.id });
@@ -187,10 +197,12 @@ export function CourseView({ theme, course, spots, eats, stays, options, initial
           days={draftDays}
           pace={draftPace}
           companion={draftCompanion}
+          transport={draftTransport}
           startRegion={draftRegion}
           onDays={setDraftDays}
           onPace={setDraftPace}
           onCompanion={setDraftCompanion}
+          onTransport={setDraftTransport}
           onRegion={setDraftRegion}
           onApply={applyTune}
           onReset={resetTune}
@@ -227,10 +239,12 @@ interface TunePanelProps {
   days: number;
   pace: string;
   companion: string;
+  transport: TravelMode;
   startRegion: string;
   onDays: (v: number) => void;
   onPace: (v: string) => void;
   onCompanion: (v: string) => void;
+  onTransport: (v: TravelMode) => void;
   onRegion: (v: string) => void;
   onApply: () => void;
   onReset: () => void;
@@ -241,10 +255,12 @@ function CourseTunePanel({
   days,
   pace,
   companion,
+  transport,
   startRegion,
   onDays,
   onPace,
   onCompanion,
+  onTransport,
   onRegion,
   onApply,
   onReset,
@@ -283,6 +299,14 @@ function CourseTunePanel({
         {companionChoices.map((c) => (
           <button key={c.id} className={"chip" + (companion === c.id ? " active" : "")} onClick={() => onCompanion(c.id)}>
             {lang === "ko" ? c.ko : c.en}
+          </button>
+        ))}
+      </TuneGroup>
+
+      <TuneGroup label={lang === "ko" ? "이동수단" : "Transport"}>
+        {transportChoices.map((t) => (
+          <button key={t.id} className={"chip" + (transport === t.id ? " active" : "")} onClick={() => onTransport(t.id)}>
+            {lang === "ko" ? t.ko : t.en}
           </button>
         ))}
       </TuneGroup>

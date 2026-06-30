@@ -14,7 +14,7 @@
 
 import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "./types";
 import { L, localized } from "@/lib/i18n";
-import { estimateDrive, routePenaltyPoints, type RouteContext } from "./travel-time";
+import { estimateDrive, routePenaltyPoints, type RouteContext, type TravelMode } from "./travel-time";
 
 export interface ComposeCourseInput {
   theme: Theme;
@@ -39,6 +39,8 @@ export interface ComposeCourseOptions {
   companion?: string;
   /** 시작 권역. 후보 점수에서 해당 권역을 우선한다. */
   startRegion?: string;
+  /** 이동수단. car=자가용/렌터카, transit=대중교통, walk=도보 중심. */
+  transport?: TravelMode;
   /** 하루에 배치할 최대 스팟 수. 기본 3. */
   maxSpotsPerDay?: number;
 }
@@ -49,6 +51,7 @@ interface NormalizedComposeOptions {
   pace?: string;
   companion?: string;
   startRegion?: string;
+  transport: TravelMode;
   maxSpotsPerDay: number;
 }
 
@@ -160,11 +163,11 @@ function routePenalty(original: Spot, candidate: Spot, context: RouteContext): n
   return routePenaltyPoints(originalCoord, candidateCoord, context);
 }
 
-function routeLegPenalty(prev: Spot | undefined, candidate: Spot): number {
+function routeLegPenalty(prev: Spot | undefined, candidate: Spot, mode: TravelMode): number {
   const prevCoord = toRouteCoord(prev);
   const candidateCoord = toRouteCoord(candidate);
   if (!prevCoord || !candidateCoord) return 0;
-  const drive = estimateDrive(prevCoord, candidateCoord);
+  const drive = estimateDrive(prevCoord, candidateCoord, mode);
   if (!drive || drive.driveMinutes <= 45) return 0;
   return Math.min(30, (drive.driveMinutes - 45) * 0.35);
 }
@@ -262,7 +265,7 @@ function pickScratchSpots(input: ComposeCourseInput, dayCount: number, options: 
     const bestIndex = remaining
       .map((spot, index) => ({
         index,
-        score: scoreSpot(input.theme, spot, undefined, options) - routeLegPenalty(prev, spot),
+        score: scoreSpot(input.theme, spot, undefined, options) - routeLegPenalty(prev, spot, options.transport),
       }))
       .sort((a, b) => b.score - a.score)[0]?.index;
     if (bestIndex === undefined) break;
@@ -316,7 +319,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
       input.alternativesBySpot?.[it.refId] ?? [],
       usedSpots,
       options,
-      { prev, next },
+      { prev, next, mode: options.transport },
     );
     if (!picked) return { ...it };
     usedSpots.add(picked.id);
@@ -397,6 +400,7 @@ export function composeCourse(input: ComposeCourseInput, options: ComposeCourseO
     pace: options.pace,
     companion: options.companion,
     startRegion: options.startRegion,
+    transport: options.transport ?? "car",
     maxSpotsPerDay: options.maxSpotsPerDay ?? spotsPerDayForPace(options.pace),
   };
 

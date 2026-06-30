@@ -18,6 +18,8 @@ function courseOptions(sp: Awaited<SearchParams>): ComposeCourseOptions {
   if (companion) options.companion = companion;
   const startRegion = str(sp.startRegion);
   if (startRegion) options.startRegion = startRegion;
+  const transport = str(sp.transport);
+  if (transport === "car" || transport === "transit" || transport === "walk") options.transport = transport;
   return options;
 }
 

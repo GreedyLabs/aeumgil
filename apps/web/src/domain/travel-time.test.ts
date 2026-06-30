@@ -17,6 +17,18 @@ describe("travel-time", () => {
     expect(far!.distanceKm).toBeGreaterThan(near!.distanceKm);
   });
 
+  it("이동수단에 따라 같은 구간의 이동시간이 달라진다", () => {
+    const car = estimateDrive(gangneung, sacheon, "car");
+    const transit = estimateDrive(gangneung, sacheon, "transit");
+    const walk = estimateDrive(gangneung, sacheon, "walk");
+
+    expect(car).not.toBeNull();
+    expect(transit).not.toBeNull();
+    expect(walk).not.toBeNull();
+    expect(transit!.driveMinutes).toBeGreaterThan(car!.driveMinutes);
+    expect(walk!.driveMinutes).toBeGreaterThan(transit!.driveMinutes);
+  });
+
   it("여러 방문지의 총 이동시간을 합산한다", () => {
     const total = estimateRouteMinutes([gangneung, sacheon, sokcho]);
     const first = estimateDrive(gangneung, sacheon)!.driveMinutes;
