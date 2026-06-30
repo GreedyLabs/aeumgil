@@ -33,6 +33,10 @@ const schema = z.object({
   AIRKOREA_SERVICE_KEY: z.string().optional(),
   EX_ROAD_SERVICE_KEY: z.string().optional(),
 
+  // 길찾기/이동시간 API
+  ROUTING_PROVIDER: z.enum(["approx", "kakao"]).default("approx"),
+  KAKAO_MOBILITY_API_KEY: z.string().optional(),
+
   // 인증
   AUTH_SECRET: z.string().optional(),
   AUTH_URL: z.string().url().optional(),

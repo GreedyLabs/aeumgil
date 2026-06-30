@@ -233,7 +233,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               <div style={{ fontSize: 13, fontWeight: 700 }}>{lang === "ko" ? "짧은 리뷰" : "Quick review"}</div>
               <div style={{ display: "flex", gap: 2 }}>
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} className="icon-btn" style={{ width: 28, height: 28, color: n <= rating ? "var(--accent)" : "var(--ink-4)" }} onClick={() => setRating(n)} aria-label={`${n}점`}>
+                  <button key={n} className="icon-btn" style={{ width: 44, height: 44, color: n <= rating ? "var(--accent)" : "var(--ink-4)" }} onClick={() => setRating(n)} aria-label={`${n}점`}>
                     <Icon.star />
                   </button>
                 ))}

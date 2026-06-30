@@ -297,7 +297,7 @@ function EditableVisitRow({
           <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{lang === "ko" ? "당시" : "then"}</span>
           {editing ? (
             CONGESTION_LEVELS.map((lv) => (
-              <button key={lv} className={"chip" + (level === lv ? " active" : "")} disabled={disabled} onClick={() => setLevel(lv)} style={{ padding: "6px 9px", fontSize: 11 }}>
+              <button key={lv} className={"chip" + (level === lv ? " active" : "")} disabled={disabled} onClick={() => setLevel(lv)} style={{ padding: "8px 10px", minHeight: 44, fontSize: 11 }}>
                 <Signal level={lv} lang={lang} />
               </button>
             ))
