@@ -10,7 +10,7 @@ export default async function HomePage() {
   const [themes, prompts, bestSpots] = await Promise.all([
     repo.listThemes(),
     repo.getSamplePrompts(),
-    Promise.all(BEST_NOW_SPOT_IDS.map((id) => repo.getSpot(id))).then((spots) =>
+    Promise.all(BEST_NOW_SPOT_IDS.map((id) => repo.getSpot(id, { enrich: false }))).then((spots) =>
       spots.filter((s): s is Spot => s !== null),
     ),
   ]);

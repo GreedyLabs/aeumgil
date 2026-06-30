@@ -1,14 +1,51 @@
-// LiveRepository 테스트 — 외부 호출 실패 시 mock 폴백(회복력) + 성공 시 보강.
+// LiveRepository 테스트 — DB 스팟 기본값 유지(회복력) + 성공 시 실데이터 보강.
 // fetch 를 URL 별로 라우팅하는 목으로 막는다.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MockRepository } from "../mock/repository";
+import { L } from "@/lib/i18n";
+import type { Spot } from "@/domain/types";
 import { LiveRepository } from "./repository";
+
+const mocks = vi.hoisted(() => ({
+  requireDb: vi.fn(),
+  fetchSpotProfile: vi.fn(),
+}));
+
+vi.mock("@/server/db", () => ({
+  requireDb: mocks.requireDb,
+}));
+
+vi.mock("@/server/db/course-catalog", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/db/course-catalog")>();
+  return {
+    ...actual,
+    fetchSpotProfile: mocks.fetchSpotProfile,
+  };
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.clearAllMocks();
 });
+
+function dbSpot(id: string, congestion: Spot["congestion"] = "calm"): Spot {
+  return {
+    id,
+    name: L(id),
+    type: L("항구"),
+    region: L("속초"),
+    congestion,
+    suitability: 75,
+    weather: { tempC: 0, desc: L("실시간 확인 전"), icon: "sun" },
+    air: L("실시간 확인 전"),
+    rating: 4.5,
+    reviewCount: 10,
+    tags: [L("바다")],
+    lat: 38.211,
+    lon: 128.597,
+  };
+}
 
 function routeFetch(routes: { match: string; payload: unknown }[], fail = false) {
   vi.stubGlobal(
@@ -27,14 +64,15 @@ function routeFetch(routes: { match: string; payload: unknown }[], fail = false)
 }
 
 describe("LiveRepository 폴백(회복력)", () => {
-  it("외부 API 가 실패하면 해당 스팟은 mock 값을 그대로 반환한다", async () => {
+  it("외부 API 가 실패하면 해당 스팟은 DB 기본값을 그대로 반환한다", async () => {
     routeFetch([], true); // 모든 fetch 실패
+    const base = dbSpot("seorak-gwongeum", "moderate");
+    mocks.requireDb.mockReturnValue({ __db: true });
+    mocks.fetchSpotProfile.mockResolvedValue(base);
     const live = new LiveRepository();
-    const mock = new MockRepository();
 
     const got = await live.getSpot("seorak-gwongeum");
-    const base = await mock.getSpot("seorak-gwongeum");
-    expect(got).toEqual(base); // 보강 실패 → 원본 유지
+    expect(got).toEqual(base); // 보강 실패 → DB 원본 유지
   });
 });
 
@@ -81,6 +119,8 @@ describe("LiveRepository 보강(성공)", () => {
       },
     ]);
 
+    mocks.requireDb.mockReturnValue({ __db: true });
+    mocks.fetchSpotProfile.mockResolvedValue(dbSpot("dongmyeong-port", "calm"));
     const live = new LiveRepository();
     const spot = await live.getSpot("dongmyeong-port"); // calm + 맑음 + 대기 좋음
     expect(spot).not.toBeNull();

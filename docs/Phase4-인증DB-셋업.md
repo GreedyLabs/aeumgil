@@ -47,7 +47,6 @@
 
 ```env
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-DATA_SOURCE="live"
 
 DATABASE_URL="postgresql://postgres:eumgil@localhost:5432/eumgil"
 DATABASE_SCHEMA=""

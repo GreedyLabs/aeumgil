@@ -75,6 +75,7 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
   const maxAgeMs = opts.maxAgeMs ?? 24 * 60 * 60 * 1000;
 
   const mem = new Map<string, CacheEntry>();
+  const inflight = new Map<string, Promise<unknown>>();
   let loaded = false;
   let loading: Promise<void> | null = null;
   let dirty = false;
@@ -139,11 +140,24 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
       return hit.value as T;
     }
     if (log.on) log.log(`MISS ${key}${hit ? " (stale)" : ""} → fetch`);
-    const value = await fn();
-    mem.set(key, { value, at: Date.now() });
-    if (log.on) log.log(`SET  ${key} (ttl ${Math.round(ttlMs / 1000)}s)`);
-    scheduleFlush();
-    return value;
+    const pending = inflight.get(key);
+    if (pending) {
+      if (log.on) log.log(`WAIT ${key} (in-flight)`);
+      return pending as Promise<T>;
+    }
+
+    const pendingFetch = fn()
+      .then((value) => {
+        mem.set(key, { value, at: Date.now() });
+        if (log.on) log.log(`SET  ${key} (ttl ${Math.round(ttlMs / 1000)}s)`);
+        scheduleFlush();
+        return value;
+      })
+      .finally(() => {
+        inflight.delete(key);
+      });
+    inflight.set(key, pendingFetch);
+    return pendingFetch;
   }
 
   return { cached, flush };

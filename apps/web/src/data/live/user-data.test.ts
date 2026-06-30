@@ -3,14 +3,11 @@
 // 두 관점:
 //   1) user-data 매핑: 가짜 Database(체이너블 스텁)를 주입해 DB 행 → 도메인 타입
 //      정규화(ISO 날짜·congestion 기본값·필드 통과)를 잠근다.
-//   2) LiveRepository 폴백 계약(핵심 안전성): DATABASE_URL 이 없으면(테스트 env)
-//      세션이 성립할 수 없으므로 모든 사용자 메서드가 mock 과 동일하게 동작해야 한다
-//      → 데모/`pnpm dev`(mock)·DB 미배포 환경 무중단 보장.
+//   2) LiveRepository 사용자 계약: 미로그인 상태는 mock 사용자로 대체하지 않고 빈 상태를 반환한다.
 
 import { describe, expect, it } from "vitest";
 import { fetchOnboardingPreference, fetchReviews, fetchUserProfile, fetchVisits } from "@/server/db/user-data";
 import type { Database } from "@/server/db";
-import { MockRepository } from "../mock/repository";
 import { LiveRepository } from "./repository";
 
 /** await 시 미리 정한 rows 로 resolve 되는 체이너블 가짜 db(인자 무시). */
@@ -71,29 +68,18 @@ describe("user-data 매핑", () => {
   });
 });
 
-describe("LiveRepository 사용자 데이터 폴백(무 DB/세션 → mock 동일)", () => {
-  it("getCurrentUser/listReviews/listVisits 가 mock 과 동일하게 폴백한다", async () => {
+describe("LiveRepository 사용자 데이터", () => {
+  it("미로그인 상태는 mock 사용자로 대체하지 않고 빈 상태를 반환한다", async () => {
     const live = new LiveRepository();
-    const mock = new MockRepository();
 
-    const [lu, mu] = [await live.getCurrentUser(), await mock.getCurrentUser()];
-    expect(lu).toEqual(mu);
-    expect(lu).not.toBeNull();
-
-    expect(await live.listReviews()).toEqual(await mock.listReviews());
-    expect(await live.listVisits()).toEqual(await mock.listVisits());
+    expect(await live.getCurrentUser()).toBeNull();
+    expect(await live.listReviews()).toEqual([]);
+    expect(await live.listVisits()).toEqual([]);
+    expect(await live.listSavedThemeIds()).toEqual([]);
   });
 
-  it("listSavedThemeIds 는 시드를 돌려주고, setThemeSaved 가 인메모리로 토글된다", async () => {
+  it("미로그인 저장 변경은 DB 쓰기를 하지 않고 로그인 요구 에러를 낸다", async () => {
     const live = new LiveRepository();
-    const before = await live.listSavedThemeIds();
-    expect(before.length).toBeGreaterThan(0);
-
-    await live.setThemeSaved("__new-theme__", true);
-    expect(await live.listSavedThemeIds()).toContain("__new-theme__");
-
-    const target = before[0]!;
-    await live.setThemeSaved(target, false);
-    expect(await live.listSavedThemeIds()).not.toContain(target);
+    await expect(live.setThemeSaved("__new-theme__", true)).rejects.toThrow("로그인이 필요합니다.");
   });
 });

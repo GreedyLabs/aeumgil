@@ -2,13 +2,12 @@
 // 코스 생성 후보/템플릿 DB 접근 계층 — 서버 전용.
 //
 // [학습 메모] 이 계층은 LLM 과 무관하다. DB 에 저장된 코스 템플릿을 도메인 Course 로
-// 정규화해 `composeCourse`의 입력으로 넘기기 위한 어댑터다. DB 에 데이터가 없거나
-// 접속이 실패하면 호출자(LiveRepository)가 기존 시드 코스로 폴백한다.
+// 정규화해 `composeCourse`의 입력으로 넘기기 위한 어댑터다.
 // ─────────────────────────────────────────────
 
 import { and, asc, desc, eq } from "drizzle-orm";
 import { L } from "@/lib/i18n";
-import type { Congestion, Course, CourseItem, CourseItemKind, Spot } from "@/domain/types";
+import type { Congestion, Course, CourseItem, CourseItemKind, Spot, Theme } from "@/domain/types";
 import type { Database } from "./index";
 import { courseTemplateItems, courseTemplates, spotProfiles } from "./schema";
 
@@ -47,6 +46,64 @@ function mapSpotProfile(row: typeof spotProfiles.$inferSelect): Spot {
     lat: row.lat ?? undefined,
     lon: row.lon ?? undefined,
   };
+}
+
+function themeFromTemplate(template: typeof courseTemplates.$inferSelect, spotCount: number): Theme {
+  const title = L(template.titleKo, template.titleEn ?? undefined);
+  return {
+    id: template.themeId,
+    title,
+    subtitle: L(`${template.dayCount}일 코스`, `${template.dayCount} day course`),
+    tag: title,
+    region: L("강원특별자치도", "Gangwon State"),
+    hue: hueFromId(template.themeId),
+    duration: L(`${template.dayCount}일`, `${template.dayCount} days`),
+    pace: L("맞춤", "Personalized"),
+    spotCount,
+    mood: [],
+    blurb: L("DB 카탈로그 기반 추천 테마입니다.", "A recommendation theme backed by the DB catalog."),
+  };
+}
+
+function hueFromId(id: string): number {
+  let hash = 0;
+  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
+  return hash;
+}
+
+async function spotCountByTheme(db: Database, themeId: string): Promise<number> {
+  const rows = await db.select().from(spotProfiles);
+  return rows.filter((row) => arr(row.themeIds).includes(themeId)).length;
+}
+
+/** DB 코스 템플릿을 테마 카드 모델로 정규화한다. */
+export async function fetchThemes(db: Database): Promise<Theme[]> {
+  const templates = await db
+    .select()
+    .from(courseTemplates)
+    .where(eq(courseTemplates.isDefault, true))
+    .orderBy(desc(courseTemplates.updatedAt));
+
+  const unique = new Map<string, typeof courseTemplates.$inferSelect>();
+  for (const template of templates) {
+    if (!unique.has(template.themeId)) unique.set(template.themeId, template);
+  }
+
+  return Promise.all(
+    [...unique.values()].map(async (template) => themeFromTemplate(template, await spotCountByTheme(db, template.themeId))),
+  );
+}
+
+/** 단일 테마 조회. 테마 메타는 기본 코스 템플릿에서 만든다. */
+export async function fetchTheme(db: Database, themeId: string): Promise<Theme | null> {
+  const [template] = await db
+    .select()
+    .from(courseTemplates)
+    .where(and(eq(courseTemplates.themeId, themeId), eq(courseTemplates.isDefault, true)))
+    .orderBy(desc(courseTemplates.updatedAt))
+    .limit(1);
+
+  return template ? themeFromTemplate(template, await spotCountByTheme(db, themeId)) : null;
 }
 
 /** themeId 의 기본 코스 템플릿을 Course 로 정규화한다. 없으면 null. */
@@ -89,6 +146,12 @@ export async function fetchDefaultCourseTemplate(db: Database, themeId: string):
 export async function fetchSpotProfilesForTheme(db: Database, themeId: string): Promise<Spot[]> {
   const rows = await db.select().from(spotProfiles).orderBy(desc(spotProfiles.updatedAt));
   return rows.filter((row) => arr(row.themeIds).includes(themeId)).map(mapSpotProfile);
+}
+
+/** 전체 DB POI 후보 조회. */
+export async function fetchSpotProfiles(db: Database): Promise<Spot[]> {
+  const rows = await db.select().from(spotProfiles).orderBy(desc(spotProfiles.updatedAt));
+  return rows.map(mapSpotProfile);
 }
 
 /** 단일 DB POI 후보 조회. 화면이 DB 전용 spot_id 를 렌더해야 할 때 사용한다. */

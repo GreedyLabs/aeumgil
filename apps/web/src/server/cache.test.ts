@@ -31,6 +31,26 @@ describe("PersistentCache", () => {
     expect(calls).toBe(1);
   });
 
+  it("같은 key 의 동시 MISS 는 하나의 fetch Promise 를 공유한다", async () => {
+    const { store } = memStore();
+    const c = createCache(store);
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return "ok";
+    };
+
+    const [a, b, c3] = await Promise.all([
+      c.cached("k", 1000, fn),
+      c.cached("k", 1000, fn),
+      c.cached("k", 1000, fn),
+    ]);
+
+    expect([a, b, c3]).toEqual(["ok", "ok", "ok"]);
+    expect(calls).toBe(1);
+  });
+
   it("TTL 초과 후에는 fn 을 다시 실행한다", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);

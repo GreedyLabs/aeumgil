@@ -1,14 +1,17 @@
 // LiveRepository 코스 카탈로그 통합 배선 테스트.
 // 실제 DB/공공 API 없이 getDb + course-catalog 어댑터를 대역으로 주입해
-// DB 템플릿/후보 우선순위와 시드 폴백 계약을 검증한다.
+// DB 템플릿/후보 기반 코스 생성 계약을 검증한다.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { L } from "@/lib/i18n";
-import type { Course, Spot } from "@/domain/types";
+import type { Course, Spot, Theme } from "@/domain/types";
 
 const mocks = vi.hoisted(() => ({
-  getDb: vi.fn(),
+  requireDb: vi.fn(),
+  fetchTheme: vi.fn(),
+  fetchThemes: vi.fn(),
   fetchDefaultCourseTemplate: vi.fn(),
+  fetchSpotProfiles: vi.fn(),
   fetchSpotProfilesForTheme: vi.fn(),
   fetchSpotProfile: vi.fn(),
   planItinerary: vi.fn(),
@@ -16,11 +19,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/server/db", () => ({
-  getDb: mocks.getDb,
+  requireDb: mocks.requireDb,
 }));
 
 vi.mock("@/server/db/course-catalog", () => ({
+  fetchTheme: mocks.fetchTheme,
+  fetchThemes: mocks.fetchThemes,
   fetchDefaultCourseTemplate: mocks.fetchDefaultCourseTemplate,
+  fetchSpotProfiles: mocks.fetchSpotProfiles,
   fetchSpotProfilesForTheme: mocks.fetchSpotProfilesForTheme,
   fetchSpotProfile: mocks.fetchSpotProfile,
 }));
@@ -30,7 +36,6 @@ vi.mock("@/server/agent/planner", () => ({
   planItinerary: mocks.planItinerary,
 }));
 
-import { MockRepository } from "../mock/repository";
 import { LiveRepository } from "./repository";
 
 function dbSpot(id: string, region: string, suitability = 80): Spot {
@@ -61,11 +66,28 @@ const dbTemplate: Course = {
   ],
 };
 
+const dbTheme: Theme = {
+  id: "east-sea-sunrise",
+  title: L("동해 일출", "East sea sunrise"),
+  subtitle: L("1일 코스", "1 day course"),
+  tag: L("해변", "Beach"),
+  region: L("강릉", "Gangneung"),
+  hue: 210,
+  duration: L("1일", "1 day"),
+  pace: L("균형", "Balanced"),
+  spotCount: 2,
+  mood: [L("바다")],
+  blurb: L("DB 테마"),
+};
+
 describe("LiveRepository.getCourse — DB 코스 카탈로그 배선", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getDb.mockReturnValue({ __db: true });
+    mocks.requireDb.mockReturnValue({ __db: true });
+    mocks.fetchTheme.mockResolvedValue(dbTheme);
+    mocks.fetchThemes.mockResolvedValue([dbTheme]);
     mocks.fetchDefaultCourseTemplate.mockResolvedValue(null);
+    mocks.fetchSpotProfiles.mockResolvedValue([dbSpot("db-template-spot", "강릉", 90)]);
     mocks.fetchSpotProfilesForTheme.mockResolvedValue([]);
     mocks.fetchSpotProfile.mockResolvedValue(null);
     mocks.planItinerary.mockImplementation(async (_req, deps) => ({
@@ -97,17 +119,15 @@ describe("LiveRepository.getCourse — DB 코스 카탈로그 배선", () => {
     expect(course!.items.some((item) => item.kind === "spot" && item.refId === "db-only-beach")).toBe(true);
   });
 
-  it("DB 후보가 빈 배열이면 기존 시드 후보로 폴백한다", async () => {
-    const mock = new MockRepository();
-    const seedSpotIds = new Set((await mock.listSpots()).map((spot) => spot.id));
+  it("DB 후보가 빈 배열이면 baseCourse 템플릿만 유지하고 seed 후보로 폴백하지 않는다", async () => {
+    mocks.fetchDefaultCourseTemplate.mockResolvedValue(dbTemplate);
     mocks.fetchSpotProfilesForTheme.mockResolvedValue([]);
 
     const course = await new LiveRepository().getCourse("east-sea-sunrise");
 
     expect(course).not.toBeNull();
     const spotRefs = course!.items.filter((item) => item.kind === "spot").map((item) => item.refId);
-    expect(spotRefs.length).toBeGreaterThan(0);
-    for (const refId of spotRefs) expect(seedSpotIds.has(refId)).toBe(true);
+    expect(spotRefs).toEqual(["db-template-spot"]);
   });
 
   it("Repository options 를 composer 로 전달해 startRegion 조건을 반영한다", async () => {

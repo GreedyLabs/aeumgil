@@ -3,7 +3,7 @@ import { getRepository } from "@/data";
 import type { Spot } from "@/domain/types";
 import { requireUserSession } from "@/server/require-session";
 
-// 저장 테마는 Repository 로 일원화(live: 세션→DB / mock: 인메모리 시드). 최근 본 곳은 데모 시드.
+// 저장 테마는 Repository 로 일원화(live: 세션→DB). 최근 본 곳은 목록 카드라 실시간 보강 없이 조회한다.
 const RECENT_SPOT_IDS = ["sacheon-beach", "woljeongsa-trail", "dongmyeong-port"];
 
 export default async function SavedPage() {
@@ -21,7 +21,7 @@ export default async function SavedPage() {
     .filter((x) => x.theme !== null)
     .map((x) => ({ theme: x.theme!, course: x.course }));
 
-  const recentSpots = (await Promise.all(RECENT_SPOT_IDS.map((id) => repo.getSpot(id)))).filter(
+  const recentSpots = (await Promise.all(RECENT_SPOT_IDS.map((id) => repo.getSpot(id, { enrich: false })))).filter(
     (s): s is Spot => s !== null,
   );
 

@@ -14,7 +14,6 @@ const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().u
 const schema = z.object({
   // 앱
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
-  DATA_SOURCE: z.enum(["mock", "live"]).default("mock"),
   /** 디버그 로그 네임스페이스 (예: "1"=전체, "http,cache"=일부). server/log.ts */
   EUMGIL_DEBUG: z.string().optional(),
   /** 응답 캐시 파일 디렉터리 (기본: OS 임시). server/cache.ts */
