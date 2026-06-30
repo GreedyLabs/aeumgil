@@ -112,6 +112,29 @@ describe("composeCourse", () => {
     expect(course!.items.find((it) => it.time === "10:00")?.refId).toBe("sacheon-beach");
   });
 
+  it("점수가 높은 후보라도 하루 동선에서 크게 돌아가면 낮춘다", () => {
+    const routeBase: Course = {
+      ...baseCourse,
+      items: [
+        { kind: "spot", day: 1, time: "10:00", refId: "anmok-beach", durationMin: 60 },
+        { kind: "spot", day: 1, time: "14:00", refId: "dongmyeong-port", durationMin: 60 },
+      ],
+    };
+    const nearLowScore = spot("near-route-beach", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.8368, lon: 128.8782 });
+    const farHighScore = spot("far-detour-beach", "삼척", "calm", 96, ["바다", "한적"], { lat: 37.289, lon: 129.17 });
+
+    const course = composeCourse({
+      theme,
+      baseCourse: routeBase,
+      spots: [busyBeach, nearLowScore, farHighScore, port],
+      eats,
+      stays,
+      alternativesBySpot: { "anmok-beach": [farHighScore, nearLowScore] },
+    });
+
+    expect(course!.items.find((it) => it.time === "10:00")?.refId).toBe("near-route-beach");
+  });
+
   it("baseCourse 가 없어도 후보 풀에서 간단한 코스를 생성한다", () => {
     const course = composeCourse({
       theme,
@@ -125,6 +148,25 @@ describe("composeCourse", () => {
     expect(course!.items.some((it) => it.kind === "spot")).toBe(true);
     expect(course!.items.some((it) => it.kind === "eat")).toBe(true);
     expect(course!.title.ko).toContain("맞춤 코스");
+  });
+
+  it("새 코스 생성에서도 연속 이동시간이 긴 후보를 낮춘다", () => {
+    const pyeongchangHighScore = spot("pyeongchang-detour", "평창", "calm", 100, ["바다", "전망"], { lat: 37.3705, lon: 128.3902 });
+    const gangneungNext = spot("gangneung-next", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.8368, lon: 128.8782 });
+    const course = composeCourse(
+      {
+        theme,
+        spots: [busyBeach, pyeongchangHighScore, gangneungNext, port],
+        eats,
+        stays,
+        dayCount: 1,
+      },
+      { days: 1, maxSpotsPerDay: 2, startRegion: "강릉" },
+    );
+
+    const spotRefs = course!.items.filter((it) => it.kind === "spot").map((it) => it.refId);
+    expect(spotRefs).toContain("gangneung-next");
+    expect(spotRefs).not.toContain("pyeongchang-detour");
   });
 
   it("days 와 calm pace 조건은 하루 스팟 수를 줄인다", () => {

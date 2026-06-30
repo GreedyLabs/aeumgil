@@ -64,6 +64,7 @@ export default async function CoursePage({
       spots={spots}
       eats={eats}
       stays={stays}
+      options={options}
       initiallySaved={savedThemeIds.includes(theme.id)}
       onSaveTheme={setThemeSavedAction}
     />

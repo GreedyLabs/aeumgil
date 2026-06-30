@@ -14,6 +14,7 @@
 
 import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "./types";
 import { L, localized } from "@/lib/i18n";
+import { estimateDrive, routePenaltyPoints, type RouteContext } from "./travel-time";
 
 export interface ComposeCourseInput {
   theme: Theme;
@@ -99,11 +100,13 @@ function scoreSpot(
   spot: Spot,
   original: Spot | undefined,
   options: NormalizedComposeOptions,
+  routeContext: RouteContext = {},
 ): number {
   const sameRegion = original && localized(original.region, "ko") === localized(spot.region, "ko") ? 10 : 0;
   const originalBias = original?.id === spot.id ? 4 : 0;
   const crowd = options.avoidBusy ? congestionScore(spot) : 0;
   const distance = original ? distancePenalty(original, spot) : 0;
+  const route = original ? routePenalty(original, spot, routeContext) : 0;
   return (
     spot.suitability +
     crowd +
@@ -112,7 +115,8 @@ function scoreSpot(
     originalBias +
     spot.rating +
     preferenceScore(spot, options) -
-    distance
+    distance -
+    route
   );
 }
 
@@ -142,6 +146,27 @@ function distancePenalty(original: Spot, candidate: Spot): number {
   if (km === null) return 0;
   if (km <= 8) return 0;
   return Math.min(34, (km - 8) * 0.9);
+}
+
+function toRouteCoord(spot: Spot | undefined) {
+  if (!spot || !hasCoords(spot)) return undefined;
+  return { lat: spot.lat, lon: spot.lon, region: localized(spot.region, "ko") };
+}
+
+function routePenalty(original: Spot, candidate: Spot, context: RouteContext): number {
+  const originalCoord = toRouteCoord(original);
+  const candidateCoord = toRouteCoord(candidate);
+  if (!originalCoord || !candidateCoord) return 0;
+  return routePenaltyPoints(originalCoord, candidateCoord, context);
+}
+
+function routeLegPenalty(prev: Spot | undefined, candidate: Spot): number {
+  const prevCoord = toRouteCoord(prev);
+  const candidateCoord = toRouteCoord(candidate);
+  if (!prevCoord || !candidateCoord) return 0;
+  const drive = estimateDrive(prevCoord, candidateCoord);
+  if (!drive || drive.driveMinutes <= 45) return 0;
+  return Math.min(30, (drive.driveMinutes - 45) * 0.35);
 }
 
 function preferenceScore(spot: Spot, options: NormalizedComposeOptions): number {
@@ -184,12 +209,13 @@ function pickSpotForSlot(
   alternatives: Spot[],
   used: Set<string>,
   options: NormalizedComposeOptions,
+  routeContext: RouteContext = {},
 ): Spot | undefined {
   const candidates = uniqueById([...(original ? [original] : []), ...alternatives]).filter(
     (s) => !used.has(s.id) || s.id === original?.id,
   );
   if (candidates.length === 0) return original;
-  return candidates.sort((a, b) => scoreSpot(theme, b, original, options) - scoreSpot(theme, a, original, options))[0];
+  return candidates.sort((a, b) => scoreSpot(theme, b, original, options, routeContext) - scoreSpot(theme, a, original, options, routeContext))[0];
 }
 
 function pickByRegion<T extends Eat | Stay>(items: T[], region: string | undefined, used: Set<string>): T | undefined {
@@ -225,6 +251,28 @@ function sortItems(items: CourseItem[]): CourseItem[] {
   return [...items].sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
 }
 
+function pickScratchSpots(input: ComposeCourseInput, dayCount: number, options: NormalizedComposeOptions): Spot[] {
+  const maxSpots = dayCount * options.maxSpotsPerDay;
+  const remaining = uniqueById(input.spots);
+  const picked: Spot[] = [];
+
+  for (let i = 0; i < maxSpots && remaining.length > 0; i++) {
+    const slot = i % options.maxSpotsPerDay;
+    const prev = slot === 0 ? undefined : picked[picked.length - 1];
+    const bestIndex = remaining
+      .map((spot, index) => ({
+        index,
+        score: scoreSpot(input.theme, spot, undefined, options) - routeLegPenalty(prev, spot),
+      }))
+      .sort((a, b) => b.score - a.score)[0]?.index;
+    if (bestIndex === undefined) break;
+    const [next] = remaining.splice(bestIndex, 1);
+    if (next) picked.push(next);
+  }
+
+  return picked;
+}
+
 function note(changedSpotIds: string[], changedCommerce: boolean): Course["altNote"] {
   if (changedSpotIds.length === 0 && !changedCommerce) return undefined;
   const koParts: string[] = [];
@@ -243,6 +291,11 @@ function note(changedSpotIds: string[], changedCommerce: boolean): Course["altNo
 function composeFromTemplate(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
   const base = input.baseCourse as Course;
   const spotsById = new Map(input.spots.map((s) => [s.id, s]));
+  const baseSpotItemsByDay = new Map<number, CourseItem[]>();
+  for (const it of base.items) {
+    if (it.kind !== "spot") continue;
+    baseSpotItemsByDay.set(it.day, [...(baseSpotItemsByDay.get(it.day) ?? []), it]);
+  }
   const usedSpots = new Set<string>();
   const usedEats = new Set<string>();
   const usedStays = new Set<string>();
@@ -253,12 +306,17 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
   const firstPass: CourseItem[] = base.items.map((it) => {
     if (it.kind !== "spot") return { ...it };
     const original = spotsById.get(it.refId);
+    const daySpotItems = baseSpotItemsByDay.get(it.day) ?? [];
+    const slotIndex = daySpotItems.findIndex((slot) => slot.refId === it.refId && slot.time === it.time);
+    const prev = toRouteCoord(spotsById.get(daySpotItems[slotIndex - 1]?.refId ?? ""));
+    const next = toRouteCoord(spotsById.get(daySpotItems[slotIndex + 1]?.refId ?? ""));
     const picked = pickSpotForSlot(
       input.theme,
       original,
       input.alternativesBySpot?.[it.refId] ?? [],
       usedSpots,
       options,
+      { prev, next },
     );
     if (!picked) return { ...it };
     usedSpots.add(picked.id);
@@ -296,10 +354,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
 
 function composeFromScratch(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
   const dayCount = options.days ?? input.dayCount ?? inferDayCount(input.theme);
-  const maxSpots = dayCount * options.maxSpotsPerDay;
-  const pickedSpots = [...input.spots]
-    .sort((a, b) => scoreSpot(input.theme, b, undefined, options) - scoreSpot(input.theme, a, undefined, options))
-    .slice(0, maxSpots);
+  const pickedSpots = pickScratchSpots(input, dayCount, options);
 
   const usedEats = new Set<string>();
   const usedStays = new Set<string>();

@@ -1,11 +1,12 @@
 "use client";
 
 // CourseView — Phase 1b. 코스 타임라인(혼잡도 포함). 데이터는 서버에서 주입.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { localized, type Lang } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import type { ComposeCourseOptions } from "@/domain/course-compose";
 import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "@/domain/types";
 
 const { TopBar, Signal, Placeholder } = UI;
@@ -16,19 +17,47 @@ interface Props {
   spots: Record<string, Spot>;
   eats: Record<string, Eat>;
   stays: Record<string, Stay>;
+  options: ComposeCourseOptions;
   initiallySaved: boolean;
   onSaveTheme: (themeId: string, saved: boolean) => Promise<{ saved: boolean }>;
 }
 
-export function CourseView({ theme, course, spots, eats, stays, initiallySaved, onSaveTheme }: Props) {
+const dayChoices = [1, 2, 3];
+const paceChoices = [
+  { id: "calm", ko: "여유", en: "Calm" },
+  { id: "balanced", ko: "균형", en: "Balanced" },
+  { id: "active", ko: "활동적", en: "Active" },
+];
+const companionChoices = [
+  { id: "solo", ko: "혼자", en: "Solo" },
+  { id: "couple", ko: "둘이", en: "Couple" },
+  { id: "family", ko: "가족", en: "Family" },
+];
+const regionChoices = ["강릉", "속초", "평창", "양양"];
+
+export function CourseView({ theme, course, spots, eats, stays, options, initiallySaved, onSaveTheme }: Props) {
   const { lang, requireAuth, showToast } = useAppState();
   const { nav } = useAppNav();
   const [day, setDay] = useState(1);
+  const [showTune, setShowTune] = useState(false);
+  const [draftDays, setDraftDays] = useState(options.days ?? course.dayCount);
+  const [draftPace, setDraftPace] = useState(options.pace ?? "balanced");
+  const [draftCompanion, setDraftCompanion] = useState(options.companion ?? "couple");
+  const [draftRegion, setDraftRegion] = useState(options.startRegion ?? localized(theme.region, "ko").split(" · ")[0] ?? "강릉");
   const [isSaved, setIsSaved] = useState(initiallySaved);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    if (day > course.dayCount) setDay(course.dayCount);
+  }, [course.dayCount, day]);
+
   const items = course.items.filter((it) => it.day === day);
   const busy = items.some((it) => it.kind === "spot" && spots[it.refId]?.congestion === "busy");
+  const tuned =
+    Boolean(options.days) ||
+    Boolean(options.pace) ||
+    Boolean(options.companion) ||
+    Boolean(options.startRegion);
   const saveLabel = isSaved
     ? lang === "ko"
       ? "저장 해제"
@@ -51,6 +80,26 @@ export function CourseView({ theme, course, spots, eats, stays, initiallySaved, 
         }
       });
     });
+  };
+
+  const applyTune = () => {
+    setShowTune(false);
+    nav("course", {
+      themeId: theme.id,
+      days: draftDays,
+      pace: draftPace,
+      companion: draftCompanion,
+      startRegion: draftRegion,
+    });
+  };
+
+  const resetTune = () => {
+    setDraftDays(course.dayCount);
+    setDraftPace("balanced");
+    setDraftCompanion("couple");
+    setDraftRegion(localized(theme.region, "ko").split(" · ")[0] ?? "강릉");
+    setShowTune(false);
+    nav("course", { themeId: theme.id });
   };
 
   return (
@@ -116,9 +165,9 @@ export function CourseView({ theme, course, spots, eats, stays, initiallySaved, 
         </div>
       )}
 
-      {course.dayCount > 1 && (
-        <div style={{ display: "flex", gap: 6, padding: "0 20px 10px" }}>
-          {Array.from({ length: course.dayCount }).map((_, i) => {
+      <div style={{ display: "flex", gap: 6, padding: "0 20px 10px", alignItems: "center" }}>
+        {course.dayCount > 1 &&
+          Array.from({ length: course.dayCount }).map((_, i) => {
             const d = i + 1;
             return (
               <button key={d} onClick={() => setDay(d)} className={"chip" + (day === d ? " active" : "")}>
@@ -126,11 +175,26 @@ export function CourseView({ theme, course, spots, eats, stays, initiallySaved, 
               </button>
             );
           })}
-          <div style={{ flex: 1 }} />
-          <button className="chip">
-            <Icon.filter /> {lang === "ko" ? "조건" : "Tune"}
-          </button>
-        </div>
+        <div style={{ flex: 1 }} />
+        <button className={"chip" + (showTune || tuned ? " active" : "")} onClick={() => setShowTune((v) => !v)}>
+          <Icon.filter /> {lang === "ko" ? "조건" : "Tune"}
+        </button>
+      </div>
+
+      {showTune && (
+        <CourseTunePanel
+          lang={lang}
+          days={draftDays}
+          pace={draftPace}
+          companion={draftCompanion}
+          startRegion={draftRegion}
+          onDays={setDraftDays}
+          onPace={setDraftPace}
+          onCompanion={setDraftCompanion}
+          onRegion={setDraftRegion}
+          onApply={applyTune}
+          onReset={resetTune}
+        />
       )}
 
       <div style={{ padding: "4px 20px 0", position: "relative" }}>
@@ -154,6 +218,97 @@ export function CourseView({ theme, course, spots, eats, stays, initiallySaved, 
           {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />} {isPending ? (lang === "ko" ? "저장 중..." : "Saving...") : saveLabel}
         </button>
       </div>
+    </div>
+  );
+}
+
+interface TunePanelProps {
+  lang: Lang;
+  days: number;
+  pace: string;
+  companion: string;
+  startRegion: string;
+  onDays: (v: number) => void;
+  onPace: (v: string) => void;
+  onCompanion: (v: string) => void;
+  onRegion: (v: string) => void;
+  onApply: () => void;
+  onReset: () => void;
+}
+
+function CourseTunePanel({
+  lang,
+  days,
+  pace,
+  companion,
+  startRegion,
+  onDays,
+  onPace,
+  onCompanion,
+  onRegion,
+  onApply,
+  onReset,
+}: TunePanelProps) {
+  return (
+    <div style={{ margin: "0 20px 14px", padding: 14, background: "var(--bg-elev)", border: "1px solid var(--line-2)", borderRadius: "var(--r-md)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>{lang === "ko" ? "코스 조건" : "Trip options"}</div>
+          <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2 }}>
+            {lang === "ko" ? "선택값으로 후보 장소와 동선을 다시 조합해요." : "Regenerate stops and route with these choices."}
+          </div>
+        </div>
+        <button className="icon-btn" onClick={onReset} aria-label={lang === "ko" ? "조건 초기화" : "Reset options"}>
+          <Icon.refresh />
+        </button>
+      </div>
+
+      <TuneGroup label={lang === "ko" ? "일정" : "Days"}>
+        {dayChoices.map((d) => (
+          <button key={d} className={"chip" + (days === d ? " active" : "")} onClick={() => onDays(d)}>
+            {lang === "ko" ? `${d}일` : `${d}d`}
+          </button>
+        ))}
+      </TuneGroup>
+
+      <TuneGroup label={lang === "ko" ? "페이스" : "Pace"}>
+        {paceChoices.map((p) => (
+          <button key={p.id} className={"chip" + (pace === p.id ? " active" : "")} onClick={() => onPace(p.id)}>
+            {lang === "ko" ? p.ko : p.en}
+          </button>
+        ))}
+      </TuneGroup>
+
+      <TuneGroup label={lang === "ko" ? "동행" : "With"}>
+        {companionChoices.map((c) => (
+          <button key={c.id} className={"chip" + (companion === c.id ? " active" : "")} onClick={() => onCompanion(c.id)}>
+            {lang === "ko" ? c.ko : c.en}
+          </button>
+        ))}
+      </TuneGroup>
+
+      <TuneGroup label={lang === "ko" ? "시작 권역" : "Start"}>
+        {regionChoices.map((r) => (
+          <button key={r} className={"chip" + (startRegion === r ? " active" : "")} onClick={() => onRegion(r)}>
+            {r}
+          </button>
+        ))}
+      </TuneGroup>
+
+      <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={onApply}>
+        <Icon.refresh /> {lang === "ko" ? "조건 적용" : "Apply"}
+      </button>
+    </div>
+  );
+}
+
+function TuneGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ marginTop: 13 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)", marginBottom: 7, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>{children}</div>
     </div>
   );
 }
