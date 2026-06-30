@@ -7,6 +7,7 @@ import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import { Avatar } from "./avatar";
 import type { Theme, User } from "@/domain/types";
 
 interface Props {
@@ -60,7 +61,7 @@ export function ProfileEditView({ user, themes }: Props) {
 
       <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
         <div style={{ position: "relative" }}>
-          <img className="avatar-lg" src={user.avatarUrl} alt="" style={{ width: 86, height: 86 }} />
+          <Avatar className="avatar-lg" src={user.avatarUrl} size={86} />
           <button className="avatar-cam">
             <Icon.camera />
           </button>

@@ -37,6 +37,7 @@ import { getItemDetail, listGangwonItems } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
 import { apiCache } from "@/server/cache";
 import { createLogger } from "@/server/log";
+import { buildTravelTimeLookup } from "@/server/routing/travel-time";
 import { L, type LocalizedText } from "@/lib/i18n";
 import { buildTools } from "@/server/agent/tools";
 import { planCourse, planItinerary } from "@/server/agent/planner";
@@ -76,6 +77,12 @@ function poiNamesFromTrace(trace: AgentStep[]): string[] {
 function withSpotMappingCoords(spot: Spot): Spot {
   const mapping = getSpotMapping(spot.id);
   return mapping ? { ...spot, lat: mapping.lat, lon: mapping.lon } : spot;
+}
+
+function routeCoordsFromSpots(spots: Spot[]) {
+  return spots
+    .filter((spot): spot is Spot & { lat: number; lon: number } => typeof spot.lat === "number" && typeof spot.lon === "number")
+    .map((spot) => ({ lat: spot.lat, lon: spot.lon, region: spot.region.ko }));
 }
 
 /**
@@ -211,7 +218,7 @@ export class LiveRepository extends MockRepository {
     if (!base) return base;
 
     try {
-      const ctx = await this.buildAgentContext();
+      const ctx = await this.buildAgentContext(options);
       const result = await planItinerary(
         { intent: `테마 ${themeId} 코스를 현재 혼잡 기준으로 정리`, lang: "ko", themeId, at: nowKst() },
         {
@@ -264,6 +271,10 @@ export class LiveRepository extends MockRepository {
       }),
     );
     const alternativesBySpot = Object.fromEntries(altEntries);
+    const travelSpots = [...spots, ...altEntries.flatMap(([, alternatives]) => alternatives)];
+    const travelTimeLookup = await buildTravelTimeLookup(routeCoordsFromSpots(travelSpots), {
+      mode: options?.transport ?? "car",
+    });
 
     return composeCourse({
       theme,
@@ -272,7 +283,7 @@ export class LiveRepository extends MockRepository {
       eats,
       stays,
       alternativesBySpot,
-    }, options);
+    }, { ...options, travelTimeLookup });
   }
 
   private async getDbSpotProfilesForTheme(themeId: string): Promise<Spot[]> {
@@ -461,7 +472,7 @@ export class LiveRepository extends MockRepository {
    * 정적 데이터(테마/코스/스팟 메타)는 mock(메모리)에서, 동적 데이터(날씨/대기질/POI)는
    * 공공 API 클라이언트 + 캐시에서 가져온다. 도구 코드는 이 포트만 보므로 출처를 모른다.
    */
-  private async buildAgentContext(): Promise<ToolContext> {
+  private async buildAgentContext(options?: ComposeCourseOptions): Promise<ToolContext> {
     const [themes, baseSpots] = await Promise.all([super.listThemes(), super.listSpots()]);
 
     // 매핑이 있는 스팟만 도구의 행동 대상으로 노출(좌표·권역·성격 필요).
@@ -475,7 +486,7 @@ export class LiveRepository extends MockRepository {
     return {
       themes,
       spots,
-      getCourse: (themeId) => this.composeSeedCourse(themeId),
+      getCourse: (themeId) => this.composeSeedCourse(themeId, options),
       weather: async (meta) => {
         const w = await cached(`wx:${meta.id}`, TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
         return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: w.desc };

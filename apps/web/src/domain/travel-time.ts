@@ -19,12 +19,18 @@ export interface RouteContext {
   prev?: Coord;
   next?: Coord;
   mode?: TravelMode;
+  lookup?: TravelTimeLookup;
 }
 
 export interface TravelEstimate {
   distanceKm: number;
   driveMinutes: number;
   mode: TravelMode;
+  source?: "approx" | "api";
+}
+
+export interface TravelTimeLookup {
+  estimate(a: Coord, b: Coord, mode?: TravelMode): TravelEstimate | null;
 }
 
 function hasCoord(v: unknown): v is Coord {
@@ -70,19 +76,36 @@ function modeOverhead(distanceKm: number, mode: TravelMode): number {
   return distanceKm < 6 ? 4 : 7;
 }
 
-export function estimateDrive(a: Coord, b: Coord, mode: TravelMode = "car"): TravelEstimate | null {
+function estimateApproxDrive(a: Coord, b: Coord, mode: TravelMode = "car"): TravelEstimate | null {
   if (!hasCoord(a) || !hasCoord(b)) return null;
   const straight = haversineKm(a, b);
   const distanceKm = straight * regionFactor(a, b);
   const minutes = (distanceKm / averageSpeedKmh(distanceKm, a, b, mode)) * 60;
-  return { distanceKm, driveMinutes: Math.round(minutes + modeOverhead(distanceKm, mode)), mode };
+  return { distanceKm, driveMinutes: Math.round(minutes + modeOverhead(distanceKm, mode)), mode, source: "approx" };
 }
 
-export function estimateRouteMinutes(points: Coord[], mode: TravelMode = "car"): number | null {
+export const approxTravelTimeLookup: TravelTimeLookup = {
+  estimate: estimateApproxDrive,
+};
+
+export function estimateDrive(
+  a: Coord,
+  b: Coord,
+  mode: TravelMode = "car",
+  lookup: TravelTimeLookup = approxTravelTimeLookup,
+): TravelEstimate | null {
+  return lookup.estimate(a, b, mode);
+}
+
+export function estimateRouteMinutes(
+  points: Coord[],
+  mode: TravelMode = "car",
+  lookup: TravelTimeLookup = approxTravelTimeLookup,
+): number | null {
   if (points.length < 2) return 0;
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    const leg = estimateDrive(points[i - 1]!, points[i]!, mode);
+    const leg = estimateDrive(points[i - 1]!, points[i]!, mode, lookup);
     if (!leg) return null;
     total += leg.driveMinutes;
   }
@@ -91,17 +114,18 @@ export function estimateRouteMinutes(points: Coord[], mode: TravelMode = "car"):
 
 export function extraRouteMinutes(original: Coord, candidate: Coord, context: RouteContext): number | null {
   const mode = context.mode ?? "car";
+  const lookup = context.lookup ?? approxTravelTimeLookup;
   const before = [context.prev, original, context.next].filter(hasCoord);
   const after = [context.prev, candidate, context.next].filter(hasCoord);
 
   // 전후 방문지가 없으면 원래 장소→후보 거리만 보조 패널티로 쓴다.
   if (before.length < 2 || after.length < 2) {
-    const direct = estimateDrive(original, candidate, mode);
+    const direct = estimateDrive(original, candidate, mode, lookup);
     return direct ? Math.max(0, direct.driveMinutes - 12) : null;
   }
 
-  const beforeMinutes = estimateRouteMinutes(before, mode);
-  const afterMinutes = estimateRouteMinutes(after, mode);
+  const beforeMinutes = estimateRouteMinutes(before, mode, lookup);
+  const afterMinutes = estimateRouteMinutes(after, mode, lookup);
   if (beforeMinutes === null || afterMinutes === null) return null;
   return Math.max(0, afterMinutes - beforeMinutes);
 }

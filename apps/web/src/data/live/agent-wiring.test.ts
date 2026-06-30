@@ -59,6 +59,18 @@ describe("LiveRepository.getCourse — 코스 정리 에이전트(planItinerary)
     for (const item of out!.items) expect(validRefs.has(item.refId)).toBe(true);
   });
 
+  it("코스 조건 옵션을 에이전트 도구 경로까지 유지한다", async () => {
+    const live = new LiveRepository();
+    const mock = new MockRepository();
+    const themeId = await someThemeWithCourse(mock);
+
+    const out = await live.getCourse(themeId, { days: 1, pace: "calm", transport: "walk" });
+
+    expect(out).not.toBeNull();
+    expect(out!.dayCount).toBe(1);
+    expect(out!.items.every((item) => item.day === 1)).toBe(true);
+  });
+
   it("없는 테마는 null 을 반환한다", async () => {
     const live = new LiveRepository();
     expect(await live.getCourse("__nope__")).toBeNull();

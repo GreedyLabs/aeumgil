@@ -6,6 +6,7 @@ import { localized, type Lang } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import { Avatar } from "./avatar";
 import type { Review, Spot, Theme, User } from "@/domain/types";
 
 const { Signal, ThemeHueBg, Placeholder } = UI;
@@ -182,7 +183,7 @@ function ProfileStats({
 
       <div style={{ padding: "6px 20px 0" }}>
         <div className="profile-head">
-          <img className="avatar-lg" src={user.avatarUrl} alt="" />
+          <Avatar className="avatar-lg" src={user.avatarUrl} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className="serif" style={{ fontSize: 24, lineHeight: 1.15 }}>
@@ -318,7 +319,7 @@ function ProfileList({
 
       <div style={{ padding: "6px 20px 0" }}>
         <button className="profile-head-compact" onClick={() => nav("profileEdit")}>
-          <img className="avatar-md" src={user.avatarUrl} alt="" />
+          <Avatar className="avatar-md" src={user.avatarUrl} />
           <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.01em" }}>{localized(user.name, lang)}</div>
             <div style={{ marginTop: 4 }}>

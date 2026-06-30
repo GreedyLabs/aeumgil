@@ -14,7 +14,14 @@
 
 import type { Course, CourseItem, Eat, Spot, Stay, Theme } from "./types";
 import { L, localized } from "@/lib/i18n";
-import { estimateDrive, routePenaltyPoints, type RouteContext, type TravelMode } from "./travel-time";
+import {
+  approxTravelTimeLookup,
+  estimateDrive,
+  routePenaltyPoints,
+  type RouteContext,
+  type TravelMode,
+  type TravelTimeLookup,
+} from "./travel-time";
 
 export interface ComposeCourseInput {
   theme: Theme;
@@ -41,6 +48,8 @@ export interface ComposeCourseOptions {
   startRegion?: string;
   /** 이동수단. car=자가용/렌터카, transit=대중교통, walk=도보 중심. */
   transport?: TravelMode;
+  /** 서버 길찾기 API 또는 근사 계산으로 구성한 이동시간 조회 포트. */
+  travelTimeLookup?: TravelTimeLookup;
   /** 하루에 배치할 최대 스팟 수. 기본 3. */
   maxSpotsPerDay?: number;
 }
@@ -52,6 +61,7 @@ interface NormalizedComposeOptions {
   companion?: string;
   startRegion?: string;
   transport: TravelMode;
+  travelTimeLookup: TravelTimeLookup;
   maxSpotsPerDay: number;
 }
 
@@ -163,11 +173,16 @@ function routePenalty(original: Spot, candidate: Spot, context: RouteContext): n
   return routePenaltyPoints(originalCoord, candidateCoord, context);
 }
 
-function routeLegPenalty(prev: Spot | undefined, candidate: Spot, mode: TravelMode): number {
+function routeLegPenalty(
+  prev: Spot | undefined,
+  candidate: Spot,
+  mode: TravelMode,
+  lookup: TravelTimeLookup,
+): number {
   const prevCoord = toRouteCoord(prev);
   const candidateCoord = toRouteCoord(candidate);
   if (!prevCoord || !candidateCoord) return 0;
-  const drive = estimateDrive(prevCoord, candidateCoord, mode);
+  const drive = estimateDrive(prevCoord, candidateCoord, mode, lookup);
   if (!drive || drive.driveMinutes <= 45) return 0;
   return Math.min(30, (drive.driveMinutes - 45) * 0.35);
 }
@@ -265,7 +280,9 @@ function pickScratchSpots(input: ComposeCourseInput, dayCount: number, options: 
     const bestIndex = remaining
       .map((spot, index) => ({
         index,
-        score: scoreSpot(input.theme, spot, undefined, options) - routeLegPenalty(prev, spot, options.transport),
+        score:
+          scoreSpot(input.theme, spot, undefined, options) -
+          routeLegPenalty(prev, spot, options.transport, options.travelTimeLookup),
       }))
       .sort((a, b) => b.score - a.score)[0]?.index;
     if (bestIndex === undefined) break;
@@ -293,9 +310,11 @@ function note(changedSpotIds: string[], changedCommerce: boolean): Course["altNo
 
 function composeFromTemplate(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
   const base = input.baseCourse as Course;
+  const targetDayCount = options.days ?? base.dayCount;
+  const templateItems = base.items.filter((it) => it.day <= targetDayCount);
   const spotsById = new Map(input.spots.map((s) => [s.id, s]));
   const baseSpotItemsByDay = new Map<number, CourseItem[]>();
-  for (const it of base.items) {
+  for (const it of templateItems) {
     if (it.kind !== "spot") continue;
     baseSpotItemsByDay.set(it.day, [...(baseSpotItemsByDay.get(it.day) ?? []), it]);
   }
@@ -306,7 +325,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
   let changedCommerce = false;
 
   const spotRegionByDay = new Map<number, string>();
-  const firstPass: CourseItem[] = base.items.map((it) => {
+  const firstPass: CourseItem[] = templateItems.map((it) => {
     if (it.kind !== "spot") return { ...it };
     const original = spotsById.get(it.refId);
     const daySpotItems = baseSpotItemsByDay.get(it.day) ?? [];
@@ -319,7 +338,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
       input.alternativesBySpot?.[it.refId] ?? [],
       usedSpots,
       options,
-      { prev, next, mode: options.transport },
+      { prev, next, mode: options.transport, lookup: options.travelTimeLookup },
     );
     if (!picked) return { ...it };
     usedSpots.add(picked.id);
@@ -350,6 +369,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
 
   return {
     ...base,
+    dayCount: targetDayCount,
     altNote: note(changedSpotIds, changedCommerce) ?? base.altNote,
     items: sortItems(items),
   };
@@ -401,6 +421,7 @@ export function composeCourse(input: ComposeCourseInput, options: ComposeCourseO
     companion: options.companion,
     startRegion: options.startRegion,
     transport: options.transport ?? "car",
+    travelTimeLookup: options.travelTimeLookup ?? approxTravelTimeLookup,
     maxSpotsPerDay: options.maxSpotsPerDay ?? spotsPerDayForPace(options.pace),
   };
 

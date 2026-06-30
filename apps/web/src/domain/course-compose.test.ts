@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { L } from "@/lib/i18n";
 import type { Course, Eat, Spot, Stay, Theme } from "./types";
 import { composeCourse } from "./course-compose";
+import type { TravelTimeLookup } from "./travel-time";
 
 const theme: Theme = {
   id: "east-sea-sunrise",
@@ -99,6 +100,30 @@ describe("composeCourse", () => {
     expect(course!.items.find((it) => it.kind === "eat")?.refId).toBe("e-gangneung");
   });
 
+  it("baseCourse 템플릿이 있어도 days 조건으로 일정을 줄인다", () => {
+    const twoDayBase: Course = {
+      ...baseCourse,
+      dayCount: 2,
+      items: [
+        ...baseCourse.items,
+        { kind: "spot", day: 2, time: "10:00", refId: "dongmyeong-port", durationMin: 60 },
+      ],
+    };
+    const course = composeCourse(
+      {
+        theme,
+        baseCourse: twoDayBase,
+        spots: [busyBeach, quietBeach, port],
+        eats,
+        stays,
+      },
+      { days: 1 },
+    );
+
+    expect(course!.dayCount).toBe(1);
+    expect(course!.items.every((it) => it.day === 1)).toBe(true);
+  });
+
   it("대체 후보 점수가 높아도 원래 장소에서 너무 멀면 가까운 후보를 우선한다", () => {
     const course = composeCourse({
       theme,
@@ -133,6 +158,38 @@ describe("composeCourse", () => {
     });
 
     expect(course!.items.find((it) => it.time === "10:00")?.refId).toBe("near-route-beach");
+  });
+
+  it("주입된 이동시간 포트가 대체 후보 랭킹에 반영된다", () => {
+    const routeBase: Course = {
+      ...baseCourse,
+      items: [
+        { kind: "spot", day: 1, time: "10:00", refId: "anmok-beach", durationMin: 60 },
+        { kind: "spot", day: 1, time: "14:00", refId: "dongmyeong-port", durationMin: 60 },
+      ],
+    };
+    const normallyGood = spot("api-slow-beach", "강릉", "calm", 90, ["바다", "한적"], { lat: 37.781, lon: 128.95 });
+    const normallyLower = spot("api-fast-beach", "강릉", "calm", 86, ["바다", "한적"], { lat: 37.79, lon: 128.951 });
+    const apiLookup: TravelTimeLookup = {
+      estimate(a, b, mode = "car") {
+        const touchesSlow = [a, b].some((c) => Math.abs(c.lat - normallyGood.lat!) < 0.001);
+        return { distanceKm: touchesSlow ? 8 : 2, driveMinutes: touchesSlow ? 130 : 8, mode, source: "api" };
+      },
+    };
+
+    const course = composeCourse(
+      {
+        theme,
+        baseCourse: routeBase,
+        spots: [busyBeach, normallyGood, normallyLower, port],
+        eats,
+        stays,
+        alternativesBySpot: { "anmok-beach": [normallyGood, normallyLower] },
+      },
+      { travelTimeLookup: apiLookup },
+    );
+
+    expect(course!.items.find((it) => it.time === "10:00")?.refId).toBe("api-fast-beach");
   });
 
   it("baseCourse 가 없어도 후보 풀에서 간단한 코스를 생성한다", () => {
