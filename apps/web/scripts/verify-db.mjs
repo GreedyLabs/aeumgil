@@ -45,6 +45,7 @@ const EXPECTED = {
     "suitability",
     "default_duration_min",
     "env",
+    "image_url",
   ],
   course_template: ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"],
   course_template_item: ["template_id", "seq", "kind", "day", "time", "ref_id"],

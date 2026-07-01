@@ -89,7 +89,7 @@ export function AlternativeView({ original, alts, localCommerce }: Props) {
             className="card"
             style={{ padding: 10, textAlign: "left", display: "flex", gap: 12, border: selected === a.id ? "2px solid var(--brand)" : "1px solid var(--line)" }}
           >
-            <Placeholder label={localized(a.name, lang)} id={a.id} h={70} style={{ width: 80, borderRadius: 10, flexShrink: 0 }} />
+            <Placeholder label={localized(a.name, lang)} src={a.imageUrl} h={70} style={{ width: 80, borderRadius: 10, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14.5, fontWeight: 600 }}>{localized(a.name, lang)}</div>
               <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>

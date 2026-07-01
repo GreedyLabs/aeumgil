@@ -7,6 +7,8 @@ import { createReviewAction, createVisitAction } from "@/app/actions/reviews";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
+import { NearbyPlaceCard } from "./nearby-place-card";
+import { RatingStars } from "./rating-stars";
 import { UI, Icon } from "./_ui";
 import type { Eat, Spot, Stay } from "@/domain/types";
 
@@ -65,7 +67,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
   return (
     <div className="screen-enter">
       <div style={{ position: "relative" }}>
-        <Placeholder label={localized(s.name, lang)} id={s.id} h={260} overlay />
+        <Placeholder label={localized(s.name, lang)} src={s.imageUrl} h={260} overlay />
         <div style={{ position: "absolute", top: 14, left: 14, right: 14, display: "flex", justifyContent: "space-between" }}>
           <button className="icon-btn filled" onClick={back}>
             <Icon.back />
@@ -231,13 +233,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>{lang === "ko" ? "짧은 리뷰" : "Quick review"}</div>
-              <div style={{ display: "flex", gap: 2 }}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} className="icon-btn" style={{ width: 44, height: 44, color: n <= rating ? "var(--accent)" : "var(--ink-4)" }} onClick={() => setRating(n)} aria-label={`${n}점`}>
-                    <Icon.star />
-                  </button>
-                ))}
-              </div>
+              <RatingStars value={rating} onChange={setRating} disabled={isPending} size={18} buttonSize={44} />
             </div>
             <textarea
               value={reviewText}
@@ -286,32 +282,26 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
       </div>
       <div className="hscroll">
         {eats.map((e) => (
-          <div key={e.id} className="card" style={{ width: 170, padding: 0 }}>
-            <Placeholder label="eats" id={e.id} h={80} />
-            <div style={{ padding: "10px 12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>
-                <Icon.utensils />
-                {localized(e.type, lang)}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2, lineHeight: 1.25 }}>{localized(e.name, lang)}</div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                {e.price} · ★{e.rating}
-              </div>
-            </div>
-          </div>
+          <NearbyPlaceCard
+            key={e.id}
+            imageLabel="eats"
+            title={localized(e.name, lang)}
+            category={localized(e.type, lang)}
+            meta={`${e.price} · ★${e.rating}`}
+            tone="accent"
+            icon="utensils"
+          />
         ))}
         {stays.map((st) => (
-          <div key={st.id} className="card" style={{ width: 170, padding: 0 }}>
-            <Placeholder label="stays" id={st.id} h={80} />
-            <div style={{ padding: "10px 12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--brand)", fontWeight: 600 }}>
-                <Icon.bed />
-                {localized(st.type, lang)}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2, lineHeight: 1.25 }}>{localized(st.name, lang)}</div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>{localized(st.price, lang)}</div>
-            </div>
-          </div>
+          <NearbyPlaceCard
+            key={st.id}
+            imageLabel="stays"
+            title={localized(st.name, lang)}
+            category={localized(st.type, lang)}
+            meta={localized(st.price, lang)}
+            tone="brand"
+            icon="bed"
+          />
         ))}
       </div>
 

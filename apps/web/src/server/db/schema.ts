@@ -117,6 +117,7 @@ export const spotProfiles = table("spot_profile", {
   env: text("env").notNull().default("inland"),
   source: text("source").notNull().default("seed"),
   sourceContentId: text("source_content_id"),
+  imageUrl: text("image_url"),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 

@@ -39,6 +39,7 @@ import {
   fetchSpotProfilesForTheme,
   fetchTheme,
   fetchThemes,
+  saveSpotProfileImageUrl,
 } from "@/server/db/course-catalog";
 import {
   computeStats,
@@ -195,6 +196,7 @@ export class LiveRepository implements Repository {
 
       // contentId 가 확정된 경우에만 TourAPI 개요로 설명 보강
       let description = L(reason.ko, reason.en);
+      let imageUrl = spot.imageUrl;
       let tourMark = "tour–";
       if (m.tourContentId) {
         const detail = await cached(`tour:${m.tourContentId}`, DAY_MS, () =>
@@ -205,6 +207,16 @@ export class LiveRepository implements Repository {
           tourMark = "tour✓";
         } else {
           tourMark = "tour✗";
+        }
+        if (detail?.image) {
+          imageUrl = detail.image;
+          if (!spot.imageUrl) {
+            try {
+              await saveSpotProfileImageUrl(requireDb(), spot.id, detail.image);
+            } catch (e) {
+              log.warn(`image persist ${spot.id} → skipped (${e instanceof Error ? e.message : String(e)})`);
+            }
+          }
         }
       }
 
@@ -219,6 +231,7 @@ export class LiveRepository implements Repository {
         air: air.grade,
         suitability,
         description,
+        imageUrl,
       };
     } catch (e) {
       // 외부 데이터 실패 → DB 기본값 유지

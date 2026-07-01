@@ -4,44 +4,11 @@ import React from "react";
 import { Icon } from "./icons";
 
 // ─────────────────────────────────────────────
-// Image source — Unsplash Source by keyword
-// ─────────────────────────────────────────────
-const IMG_BY_ID = {
-  // Spots
-  'anmok-beach': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=70&auto=format',
-  'sacheon-beach': 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=600&q=70&auto=format',
-  'ojukheon': 'https://images.unsplash.com/photo-1578664182354-e3878aa30da4?w=600&q=70&auto=format',
-  'daegwallyeong-sheep': 'https://images.unsplash.com/photo-1484557985045-edf25e08da73?w=600&q=70&auto=format',
-  'woljeongsa-trail': 'https://images.unsplash.com/photo-1542202229-7d93c33f5d07?w=600&q=70&auto=format',
-  'seorak-gwongeum': 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=600&q=70&auto=format',
-  'sokcho-market': 'https://images.unsplash.com/photo-1555992336-03a23c7b20ee?w=600&q=70&auto=format',
-  'dongmyeong-port': 'https://images.unsplash.com/photo-1516575869224-4de7cfca79c4?w=600&q=70&auto=format',
-  'jumunjin-cafe': 'https://images.unsplash.com/photo-1501426026826-31c667bdf23d?w=600&q=70&auto=format',
-  // Eats
-  'e1': 'https://images.unsplash.com/photo-1579027989536-b7b1f875659b?w=400&q=70&auto=format',
-  'e2': 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&q=70&auto=format',
-  'e3': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70&auto=format',
-  'e4': 'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?w=400&q=70&auto=format',
-  // Stays
-  's1': 'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=400&q=70&auto=format',
-  's2': 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=70&auto=format',
-  's3': 'https://images.unsplash.com/photo-1587061949409-02df41d5e562?w=400&q=70&auto=format',
-  // Themes
-  'theme:quiet-inland': 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=70&auto=format',
-  'theme:east-sea-sunrise': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=70&auto=format',
-  'theme:mountain-trek': 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=70&auto=format',
-  'theme:market-local': 'https://images.unsplash.com/photo-1555992336-03a23c7b20ee?w=800&q=70&auto=format',
-  'theme:cafe-viewpoint': 'https://images.unsplash.com/photo-1501426026826-31c667bdf23d?w=800&q=70&auto=format',
-  'theme:family-experience': 'https://images.unsplash.com/photo-1484557985045-edf25e08da73?w=800&q=70&auto=format',
-};
-const imgFor = (id) => IMG_BY_ID[id] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=70&auto=format';
-
-// ─────────────────────────────────────────────
 // Shared primitives
 // ─────────────────────────────────────────────
 
-function Placeholder({ label, h = 160, dark = false, style, id, overlay = false, children }) {
-  const src = id ? imgFor(id) : null;
+function Placeholder({ label, h = 160, dark = false, style, id, src: explicitSrc, overlay = false, children }) {
+  const src = explicitSrc || null;
   return (
     <div style={{
       height: h, width: '100%', position: 'relative', overflow: 'hidden',
@@ -113,23 +80,16 @@ function TabBar({ active, onNav, lang = 'ko' }) {
 }
 
 function ThemeHueBg({ hue, children, h, themeId }) {
-  const src = themeId ? imgFor('theme:' + themeId) : null;
   return (
     <div style={{
       height: h, width: '100%', position: 'relative', overflow: 'hidden',
-      background: src
-        ? `#222 url("${src}") center/cover no-repeat`
-        : `radial-gradient(circle at 30% 20%, oklch(0.55 0.12 ${hue}) 0%, oklch(0.3 0.08 ${hue}) 70%)`,
+      background: `radial-gradient(circle at 30% 20%, oklch(0.55 0.12 ${hue}) 0%, oklch(0.3 0.08 ${hue}) 70%)`,
     }}>
       <div style={{
         position: 'absolute', inset: 0,
-        background: src
-          ? `linear-gradient(180deg, color-mix(in oklch, oklch(0.38 0.08 ${hue}) 35%, transparent) 0%, rgba(0,0,0,0.55) 100%)`
-          : 'transparent',
+        background: `linear-gradient(180deg, color-mix(in oklch, oklch(0.38 0.08 ${hue}) 25%, transparent) 0%, rgba(0,0,0,0.45) 100%)`,
       }}/>
-      {!src && (
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(135deg, rgba(255,255,255,0.07) 0 14px, transparent 14px 28px)` }}/>
-      )}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(135deg, rgba(255,255,255,0.07) 0 14px, transparent 14px 28px)` }}/>
       {children}
     </div>
   );
@@ -161,7 +121,7 @@ function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin }) {
       <div className="dnav-foot">
         {isMember && user ? (
           <button className="dnav-user" onClick={() => onNav('profile')}>
-            <img src={user.avatar} alt=""/>
+            {user.avatar ? <img src={user.avatar} alt=""/> : <span className="avatar-md" aria-hidden="true" />}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user[`name_${lang}`] || user.name_ko}</div>
               <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Lv.{user.level} · {user[`grade_${lang}`] || user.grade_ko}</div>
@@ -178,4 +138,4 @@ function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin }) {
   );
 }
 
-export { Placeholder, Signal, Chip, TopBar, TabBar, Sidebar, ThemeHueBg, imgFor };
+export { Placeholder, Signal, Chip, TopBar, TabBar, Sidebar, ThemeHueBg };

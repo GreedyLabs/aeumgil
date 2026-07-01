@@ -6,7 +6,8 @@ import { deleteReviewAction, deleteVisitAction, updateReviewAction, updateVisitA
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
-import type { ReviewWithSpot } from "./profile";
+import { RatingStars } from "./rating-stars";
+import { ReviewCard, ReviewHelpful, type ReviewWithSpot } from "./review-card";
 import { UI, Icon } from "./_ui";
 import type { Congestion, Review, Spot, Visit } from "@/domain/types";
 
@@ -142,29 +143,6 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
   );
 }
 
-function Stars({ n, onPick, disabled }: { n: number; onPick?: (n: number) => void; disabled?: boolean }) {
-  return (
-    <span style={{ display: "inline-flex", gap: 1, color: "var(--accent)" }}>
-      {Array.from({ length: 5 }).map((_, i) => {
-        const score = i + 1;
-        return (
-          <button
-            key={score}
-            type="button"
-            className="icon-btn"
-            disabled={disabled || !onPick}
-            onClick={() => onPick?.(score)}
-            aria-label={`${score}점`}
-            style={{ width: 24, height: 24, color: i < n ? "var(--accent)" : "var(--line-2)" }}
-          >
-            <Icon.star style={{ width: 14, height: 14 }} />
-          </button>
-        );
-      })}
-    </span>
-  );
-}
-
 function EditableReviewCard({
   review,
   spot,
@@ -193,25 +171,19 @@ function EditableReviewCard({
   };
 
   return (
-    <div className="card" style={{ padding: 12 }}>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", width: "100%" }}>
-        <button
-          onClick={() => onNavSpot(spot.id)}
-          style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, minWidth: 0, textAlign: "left" }}
-        >
-          <UI.Placeholder label={localized(spot.name, lang)} id={spot.id} h={44} style={{ width: 44, borderRadius: 10, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {localized(spot.name, lang)}
-            </div>
-            <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-              {localized(spot.region, lang)} · {review.date}
-            </div>
-          </div>
-        </button>
-        {editing ? <Stars n={rating} onPick={setRating} disabled={disabled} /> : <Stars n={review.rating} disabled />}
-      </div>
-
+    <ReviewCard
+      review={review}
+      spot={spot}
+      lang={lang}
+      onNavSpot={onNavSpot}
+      trailing={
+        editing ? (
+          <RatingStars value={rating} onChange={setRating} disabled={disabled} size={14} />
+        ) : (
+          <RatingStars value={review.rating} />
+        )
+      }
+    >
       {editing ? (
         <>
           <textarea
@@ -239,23 +211,23 @@ function EditableReviewCard({
       ) : (
         <>
           <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>{localized(review.text, lang)}</p>
-          <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 8, display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <Icon.heart style={{ width: 13, height: 13 }} />
-              {lang === "ko" ? `도움돼요 ${review.helpful}` : `${review.helpful} found helpful`}
-            </span>
-            <span style={{ display: "inline-flex", gap: 6 }}>
-              <button className="link-sm" disabled={disabled} onClick={() => setEditing(true)}>
-                {lang === "ko" ? "수정" : "Edit"}
-              </button>
-              <button className="link-sm" disabled={disabled} onClick={() => onDelete(review)} style={{ color: "var(--busy)" }}>
-                {lang === "ko" ? "삭제" : "Delete"}
-              </button>
-            </span>
-          </div>
+          <ReviewHelpful
+            helpful={review.helpful}
+            lang={lang}
+            actions={
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                <button className="link-sm" disabled={disabled} onClick={() => setEditing(true)}>
+                  {lang === "ko" ? "수정" : "Edit"}
+                </button>
+                <button className="link-sm" disabled={disabled} onClick={() => onDelete(review)} style={{ color: "var(--busy)" }}>
+                  {lang === "ko" ? "삭제" : "Delete"}
+                </button>
+              </span>
+            }
+          />
         </>
       )}
-    </div>
+    </ReviewCard>
   );
 }
 

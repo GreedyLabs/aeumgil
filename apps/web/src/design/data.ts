@@ -376,7 +376,7 @@ const ALT_SPOTS = {
 const USER = {
   name_ko: '유진', name_en: 'Yujin',
   handle: '@yujin_gw',
-  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&q=70&auto=format&fit=crop',
+  avatar: '',
   provider: 'kakao',
   email: 'yujin****@kakao.com',
   bio_ko: '붐비지 않는 강원도를 찾아다녀요. 숲길과 항구 골목 좋아함.',

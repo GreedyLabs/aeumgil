@@ -14,7 +14,7 @@ export function Avatar({ src, className, size }: AvatarProps) {
       style={{
         ...(size ? { width: size, height: size } : {}),
         display: "block",
-        backgroundImage: `url("${src}")`,
+        backgroundImage: src ? `url("${src}")` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

@@ -94,6 +94,7 @@ describe("spot_profile 어댑터", () => {
       defaultDurationMin: 75,
       lat: 37.8368,
       lon: 128.8782,
+      imageUrl: "https://example.com/db-beach.jpg",
     },
     {
       spotId: "db-mountain",
@@ -113,6 +114,7 @@ describe("spot_profile 어댑터", () => {
       defaultDurationMin: 120,
       lat: null,
       lon: null,
+      imageUrl: null,
     },
   ];
 
@@ -129,6 +131,7 @@ describe("spot_profile 어댑터", () => {
       reviewCount: 12,
       lat: 37.8368,
       lon: 128.8782,
+      imageUrl: "https://example.com/db-beach.jpg",
     });
     expect(spots[0]!.name.ko).toBe("DB 해변");
     expect(spots[0]!.durationText?.ko).toBe("1시간 15분");

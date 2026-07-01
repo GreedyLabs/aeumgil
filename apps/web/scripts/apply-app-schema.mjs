@@ -205,6 +205,7 @@ async function ensureSpotProfile() {
       env text not null default 'inland',
       source text not null default 'seed',
       source_content_id text,
+      image_url text,
       updated_at timestamp not null default now()
     )
   `);
@@ -229,6 +230,7 @@ async function ensureSpotProfile() {
     ["env", "text"],
     ["source", "text"],
     ["source_content_id", "text"],
+    ["image_url", "text"],
     ["updated_at", "timestamp"],
   ];
   for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("spot_profile")} add column if not exists ${quoteIdent(name)} ${type}`);

@@ -45,6 +45,7 @@ function mapSpotProfile(row: typeof spotProfiles.$inferSelect): Spot {
     tags: arr(row.tagsKo).map((tag) => L(tag)),
     lat: row.lat ?? undefined,
     lon: row.lon ?? undefined,
+    imageUrl: row.imageUrl ?? undefined,
   };
 }
 
@@ -158,4 +159,9 @@ export async function fetchSpotProfiles(db: Database): Promise<Spot[]> {
 export async function fetchSpotProfile(db: Database, spotId: string): Promise<Spot | null> {
   const [row] = await db.select().from(spotProfiles).where(eq(spotProfiles.spotId, spotId)).limit(1);
   return row ? mapSpotProfile(row) : null;
+}
+
+/** TourAPI 등에서 검증한 실제 대표 이미지를 DB 카탈로그에 저장한다. */
+export async function saveSpotProfileImageUrl(db: Database, spotId: string, imageUrl: string): Promise<void> {
+  await db.update(spotProfiles).set({ imageUrl, updatedAt: new Date() }).where(eq(spotProfiles.spotId, spotId));
 }

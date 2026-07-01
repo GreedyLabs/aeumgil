@@ -126,12 +126,12 @@ try {
       insert into ${qTable("spot_profile")} (
         spot_id, name_ko, name_en, type_ko, type_en, region_ko, region_en,
         theme_ids, tags_ko, tags_en, baseline_congestion, suitability, rating,
-        review_count, default_duration_min, lat, lon, env, source, source_content_id, updated_at
+        review_count, default_duration_min, lat, lon, env, source, source_content_id, image_url, updated_at
       )
       values (
         $1, $2, $3, $4, $5, $6, $7,
         $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13,
-        $14, $15, $16, $17, $18, 'seed', $19, now()
+        $14, $15, $16, $17, $18, 'seed', $19, null, now()
       )
       on conflict (spot_id) do update set
         name_ko = excluded.name_ko,

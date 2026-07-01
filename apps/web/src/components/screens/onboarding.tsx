@@ -6,7 +6,7 @@ import { setOnboardingPreferenceAction } from "@/app/actions/onboarding";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
-import { UI, Icon } from "./_ui";
+import { Icon } from "./_ui";
 import type { Companion, Pace, Theme } from "@/domain/types";
 
 interface Props {
@@ -90,7 +90,12 @@ export function OnboardingView({ themes, paces, companions }: Props) {
                 const on = interests.includes(th.id);
                 return (
                   <button key={th.id} className={"onb-card" + (on ? " on" : "")} onClick={() => toggleInterest(th.id)}>
-                    <div className="onb-card-img" style={{ backgroundImage: `url(${UI.imgFor("theme:" + th.id)})` }} />
+                    <div
+                      className="onb-card-img"
+                      style={{
+                        background: `radial-gradient(circle at 30% 20%, oklch(0.62 0.12 ${th.hue}) 0%, oklch(0.28 0.08 ${th.hue}) 72%)`,
+                      }}
+                    />
                     <div className="onb-card-scrim" />
                     {on && (
                       <span className="onb-check">

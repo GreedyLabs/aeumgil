@@ -360,7 +360,7 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
           <div style={{ width: 14, height: 14, borderRadius: "50%", background: "var(--surface)", border: "2.5px solid var(--brand)", margin: "8px auto 0" }} />
         </div>
         <button onClick={() => onNavSpot(s.id)} className="card" style={{ flex: 1, padding: 12, textAlign: "left", display: "flex", gap: 12 }}>
-          <Placeholder label={localized(s.name, lang)} id={s.id} h={68} style={{ width: 80, borderRadius: 10, flexShrink: 0 }} />
+          <Placeholder label={localized(s.name, lang)} src={s.imageUrl} h={68} style={{ width: 80, borderRadius: 10, flexShrink: 0 }} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
             <div>
               <div style={{ fontSize: 14.5, fontWeight: 600 }}>{localized(s.name, lang)}</div>

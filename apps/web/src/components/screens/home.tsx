@@ -137,9 +137,24 @@ interface HeroProps {
 }
 
 const HERO_SLIDES = [
-  { id: "seorak-gwongeum", ko: "설악산 · 권금성", en: "Seoraksan · Gwongeumseong" },
-  { id: "woljeongsa-trail", ko: "오대산 · 월정사 선재길", en: "Odaesan · Seonjae Trail" },
-  { id: "sacheon-beach", ko: "강릉 · 사천진 해변", en: "Gangneung · Sacheonjin Beach" },
+  {
+    id: "seorak-gwongeum",
+    imageUrl: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=80&auto=format",
+    ko: "설악산 · 권금성",
+    en: "Seoraksan · Gwongeumseong",
+  },
+  {
+    id: "woljeongsa-trail",
+    imageUrl: "https://images.unsplash.com/photo-1542202229-7d93c33f5d07?w=1200&q=80&auto=format",
+    ko: "오대산 · 월정사 선재길",
+    en: "Odaesan · Seonjae Trail",
+  },
+  {
+    id: "sacheon-beach",
+    imageUrl: "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=1200&q=80&auto=format",
+    ko: "강릉 · 사천진 해변",
+    en: "Gangneung · Sacheonjin Beach",
+  },
 ];
 
 function HeroBackground({ lang, prompt, setPrompt, submit, prompts }: HeroProps) {
@@ -169,7 +184,7 @@ function HeroBackground({ lang, prompt, setPrompt, submit, prompts }: HeroProps)
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: `url(${UI.imgFor(s.id)})`,
+            backgroundImage: `url(${s.imageUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             opacity: active === i ? 1 : 0,
@@ -447,7 +462,7 @@ function ThemeCardSmall({ theme, lang, onClick }: { theme: Theme; lang: Lang; on
 export function SpotRow({ spot, lang, onClick }: { spot: Spot; lang: Lang; onClick: () => void }) {
   return (
     <button onClick={onClick} className="card" style={{ padding: 10, display: "flex", gap: 12, alignItems: "stretch", textAlign: "left" }}>
-      <Placeholder label={localized(spot.name, lang)} id={spot.id} h={70} style={{ width: 80, borderRadius: 12, flexShrink: 0 }} />
+      <Placeholder label={localized(spot.name, lang)} src={spot.imageUrl} h={70} style={{ width: 80, borderRadius: 12, flexShrink: 0 }} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

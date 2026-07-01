@@ -16,6 +16,7 @@
     "verify:enrichment": "node --env-file=../../.env scripts/verify-enrichment.mjs",
     "verify:db": "node --env-file=../../.env scripts/verify-db.mjs",
     "verify:keycloak": "node --env-file=../../.env scripts/verify-keycloak.mjs",
+    "sync:spot-images": "node --env-file=../../.env scripts/sync-spot-images.mjs",
     "db:apply": "node --env-file=../../.env scripts/apply-app-schema.mjs",
     "db:seed:course": "node --env-file=../../.env scripts/seed-course-catalog.mjs",
     "db:apply:onboarding": "node --env-file=../../.env scripts/apply-onboarding-preference.mjs",

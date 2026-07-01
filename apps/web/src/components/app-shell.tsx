@@ -66,7 +66,7 @@ function userFromSession(sessionUser: { name?: string | null; email?: string | n
     name_ko: name,
     name_en: name,
     email: sessionUser.email ?? DATA.USER.email,
-    avatar: sessionUser.image ?? DATA.USER.avatar,
+    avatar: sessionUser.image ?? "",
   };
 }
 

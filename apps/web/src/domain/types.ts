@@ -72,6 +72,8 @@ export interface Spot {
   /** 코스 생성/이동거리 근사용 좌표. 없으면 권역 기반 점수만 사용한다. */
   lat?: number;
   lon?: number;
+  /** 실제 원천 이미지 URL. TourAPI firstimage 또는 운영 DB에 검증 저장된 URL만 사용한다. */
+  imageUrl?: string;
 }
 
 // ── 음식점 / 숙박 ─────────────────────────

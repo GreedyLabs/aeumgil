@@ -7,14 +7,12 @@ import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
 import { Avatar } from "./avatar";
-import type { Review, Spot, Theme, User } from "@/domain/types";
+import { ReviewCard, type ReviewWithSpot } from "./review-card";
+import type { Theme, User } from "@/domain/types";
 
-const { Signal, ThemeHueBg, Placeholder } = UI;
+const { ThemeHueBg } = UI;
 
-export interface ReviewWithSpot {
-  review: Review;
-  spot: Spot;
-}
+export type { ReviewWithSpot } from "./review-card";
 
 interface ProfileViewProps {
   user: User | null;
@@ -102,53 +100,6 @@ function InterestTags({ themes, lang }: { themes: Theme[]; lang: Lang }) {
           {localized(th.title, lang)}
         </span>
       ))}
-    </div>
-  );
-}
-
-export function Stars({ n }: { n: number }) {
-  return (
-    <span style={{ display: "inline-flex", gap: 1, color: "var(--accent)" }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Icon.star key={i} style={{ width: 13, height: 13, color: i < n ? "var(--accent)" : "var(--line-2)" }} />
-      ))}
-    </span>
-  );
-}
-
-export function ReviewCard({
-  review,
-  spot,
-  lang,
-  onNavSpot,
-}: {
-  review: Review;
-  spot: Spot;
-  lang: Lang;
-  onNavSpot: (id: string) => void;
-}) {
-  return (
-    <div className="card" style={{ padding: 12 }}>
-      <button
-        onClick={() => onNavSpot(spot.id)}
-        style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", textAlign: "left" }}
-      >
-        <Placeholder label={localized(spot.name, lang)} id={spot.id} h={44} style={{ width: 44, borderRadius: 10, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {localized(spot.name, lang)}
-          </div>
-          <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-            {localized(spot.region, lang)} · {review.date}
-          </div>
-        </div>
-        <Stars n={review.rating} />
-      </button>
-      <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>{localized(review.text, lang)}</p>
-      <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
-        <Icon.heart style={{ width: 13, height: 13 }} />
-        {lang === "ko" ? `도움돼요 ${review.helpful}` : `${review.helpful} found helpful`}
-      </div>
     </div>
   );
 }

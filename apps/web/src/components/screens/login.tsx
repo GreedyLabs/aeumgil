@@ -5,7 +5,7 @@ import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { Brand as BrandMod } from "@/design/brand-logos";
-import { UI, Icon } from "./_ui";
+import { Icon } from "./_ui";
 import type { AuthProvider } from "@/domain/types";
 
 const Brand = BrandMod as Record<string, React.ComponentType>;
@@ -25,7 +25,12 @@ export function LoginView({ providers, reason }: { providers: AuthProvider[]; re
 
   return (
     <div className="auth-hero">
-      <div className="auth-hero-bg" style={{ backgroundImage: `url(${UI.imgFor("woljeongsa-trail")})` }} />
+      <div
+        className="auth-hero-bg"
+        style={{
+          background: "radial-gradient(circle at 28% 18%, oklch(0.62 0.12 135) 0%, transparent 34%), linear-gradient(145deg, oklch(0.3 0.08 145) 0%, oklch(0.18 0.05 210) 72%)",
+        }}
+      />
       <div className="auth-hero-scrim" />
 
       <div className="auth-top">
