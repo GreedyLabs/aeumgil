@@ -14,11 +14,23 @@
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import type { JWT } from "next-auth/jwt";
-import { env } from "@/lib/env";
+import { assertProductionEnv, env, isProductionRuntime, requireEnv } from "@/lib/env";
 
-const KEYCLOAK_ISSUER = env.AUTH_KEYCLOAK_ISSUER || "http://localhost:8080/realms/eumgil";
-const KEYCLOAK_CLIENT_ID = env.AUTH_KEYCLOAK_ID || "eumgil-web";
-const KEYCLOAK_CLIENT_SECRET = env.AUTH_KEYCLOAK_SECRET || "eumgil-local-dev-secret";
+// 운영 런타임 방어선 — instrumentation(부팅 검증)을 우회해 이 모듈이 먼저 로드되더라도
+// 아래 개발용 폴백 값으로 서비스가 뜨는 일이 없게 한다. (운영-준비-플랜 §1.1)
+assertProductionEnv();
+
+/** 운영에서는 필수(위에서 검증됨), 로컬 개발·빌드 단계에서는 기본값 폴백. */
+function authEnv(
+  key: "AUTH_SECRET" | "AUTH_KEYCLOAK_ID" | "AUTH_KEYCLOAK_SECRET" | "AUTH_KEYCLOAK_ISSUER",
+  devDefault: string,
+): string {
+  return isProductionRuntime ? requireEnv(key) : env[key] || devDefault;
+}
+
+const KEYCLOAK_ISSUER = authEnv("AUTH_KEYCLOAK_ISSUER", "http://localhost:8080/realms/eumgil");
+const KEYCLOAK_CLIENT_ID = authEnv("AUTH_KEYCLOAK_ID", "eumgil-web");
+const KEYCLOAK_CLIENT_SECRET = authEnv("AUTH_KEYCLOAK_SECRET", "eumgil-local-dev-secret");
 const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 const TOKEN_REFRESH_MARGIN_SECONDS = 60;
 
@@ -95,13 +107,14 @@ export function keycloakEndSessionUrl(idToken?: string): string {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // 로컬 학습/데모 환경에서 AUTH_SECRET 없이도 설정 확인이 가능하게 한다.
-  // 운영에서는 반드시 .env 의 AUTH_SECRET 을 별도 난수로 지정한다.
-  secret: env.AUTH_SECRET || "eumgil-dev-only-auth-secret-change-before-production",
+  // 로컬 학습/데모 환경에서만 AUTH_SECRET 없이 폴백을 허용한다.
+  // 운영 런타임에서는 assertProductionEnv() 가 미설정 시 기동을 차단한다.
+  secret: authEnv("AUTH_SECRET", "eumgil-dev-only-auth-secret-change-before-production"),
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   jwt: { maxAge: SESSION_MAX_AGE_SECONDS },
-  // 로컬/비-Vercel 환경에서 호스트 신뢰(개발 편의). 프로덕션은 AUTH_URL 로 고정.
-  trustHost: true,
+  // 호스트 헤더 신뢰는 로컬 개발 편의로만. 운영은 AUTH_URL 고정(§1.1 필수 검증)이
+  // canonical URL 로 쓰이므로 임의 Host 헤더 기반 리다이렉트를 차단한다.
+  trustHost: !isProductionRuntime,
   providers: [
     Keycloak({
       // 로컬 Keycloak 을 나중에 바로 띄워 붙일 수 있게 개발 기본값을 둔다.

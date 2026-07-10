@@ -68,3 +68,39 @@ export function requireEnv<K extends keyof Env>(key: K): NonNullable<Env[K]> {
   }
   return value as NonNullable<Env[K]>;
 }
+
+/**
+ * 운영 런타임 여부. `next build` 도 NODE_ENV=production 으로 돌지만
+ * 빌드 단계(Dockerfile builder)에는 시크릿이 주입되지 않으므로,
+ * NEXT_PHASE 로 빌드 페이즈를 제외하고 실제 서비스 프로세스만 판별한다.
+ */
+export const isProductionRuntime =
+  process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+
+/** 운영 기동에 필수인 인증 환경변수 (운영-준비-플랜 §1.1 / 부록 A) */
+const PRODUCTION_REQUIRED_KEYS = [
+  "AUTH_SECRET",
+  "AUTH_URL",
+  "AUTH_KEYCLOAK_ID",
+  "AUTH_KEYCLOAK_SECRET",
+  "AUTH_KEYCLOAK_ISSUER",
+] as const;
+
+/**
+ * 운영 런타임에서 필수 키가 하나라도 빠지면 즉시 throw.
+ * 개발용 폴백 시크릿(세션 위조 가능)으로 서비스가 조용히 뜨는 사고를 막는다.
+ * instrumentation.ts(부팅 시)와 server/auth.ts(모듈 로드 시 방어선)에서 호출.
+ */
+export function assertProductionEnv(): void {
+  if (!isProductionRuntime) return;
+  const missing = PRODUCTION_REQUIRED_KEYS.filter((key) => {
+    const value = env[key];
+    return value === undefined || value === "";
+  });
+  if (missing.length > 0) {
+    throw new Error(
+      `운영(NODE_ENV=production) 기동에 필수인 환경변수가 없습니다: ${missing.join(", ")} — ` +
+        "배포 환경 주입 목록은 docs/운영-준비-플랜.md 부록 A 참고.",
+    );
+  }
+}
