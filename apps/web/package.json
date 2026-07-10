@@ -19,6 +19,7 @@
     "sync:spot-images": "node --env-file=../../.env scripts/sync-spot-images.mjs",
     "db:apply": "node --env-file=../../.env scripts/apply-app-schema.mjs",
     "db:seed:course": "node --env-file=../../.env scripts/seed-course-catalog.mjs",
+    "db:collect:commerce": "node --env-file=../../.env scripts/collect-commerce.mjs",
     "db:apply:onboarding": "node --env-file=../../.env scripts/apply-onboarding-preference.mjs",
     "db:apply:profile": "node --env-file=../../.env scripts/apply-user-profile.mjs",
     "db:generate": "drizzle-kit generate",

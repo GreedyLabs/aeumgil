@@ -41,6 +41,7 @@ import {
   fetchThemes,
   saveSpotProfileImageUrl,
 } from "@/server/db/course-catalog";
+import { fetchEat, fetchEats, fetchStay, fetchStays } from "@/server/db/commerce";
 import {
   computeStats,
   fetchOnboardingPreference,
@@ -50,6 +51,7 @@ import {
   fetchVisits,
   setSavedTheme,
 } from "@/server/db/user-data";
+import { INTENT_QUERY_MAX_LENGTH, normalizeIntentQuery } from "@/domain/matching";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
@@ -59,8 +61,11 @@ import { getAirForStation } from "@/server/public-api/airkorea";
 import { getItemDetail, listGangwonItems } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
 import { apiCache } from "@/server/cache";
+import { agentMatchLimiter, requestClientKey } from "@/server/rate-limit";
 import { createLogger } from "@/server/log";
+import { env } from "@/lib/env";
 import { buildTravelTimeLookup } from "@/server/routing/travel-time";
+import type { Coord } from "@/domain/travel-time";
 import { L, type LocalizedText } from "@/lib/i18n";
 import { buildTools } from "@/server/agent/tools";
 import { planCourse, planItinerary } from "@/server/agent/planner";
@@ -73,6 +78,7 @@ const log = createLogger("repo");
 // ── 영속 TTL 캐시 (메모리+파일, server/cache.ts) ──
 const TTL_MS = 10 * 60 * 1000; // 동적 데이터(날씨/대기질) 10분
 const DAY_MS = 24 * 60 * 60 * 1000; // 관광 상세 24시간
+const MATCH_TTL_MS = 60 * 60 * 1000; // 자연어 매칭 결과(LLM 비용 방어) 1시간
 const cached = apiCache.cached;
 
 /** 서버 TZ 무관하게 KST 벽시계를 로컬 필드로 갖는 Date. */
@@ -100,6 +106,52 @@ function routeCoordsFromSpots(spots: Spot[]) {
   return spots
     .filter((spot): spot is Spot & { lat: number; lon: number } => typeof spot.lat === "number" && typeof spot.lon === "number")
     .map((spot) => ({ lat: spot.lat, lon: spot.lon, region: spot.region.ko }));
+}
+
+function routeCoordOf(spot: Spot | undefined): Coord | null {
+  if (!spot || typeof spot.lat !== "number" || typeof spot.lon !== "number") return null;
+  return { lat: spot.lat, lon: spot.lon, region: spot.region.ko };
+}
+
+/**
+ * [§3.3] 실호출 가치가 있는 좌표쌍만 추린다 — 전쌍(N×N)이 아니라
+ * 코스 타임라인의 인접 구간 + 각 슬롯 후보(원본·대체지)↔인접 기본 스팟.
+ * composeCourse 의 pickSpotForSlot 이 (prev, 후보)·(후보, next)만 조회하므로,
+ * 그 조회 패턴을 그대로 미리 계산한다. 나머지 쌍은 조회 시 근사값으로 답한다.
+ * 템플릿이 없으면(스크래치 조합) 후보 선택이 동적이므로 근사만 쓴다(빈 배열).
+ */
+function timelineApiPairs(
+  baseCourse: Course | null,
+  spots: Spot[],
+  alternativesBySpot: Record<string, Spot[]>,
+): [Coord, Coord][] {
+  if (!baseCourse) return [];
+  const byId = new Map(spots.map((s) => [s.id, s]));
+
+  // composeFromTemplate 과 동일하게, 템플릿 항목 순서를 유지한 채 day 별 스팟 슬롯을 만든다.
+  const slotsByDay = new Map<number, string[]>();
+  for (const it of baseCourse.items) {
+    if (it.kind !== "spot") continue;
+    slotsByDay.set(it.day, [...(slotsByDay.get(it.day) ?? []), it.refId]);
+  }
+
+  const pairs: [Coord, Coord][] = [];
+  for (const slots of slotsByDay.values()) {
+    for (let i = 0; i < slots.length; i++) {
+      const slotId = slots[i];
+      if (!slotId) continue;
+      const prev = routeCoordOf(byId.get(slots[i - 1] ?? ""));
+      const next = routeCoordOf(byId.get(slots[i + 1] ?? ""));
+      const candidates = [byId.get(slotId), ...(alternativesBySpot[slotId] ?? [])];
+      for (const candidate of candidates) {
+        const c = routeCoordOf(candidate);
+        if (!c) continue;
+        if (prev) pairs.push([prev, c]);
+        if (next) pairs.push([c, next]);
+      }
+    }
+  }
+  return pairs;
 }
 
 /**
@@ -325,10 +377,13 @@ export class LiveRepository implements Repository {
    */
   private async composeSeedCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
     const db = requireDb();
-    const [theme, baseCourse, spots] = await Promise.all([
+    // eat/stay 는 보조 데이터 — 수집 전/조회 실패여도 코스 생성(스팟 중심)은 계속돼야 한다.
+    const [theme, baseCourse, spots, eats, stays] = await Promise.all([
       fetchTheme(db, themeId),
       fetchDefaultCourseTemplate(db, themeId),
       fetchSpotProfilesForTheme(db, themeId),
+      fetchEats(db).catch((e) => (log.warn(`fetchEats 실패 → 빈 후보로 진행`, e), [] as Eat[])),
+      fetchStays(db).catch((e) => (log.warn(`fetchStays 실패 → 빈 후보로 진행`, e), [] as Stay[])),
     ]);
     if (!theme) return null;
 
@@ -343,14 +398,16 @@ export class LiveRepository implements Repository {
     const travelSpots = [...spots, ...altEntries.flatMap(([, alternatives]) => alternatives)];
     const travelTimeLookup = await buildTravelTimeLookup(routeCoordsFromSpots(travelSpots), {
       mode: options?.transport ?? "car",
+      // §3.3: 전쌍(N×N) 대신 코스 인접 구간 + 대체지 후보만 실호출 대상으로 지정.
+      apiPairs: timelineApiPairs(baseCourse, spots, alternativesBySpot),
     });
 
     return composeCourse({
       theme,
       baseCourse,
       spots,
-      eats: [],
-      stays: [],
+      eats,
+      stays,
       alternativesBySpot,
     }, { ...options, travelTimeLookup });
   }
@@ -482,27 +539,46 @@ export class LiveRepository implements Repository {
   // 현재 LLM 자리는 env 로 선택한다. 기본은 키 없는 heuristic, EUMGIL_AGENT_LLM=openai 이면 실 LLM.
   // ───────────────────────────────────────────
   async matchThemes(query: string): Promise<ThemeMatch> {
-    const ctx = await this.buildAgentContext();
-    const result = await planCourse(
-      { intent: query, lang: "ko", at: nowKst() },
-      {
-        llm: courseProviderFromEnv(),
-        tools: buildTools(ctx),
-        fallback: async () => {
-          const m = await this.matchThemesDeterministic(query);
-          return { primaryThemeId: m.primaryId, altThemeIds: m.altIds, rationale: L("DB 테마 텍스트 매칭") };
+    // [§3.1 어뷰즈 방어] /result?q= 는 무인증 진입점이라 임의 입력이 LLM·공공 API
+    // 호출로 직결된다. 화면(result/page.tsx)이 1차 검증하지만, 리포지토리도 스스로
+    // 방어한다(다른 호출부·직접 호출 대비): 정규화 + 길이 절단.
+    const intent = normalizeIntentQuery(query).slice(0, INTENT_QUERY_MAX_LENGTH);
+    if (!intent) return this.matchThemesDeterministic(intent);
+
+    // 동일 정규화 쿼리는 단기 캐시로 흡수 — 캐시 히트는 LLM/토큰버킷 비용이 0.
+    // 프로바이더를 키에 포함해 heuristic↔openai 전환 시 결과가 섞이지 않게 한다.
+    // 트레이드오프: 레이트리밋·에이전트 실패로 결정형 폴백이 나온 경우도 1h 캐시된다
+    // (품질이 잠시 고정되지만, 어뷰즈 방어 관점에선 의도된 동작).
+    const cacheKey = `match:${env.EUMGIL_AGENT_LLM}:${intent.toLowerCase()}`;
+    return cached(cacheKey, MATCH_TTL_MS, async () => {
+      // 캐시 미스에서만 토큰 소모. 소진 시 LLM 미호출 — 결정형 매칭으로 응답은 유지.
+      if (!agentMatchLimiter.take(await requestClientKey())) {
+        log.warn(`matchThemes "${intent}" rate-limited → deterministic only`);
+        return this.matchThemesDeterministic(intent);
+      }
+
+      const ctx = await this.buildAgentContext();
+      const result = await planCourse(
+        { intent, lang: "ko", at: nowKst() },
+        {
+          llm: courseProviderFromEnv(),
+          tools: buildTools(ctx),
+          fallback: async () => {
+            const m = await this.matchThemesDeterministic(intent);
+            return { primaryThemeId: m.primaryId, altThemeIds: m.altIds, rationale: L("DB 테마 텍스트 매칭") };
+          },
         },
-      },
-    );
+      );
 
-    // 보조 테마(혼잡 분산용)는 DB 테마 텍스트 매칭으로 보강한다.
-    const det = await this.matchThemesDeterministic(query);
-    const primaryId = result.primaryThemeId || det.primaryId;
-    const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
-    const altIds = altSource.filter((id) => id && id !== primaryId).slice(0, 2);
+      // 보조 테마(혼잡 분산용)는 DB 테마 텍스트 매칭으로 보강한다.
+      const det = await this.matchThemesDeterministic(intent);
+      const primaryId = result.primaryThemeId || det.primaryId;
+      const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
+      const altIds = altSource.filter((id) => id && id !== primaryId).slice(0, 2);
 
-    log.log(`matchThemes "${query}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`);
-    return { primaryId, altIds };
+      log.log(`matchThemes "${intent}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`);
+      return { primaryId, altIds };
+    });
   }
 
   private async matchThemesDeterministic(query: string): Promise<ThemeMatch> {
@@ -574,20 +650,20 @@ export class LiveRepository implements Repository {
     };
   }
 
-  async getEat(_id: string): Promise<Eat | null> {
-    return null;
+  async getEat(id: string): Promise<Eat | null> {
+    return fetchEat(requireDb(), id);
   }
 
-  async getStay(_id: string): Promise<Stay | null> {
-    return null;
+  async getStay(id: string): Promise<Stay | null> {
+    return fetchStay(requireDb(), id);
   }
 
   async listEats(): Promise<Eat[]> {
-    return [];
+    return fetchEats(requireDb());
   }
 
   async listStays(): Promise<Stay[]> {
-    return [];
+    return fetchStays(requireDb());
   }
 
   async listGrades(): Promise<Grade[]> {

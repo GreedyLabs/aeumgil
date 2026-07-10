@@ -393,7 +393,8 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2 }}>{localized(e.name, lang)}</div>
           <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            {localized(e.type, lang)} · {e.price} · ★ {e.rating}
+            {/* TourAPI 수집분은 가격·평점이 없을 수 있다 — 빈 값은 생략 */}
+            {[localized(e.type, lang), e.price, e.rating > 0 ? `★ ${e.rating}` : ""].filter(Boolean).join(" · ")}
           </div>
         </div>
       </div>
@@ -416,7 +417,7 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
         </div>
         <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2 }}>{localized(st.name, lang)}</div>
         <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-          {localized(st.type, lang)} · {localized(st.price, lang)}
+          {[localized(st.type, lang), localized(st.price, lang)].filter(Boolean).join(" · ")}
         </div>
       </div>
     </div>

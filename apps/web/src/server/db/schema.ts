@@ -121,6 +121,39 @@ export const spotProfiles = table("spot_profile", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * 식사(eat)/숙박(stay) 후보 프로필 — TourAPI(contentTypeId 39 음식점 / 32 숙박) 수집분.
+ *
+ * 수집: scripts/collect-commerce.mjs (`pnpm db:collect:commerce`) — 멱등 upsert 라
+ * 지금은 수동 실행, 추후 별도 배치 프로세스에서 주기 실행으로 이관 가능하다.
+ * id 는 `${kind}-${contentId}` 앱 식별자. region_ko 는 REGIONS 권역명("강릉" 등)과
+ * 일치시켜 composeCourse.pickByRegion 의 스팟 권역 매칭 기준으로 쓴다. FK 없음.
+ */
+export const commerceProfiles = table("commerce_profile", {
+  id: text("id").primaryKey(),
+  /** "eat" | "stay" */
+  kind: text("kind").notNull(),
+  nameKo: text("name_ko").notNull(),
+  nameEn: text("name_en"),
+  typeKo: text("type_ko").notNull(),
+  typeEn: text("type_en"),
+  regionKo: text("region_ko").notNull(),
+  regionEn: text("region_en"),
+  /** 가격 표기(예: "₩₩", "₩190,000/박"). 원천에 없으면 빈 문자열 — 화면에서 생략. */
+  priceKo: text("price_ko").notNull().default(""),
+  priceEn: text("price_en"),
+  /** 원천에 평점이 없으면 0 — 화면에서 생략, pickByRegion 정렬에서 동순위. */
+  rating: doublePrecision("rating").notNull().default(0),
+  addr: text("addr"),
+  tel: text("tel"),
+  lat: doublePrecision("lat"),
+  lon: doublePrecision("lon"),
+  imageUrl: text("image_url"),
+  source: text("source").notNull().default("tourapi"),
+  sourceContentId: text("source_content_id"),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
 /** 코스 템플릿 헤더 — 시간 슬롯과 제목을 제공하고, 실제 후보 조합은 composeCourse 가 수행한다. */
 export const courseTemplates = table("course_template", {
   id: text("id").primaryKey(),
@@ -156,6 +189,7 @@ export const schema = {
   onboardingPreferences,
   userProfiles,
   spotProfiles,
+  commerceProfiles,
   courseTemplates,
   courseTemplateItems,
 };

@@ -251,6 +251,62 @@ async function ensureSpotProfile() {
   await addPrimaryKey("spot_profile", ["spot_id"]);
 }
 
+async function ensureCommerceProfile() {
+  await sql.unsafe(`
+    create table if not exists ${qTable("commerce_profile")} (
+      id text primary key,
+      kind text not null,
+      name_ko text not null,
+      name_en text,
+      type_ko text not null,
+      type_en text,
+      region_ko text not null,
+      region_en text,
+      price_ko text not null default '',
+      price_en text,
+      rating double precision not null default 0,
+      addr text,
+      tel text,
+      lat double precision,
+      lon double precision,
+      image_url text,
+      source text not null default 'tourapi',
+      source_content_id text,
+      updated_at timestamp not null default now()
+    )
+  `);
+  const columns = [
+    ["id", "text"],
+    ["kind", "text"],
+    ["name_ko", "text"],
+    ["name_en", "text"],
+    ["type_ko", "text"],
+    ["type_en", "text"],
+    ["region_ko", "text"],
+    ["region_en", "text"],
+    ["price_ko", "text"],
+    ["price_en", "text"],
+    ["rating", "double precision"],
+    ["addr", "text"],
+    ["tel", "text"],
+    ["lat", "double precision"],
+    ["lon", "double precision"],
+    ["image_url", "text"],
+    ["source", "text"],
+    ["source_content_id", "text"],
+    ["updated_at", "timestamp"],
+  ];
+  for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("commerce_profile")} add column if not exists ${quoteIdent(name)} ${type}`);
+  await sql.unsafe(`update ${qTable("commerce_profile")} set price_ko = '' where price_ko is null`);
+  await sql.unsafe(`update ${qTable("commerce_profile")} set rating = 0 where rating is null`);
+  await sql.unsafe(`update ${qTable("commerce_profile")} set source = 'tourapi' where source is null`);
+  await sql.unsafe(`update ${qTable("commerce_profile")} set updated_at = now() where updated_at is null`);
+  for (const col of ["id", "kind", "name_ko", "type_ko", "region_ko", "price_ko", "rating", "source", "updated_at"]) {
+    await setNotNullIfClean("commerce_profile", col);
+  }
+  await addPrimaryKey("commerce_profile", ["id"]);
+}
+
 async function ensureCourseTemplate() {
   await sql.unsafe(`
     create table if not exists ${qTable("course_template")} (
@@ -317,6 +373,7 @@ try {
   await ensureOnboardingPreference();
   await ensureUserProfile();
   await ensureSpotProfile();
+  await ensureCommerceProfile();
   await ensureCourseTemplate();
   await ensureCourseTemplateItem();
   console.log(`${C.green}✓ 앱 도메인 테이블 준비 완료${C.reset}`);
