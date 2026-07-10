@@ -6,95 +6,96 @@
 
 - **에움길** — 강원도 특화 테마 관광 추천 서비스 (관광데이터 공모전 출품작).
 - 여행 목적을 **자연어로 입력 → 강원도 특화 테마 매칭 → 혼잡도·방문 적합성 기반 코스/대체지 추천**.
-- **제출 형태: 전체 실연동 · 실제 운영 서비스** (mock 시연 아님). 7종 공공 API 모두 실제 연동 + DB + 소셜 인증까지 목표.
+- **제출 형태: 전체 실연동 · 실제 운영 서비스** (mock 시연 아님). 공공 API 실연동 + DB + 소셜 인증까지 목표.
 - 기획 상세: [docs/제안서.md](docs/제안서.md)
+
+## 진행 상태 / 남은 작업 (정본 위치)
+
+이 문서에는 진행 히스토리를 기록하지 않는다. 항상 아래 두 문서를 본다:
+
+- **[docs/운영-준비-플랜.md](docs/운영-준비-플랜.md)** — **현재 상태 스냅샷(§0) + 제출·운영까지 남은 작업의 정본.** P0/P1/P2 체크리스트, 항목별 근거(파일:라인)·DoD·검증 방법. 작업 완료 시 여기 체크박스를 채운다.
+- [docs/구현-계획.md](docs/구현-계획.md) — 단계별(Phase 0~5) 설계 배경과 상세 체크리스트(히스토리 포함).
+- 에이전트 레이어 설계 배경: [docs/에이전트-레이어-설계.md](docs/에이전트-레이어-설계.md) / 인증·DB 셋업 런북: [docs/Phase4-인증DB-셋업.md](docs/Phase4-인증DB-셋업.md)
+
+한 줄 요약(2026-07-10 기준): Phase 0~3 완료, Phase 4(인증·DB·Server Actions) 코드 완료, 에이전트 A~D단계 구현 완료(실 LLM 검증·Evaluation 실행 남음). 남은 것은 운영 준비 플랜의 P0(보안 하드닝·에러 바운더리·어뷰즈 방어)부터.
 
 ## 기술 스택
 
 - pnpm workspaces 모노레포 · Next.js 15 (App Router) · React 19 · TypeScript(strict, `noUncheckedIndexedAccess`) · Tailwind v4
-- 앱: `apps/web` (`@eumgil/web`) / 공용 UI: `packages/ui` (`@eumgil/ui`)
+- DB: PostgreSQL + Drizzle ORM(postgres-js) / 인증: Keycloak(OIDC) + Auth.js(NextAuth v5)
+- 배포: Docker(standalone) + GitHub Actions → Dockhand webhook ([Dockerfile](Dockerfile), [.github/workflows/](.github/workflows/))
+- 앱: `apps/web` (`@eumgil/web`) / 공용 UI: `packages/ui` (`@eumgil/ui`) / Keycloak 로컬: [docker-compose.keycloak.yml](docker-compose.keycloak.yml)·[infra/keycloak](infra/keycloak)
 
 ## 명령어
 
 ```bash
-pnpm dev                              # 개발 서버 (localhost:3000)
-pnpm build                            # 프로덕션 빌드
-pnpm typecheck                        # 타입 검사 (pnpm -r)
-pnpm --filter @eumgil/web verify:api  # 공공 API 키 연결 검증 (.env 필요)
+pnpm dev                                    # 개발 서버 (localhost:3000)
+pnpm build                                  # 프로덕션 빌드
+pnpm typecheck                              # 타입 검사 (pnpm -r)
+pnpm --filter @eumgil/web test              # Vitest 유닛/정규화 테스트
+pnpm --filter @eumgil/web verify:api        # 공공 API 키 연결 검증 (.env 필요)
+pnpm --filter @eumgil/web verify:enrichment # TourAPI 상세 보강 실검증
+pnpm --filter @eumgil/web verify:db         # DB 연결 점검
+pnpm --filter @eumgil/web verify:keycloak   # Keycloak 연결 점검
+pnpm --filter @eumgil/web db:apply          # 앱 스키마 적용 (그 외 db:* 스크립트는 package.json 참고)
 ```
 
 ## 핵심 아키텍처 (가장 중요)
 
-전체 화면이 **데이터 출처를 모른 채 `getRepository()` 인터페이스만 호출**한다. 현재 런타임
-Repository 는 항상 DB+실데이터 구현을 사용한다.
+전체 화면이 **데이터 출처를 모른 채 `getRepository()` 인터페이스만 호출**한다. 런타임 Repository는 항상 DB+실데이터 구현(`LiveRepository`)이다.
 
 - **도메인 모델**: [apps/web/src/domain/types.ts](apps/web/src/domain/types.ts) — `Theme/Spot/Course/Eat/Stay/User/Review/Visit` 등. 모든 다국어 텍스트는 `LocalizedText {ko,en}`.
 - **Repository 인터페이스**: [apps/web/src/domain/repository.ts](apps/web/src/domain/repository.ts) — 모든 메서드 `async`.
-- **팩토리**: [apps/web/src/data/index.ts](apps/web/src/data/index.ts) — `getRepository()`는 항상 `LiveRepository`를 반환한다. 환경변수 기반 mock/live 전환은 제거됨.
-- **DB 카탈로그**: [apps/web/src/server/db/course-catalog.ts](apps/web/src/server/db/course-catalog.ts) — `course_template`/`course_template_item`/`spot_profile`을 도메인 `Theme`/`Course`/`Spot`으로 정규화한다.
-- **자연어 매칭**: [apps/web/src/domain/matching.ts](apps/web/src/domain/matching.ts) — 키워드 규칙 순수 함수. (확정: 키워드 우선, 후반에 LLM 검토)
+- **구현**: [apps/web/src/data/live/repository.ts](apps/web/src/data/live/repository.ts) — DB 카탈로그 위에 실시간 데이터(날씨/대기질/혼잡/적합성) 보강. **외부 API 실패 시 DB 기본값 유지**(mock 폴백 없음).
+- **DB 카탈로그**: [apps/web/src/server/db/course-catalog.ts](apps/web/src/server/db/course-catalog.ts) — `course_template`/`course_template_item`/`spot_profile` → 도메인 타입 정규화. 스키마: [db/schema.ts](apps/web/src/server/db/schema.ts).
+- **순수 함수 레이어**(도메인 로직, 네트워크 무관): [matching.ts](apps/web/src/domain/matching.ts)·[scoring.ts](apps/web/src/domain/scoring.ts)·[congestion.ts](apps/web/src/domain/congestion.ts)·[course-reorder.ts](apps/web/src/domain/course-reorder.ts)·[course-compose.ts](apps/web/src/domain/course-compose.ts)·[travel-time.ts](apps/web/src/domain/travel-time.ts). 외부 의존은 포트 주입으로만 받는다.
 
 ### 화면 / 라우팅
 
-- App Router 17개 라우트. **서버 `page.tsx` 가 `getRepository()`로 데이터 페치 → 도메인 타입 props → 클라이언트 뷰** 렌더.
-- 화면 뷰: [apps/web/src/components/screens/](apps/web/src/components/screens/) — `home/matching/theme-result/course/spot/alternatives/discover/map/saved/profile/profile-edit/reviews/settings/doc/login/onboarding`.
-- 전역 상태/크롬(Sidebar·TabBar·Toast): [apps/web/src/components/app-shell.tsx](apps/web/src/components/app-shell.tsx) — `useAppState()`로 auth/saved/toast/lang 제공. **auth·user 는 현재 mock**(클라이언트 상태).
-- 네비게이션 어댑터: [apps/web/src/lib/nav.ts](apps/web/src/lib/nav.ts) — `urlFor(name, params)` + `useAppNav()`.
-- `design/` 에는 이제 **재사용 프리미티브만**: `icons.tsx`, `ui.tsx`(Sidebar/TabBar/ThemeHueBg/Signal/Placeholder 등), `brand-logos.tsx`, `styles.css`, `data.ts`(mock). 화면 컴포넌트(screens-*)는 전부 삭제됨.
+- App Router 17개 라우트. **서버 `page.tsx`가 `getRepository()`로 데이터 페치 → 도메인 타입 props → 클라이언트 뷰** 렌더.
+- 화면 뷰: [apps/web/src/components/screens/](apps/web/src/components/screens/). 전역 크롬(Sidebar·TabBar·Toast)+세션 상태: [app-shell.tsx](apps/web/src/components/app-shell.tsx)(`useSession` 실배선). 네비게이션: [lib/nav.ts](apps/web/src/lib/nav.ts).
+- 쓰기 경로는 **Server Actions**([app/actions/](apps/web/src/app/actions/) — saved/profile/onboarding/reviews): zod 검증 + 세션 가드 + `revalidatePath`. 개인화 화면 서버 가드는 [require-session.ts](apps/web/src/server/require-session.ts).
+- `design/`에는 재사용 프리미티브만(`icons.tsx`/`ui.tsx`/`brand-logos.tsx`/`styles.css`/`data.ts`). `@ts-nocheck` 영역이므로 화면에서는 [screens/_ui.ts](apps/web/src/components/screens/_ui.ts) 캐스팅을 거쳐 사용.
+
+### 인증 (Keycloak OIDC)
+
+- Keycloak이 사용자 원장·소셜 브로커(카카오/네이버/구글)·세션을 책임진다. 앱은 **OIDC Client** — Auth.js([server/auth.ts](apps/web/src/server/auth.ts))는 Keycloak provider 하나만 두고, 토큰의 `sub`를 사용자 id로 신뢰한다.
+- 앱 DB에는 Auth.js adapter 테이블이 **없다**. 서비스 데이터(saved/review/visit/user_profile)만 `sub`에 연결([db/user-data.ts](apps/web/src/server/db/user-data.ts)).
+- 미로그인 = mock 사용자 대체가 아니라 `null`/빈 배열. 쓰기는 로그인 요구 에러.
 
 ### 공공 API 연동 계층 (서버 전용)
 
-- [apps/web/src/server/public-api/http.ts](apps/web/src/server/public-api/http.ts) — data.go.kr 공통 fetch(serviceKey 주입·타임아웃·XML 에러 감지).
-- [apps/web/src/server/public-api/tourapi.ts](apps/web/src/server/public-api/tourapi.ts) — 국문관광정보(KorService2, 강원 areaCode=32). **유일하게 구현된 클라이언트.**
-- [apps/web/scripts/verify-public-api.mjs](apps/web/scripts/verify-public-api.mjs) — 키 연결 검증.
-- 환경변수: 루트 `.env` (next.config.mjs 가 dotenv 로 로드) → [apps/web/src/lib/env.ts](apps/web/src/lib/env.ts)(zod 검증). 템플릿 [.env.example](.env.example).
-- **API 신청 가이드(키 발급용)**: [docs/공공API-신청가이드.md](docs/공공API-신청가이드.md)
+- 공통 fetch: [public-api/http.ts](apps/web/src/server/public-api/http.ts) — serviceKey 주입·타임아웃·XML 에러 감지.
+- 클라이언트: [tourapi.ts](apps/web/src/server/public-api/tourapi.ts)(KorService2, 강원 areaCode=32)·[kma.ts](apps/web/src/server/public-api/kma.ts)(단기예보+격자변환 [grid.ts](apps/web/src/server/public-api/grid.ts))·[airkorea.ts](apps/web/src/server/public-api/airkorea.ts)(권역-측정소 매핑 [regions.ts](apps/web/src/server/public-api/regions.ts)).
+- 스팟↔좌표/권역/contentId 매핑: [data/live/spot-mapping.ts](apps/web/src/data/live/spot-mapping.ts).
+- 응답 캐시: [server/cache.ts](apps/web/src/server/cache.ts) — 메모리+파일 2층, TTL은 호출부(날씨/대기질 10분·관광상세 24h). `CacheStore` 주입식이라 백엔드 교체 지점은 한 곳.
+- 이동시간: [server/routing/travel-time.ts](apps/web/src/server/routing/travel-time.ts) — 근사(기본)/Kakao Mobility(`ROUTING_PROVIDER=kakao`+키) 포트.
+- 환경변수: 루트 `.env`(next.config.mjs가 dotenv 로드) → [lib/env.ts](apps/web/src/lib/env.ts)(zod). 템플릿 [.env.example](.env.example). 키 발급 가이드: [docs/공공API-신청가이드.md](docs/공공API-신청가이드.md).
+
+### 에이전트 레이어 (Repository 아래)
+
+- Repository 인터페이스는 불변. `matchThemes`/`getCourse` **내부**만 에이전트(`planCourse`/`planItinerary`)에 위임하고, 실패 시 결정형 로직으로 폴백한다(`source:"agent"|"fallback"`).
+- 구성: [server/agent/](apps/web/src/server/agent/) — types/tools(도구 8종, 기존 순수함수·포트 래핑)/llm(heuristic mock + OpenAI-compatible real, `EUMGIL_AGENT_LLM` env로 선택)/planner(ReAct 루프 + 화이트리스트·중복차단·MAX_STEPS·폴백 4겹 가드레일).
+- 원칙: **판단=LLM, 수치=코드**(도구 순수함수가 계산). 키 없이도 heuristic provider로 전 경로 검증 가능.
+- Evaluation: [server/agent/eval/](apps/web/src/server/agent/eval/) — 프로바이더 무관 러너(mock↔real 동일 데이터셋·채점기).
 
 ## 데이터 분류 (연동 전략의 기준)
 
 1. **정적 큐레이션** (테마·코스·키워드 규칙·대체지 매핑) → 코드/시드 유지. API 불필요.
 2. **반정적** (관광지·맛집·숙박 기본정보) → TourAPI 수집 → DB. 큐레이션 스팟에 이미지/주소/좌표 보강.
-3. **실시간 동적** (혼잡도/날씨/대기질/교통) → 요청 시 호출 + 단기 캐시. **방문 적합성 점수(Phase 3)의 입력.**
-4. **사용자** (회원/저장/리뷰/방문/온보딩) → DB (Phase 4).
-
-## 진행 상태
-
-전체 단계·체크리스트는 [docs/구현-계획.md](docs/구현-계획.md) 참고. 요약:
-
-- ✅ **Phase 0** 기반 정비 (도메인 타입·Repository·env·i18n)
-- ✅ **Phase 1a** 실제 App Router 라우팅 전환 (단일 상태머신 → 17 라우트)
-- ✅ **Phase 1b** 전 화면을 `getRepository()` 도메인 데이터 + Server Component 로 전환 (콘텐츠 + 인증/마이페이지, 모두 mock 데이터)
-- 🔄 **Phase 2** 공공 API 연동 — 신청 가이드·http 헬퍼·TourAPI·검증 스크립트 + **기상청 격자변환(`grid.ts`)·강원 권역 테이블(`regions.ts`)·기상청 단기예보(`kma.ts`)·에어코리아(`airkorea.ts`) 클라이언트 + `LiveRepository` 완료**. 환경변수 기반 데이터소스 전환과 런타임 mock repository 제거, 카탈로그는 DB에서 직접 조회. 외부 API 실패 시 mock이 아니라 DB 기본값 유지. **키 실검증·contentId 시드 확정·측정소 매핑·응답 캐시 영속화([server/cache.ts](apps/web/src/server/cache.ts) 메모리+파일 2층) 완료.**
-- ✅ **Phase 3** 방문 적합성 스코어 — `scoreSuitability`(혼잡+날씨+대기질, 장소별 가중치) + `estimateCongestion`(동적 혼잡: 인기prior×시간대×요일×계절×날씨 + 하루 분산곡선·추천 방문시간대) + **`reorderSpotsByCongestion`(하루 스팟을 혼잡 최소가 되도록 시간 슬롯 재배정) 완료.** LiveRepository 가 `getSpot`/`getCourse` 에서 동적 혼잡 산출→`congestion`/`suitability`/`crowdTip`·코스 `reorderNote` 보강, spot·course 화면 노출. / 🔄 **Phase 4** 인증·DB — **골격 완료: Drizzle(PostgreSQL) 스키마(Auth.js 표준 + saved_theme/review/visit)·지연 DB 클라이언트·Auth.js(카카오/네이버/구글/애플)·`/api/auth` 라우트·drizzle-kit·셋업 런북([docs/Phase4-인증DB-셋업.md](docs/Phase4-인증DB-셋업.md)).** 남음: `getCurrentUser`→세션/DB, saved/review/visit 읽기·쓰기, app-shell mock 대체.
-
-### 현재 블로커 / 다음 작업
-
-- **공공 API 키 상태 ✅ 해소(2026-06-23 로컬 검증)**: TOUR/KMA/AIRKOREA 모두 ✓ (TourAPI 강원 totalCount=3355, KMA resultCode=00, 에어코리아 강원 40곳). 이전 403 블로커 종료. 샌드박스는 여전히 data.go.kr egress 불가 → 실호출 검증·실응답 수집은 로컬에서만.
-- **테스트 ①②완료**: 순수 함수(matching/scoring/grid/congestion/course-reorder) + API 정규화(kma/airkorea/tourapi)·LiveRepository 폴백·캐시·에이전트·user-data = **68개 통과**(2026-06-24 로컬 `vitest run` 전체 green). `pnpm --filter @eumgil/web test`.
-- **contentId 시드 현황 ✅(2026-06-23 find:content 재조회로 확정)**: 확정 5건 — seorak-gwongeum(125798)/dongmyeong-port(129454)/sokcho-market(3354272) + **sacheon-beach(2773046 사천진항 type12 근접 POI)·woljeongsa-trail(2022311 오대산 선재길 type28)** + 실측 좌표 갱신. 미확정 4건은 적합 POI 부재로 contentId=null 확정: anmok-beach(후보 전부 숙박/음식점)·ojukheon(여행코스만)·daegwallyeong-sheep(후보는 평창 아닌 정선 양떼목장)·jumunjin-cafe(카페 POI 없음)([spot-mapping.ts](apps/web/src/data/live/spot-mapping.ts)).
-- **detailCommon2 보강 버그 ✅ 수정(2026-06-23 verify:enrichment)**: KorService2 `detailCommon2`는 구버전 YN 플래그(defaultYN/firstImageYN/…)를 받지 않아 빈 응답 → 보강이 조용히 폴백되던 버그. `getItemDetail` 을 `contentId`+numOfRows/pageNo 만 넘기도록 수정. 확정 5개 contentId 모두 실호출로 title/개요/이미지/좌표 정상 확인(dongmyeong-port만 대표이미지 없음=데이터 특성). 검증: `pnpm --filter @eumgil/web verify:enrichment`([verify-enrichment.mjs](apps/web/scripts/verify-enrichment.mjs)).
-- **측정소 매핑 ✅(2026-06-23 보정·실검증)**: 에어코리아 강원 40개 측정소 실목록 기준 — 빈 권역 yangyang/jeongseon/inje 를 양양읍/정선읍/인제읍으로 채우고, 목록에 없던 chuncheon(석사동)·wonju(명륜동)를 온의동·반곡동으로 보정([regions.ts](apps/web/src/server/public-api/regions.ts)). 사용 권역(gangneung 옥천동/sokcho 중앙동/pyeongchang 평창읍)은 실목록과 일치 확인.
-- **혼잡 분산 동적 산출 ✅(2026-06-23)**: [congestion.ts](apps/web/src/domain/congestion.ts) 순수함수 — `demand = prior × f시간대 × f요일 × f계절 × f날씨`, `index = demand/RAW_MAX×100` (0~100), 등급 thresh 34/67. 하루 곡선(8~20시)으로 가장 한산한 `bestHours`·분산 tip 산출. LiveRepository 배선 + `Spot.crowdTip?` 추가 + spot 화면 노출. 테스트 `congestion.test.ts`(8개) 추가·repository.test.ts 동적 혼잡 대응(시각 고정) — **로컬 `pnpm --filter @eumgil/web test`로 재확인 필요**(샌드박스 rollup 바이너리 미설치).
-- **코스 재정렬 ✅(2026-06-23)**: [course-reorder.ts](apps/web/src/domain/course-reorder.ts) 순수함수 — 하루 스팟들을 각자 혼잡 곡선 기준으로 방문 시각 슬롯에 재배정(총 혼잡 최소화, n≤7 완전탐색·이상 그리디, 식사/숙박 고정). LiveRepository `getCourse` 오버라이드 배선(네트워크 불필요) + `Course.reorderNote?` + course 화면 노출. 테스트 `course-reorder.test.ts`(5개)·`congestion.test.ts`(8개) 추가 — **로컬 `pnpm --filter @eumgil/web test`로 재확인 필요**.
-- **응답 캐시 영속화 ✅(2026-06-23)**: [server/cache.ts](apps/web/src/server/cache.ts) — 메모리(핫)+파일(영속) 2층, TTL 신선도·디바운스 flush·maxAge prune, 주입식 `CacheStore`(파일/메모리/추후 DB). LiveRepository 모듈 Map 을 `apiCache` 로 교체(날씨/대기질 10분·관광상세 24h). 테스트 `cache.test.ts`(5개, 메모리 store) 추가. 콜드스타트/재시작 후에도 캐시 생존.
-- **Phase 4 골격 ✅(2026-06-23)**: Drizzle+PostgreSQL 채택. [db/schema.ts](apps/web/src/server/db/schema.ts)(7테이블)·[db/index.ts](apps/web/src/server/db/index.ts)(postgres-js, auth 라우트만 import — mock 화면은 DATABASE_URL 불요, 연결은 첫 쿼리 시 lazy)·[server/auth.ts](apps/web/src/server/auth.ts)(NextAuth v5 + DrizzleAdapter + 카카오/네이버/구글/애플)·[api/auth/[...nextauth]/route.ts]·drizzle.config + db:push/generate/migrate/studio 스크립트. **새 의존성이라 로컬 `pnpm install` 후 typecheck/build 검증 필요**(샌드박스 미설치). 비-public 스키마 지원: `DATABASE_SCHEMA` env → `pgSchema(name)` 전환·drizzle `schemaFilter` 한정. 연결 점검 `verify:db` 스크립트. 셋업·OAuth 콜백·검증 절차는 [docs/Phase4-인증DB-셋업.md](docs/Phase4-인증DB-셋업.md).
-- **Phase 4 데이터 슬라이스(서버) ✅(2026-06-24 → 2026-06-30 갱신)**: 사용자 데이터를 세션→앱 DB 로 영속. 미로그인 상태는 mock 사용자/저장 시드로 대체하지 않고 `null`/빈 배열을 반환하며, 저장 변경은 로그인 요구 에러를 낸다. [db/user-data.ts](apps/web/src/server/db/user-data.ts)는 neutral `(db,keycloakSub)` 쿼리 계층으로 유지하고, 신원 email/image 는 Keycloak 세션, 앱 표시명/bio 는 `user_profile`에서 받도록 [live/repository.ts](apps/web/src/data/live/repository.ts) 갱신.
-- **다음 코딩 작업**: Phase 4 데이터 슬라이스(클라이언트) — app-shell `useSession`/`signIn`/`signOut` 실전환(현 mock 인증 대체)·`SessionProvider` 배선, 저장 토글을 `setThemeSaved` Server Action 으로(현 클라 `saved` Set 대체), 보호 라우트 세션 가드. 그 후 DB 실연결 검증(`verify:db`·드리즐 push)·리뷰/방문 쓰기 폼.
-- **Agent Layer 방향 확정 ✅(2026-06-23, 설계 문서)**: 자연어 매칭/오케스트레이션을 결정형 파이프라인 → **Multi-step Tool-Calling 에이전트**로 전환하는 설계 확정([docs/에이전트-레이어-설계.md](docs/에이전트-레이어-설계.md)). 핵심: Repository 인터페이스 불변, 에이전트는 그 **아래**에 위치(`matchThemes`/`getCourse` 내부만 Planner 위임 + 결정형 폴백). 기존 순수함수·API 클라이언트 8종을 도구로 래핑(재구현 아님). 키 없이 검증되도록 `LlmProvider` mock/real 주입 + `server` 도구 샌드박스 mock 대체. 1차 타깃=**코스 플래닝 에이전트**. 자격요건 매핑: Tool Calling·프롬프트·Multi-step(1차) → LLM Evaluation(2차) → RAG(3차) → 멀티모달/VLM(4차). 열린 결정: LLM 프로바이더 선정·Evaluation 기준 등(문서 §7). Phase 4(인증/DB)와 **병렬 트랙**.
-- **Agent A단계 골격 ✅(2026-06-23, 코드)**: `apps/web/src/server/agent/` 4파일 — [types.ts](apps/web/src/server/agent/types.ts)(PlanRequest/PlanResult/AgentStep/ToolSpec/ToolContext/LlmProvider)·[tools.ts](apps/web/src/server/agent/tools.ts)(도구 8종 `buildTools(ctx)` 래핑: list_themes/get_course/search_pois/get_weather/get_air_quality/estimate_congestion/score_suitability/reorder_by_congestion — 기존 순수함수·포트 재사용, enum 으로 행동공간 제한)·[llm.ts](apps/web/src/server/agent/llm.ts)(`LlmProvider` + `scriptedProvider`/`heuristicProvider` 키 없는 mock)·[planner.ts](apps/web/src/server/agent/planner.ts)(`planCourse` ReAct 루프 + 4겹 가드레일: 화이트리스트·중복차단·MAX_STEPS·결정형 폴백, `source:"agent"|"fallback"` 노출). 테스트 [planner.test.ts](apps/web/src/server/agent/planner.test.ts)(의도분기·가드레일·래핑, 키·네트워크 불요). **tsc 클린(agent 파일 무에러). vitest 는 샌드박스 rollup 미설치로 로컬 `pnpm --filter @eumgil/web test` 재확인 필요.** 남음: C단계(RealLlmProvider+키) · D단계(LLM Evaluation).
-- **Agent B단계 배선 ✅(2026-06-23 → 2026-06-30 갱신)**: `LiveRepository.matchThemes` 를 `planCourse`(에이전트)에 위임 + DB 테마 텍스트 기반 결정형 폴백 — Repository 인터페이스(ThemeMatch) 불변, 화면 무수정. `buildAgentContext()` 가 ToolContext 실구현(테마/코스/스팟메타=DB 카탈로그, 날씨=kma·대기질=airkorea·POI=tourapi+apiCache). 현재 LLM 자리는 키 없는 `heuristicProvider`(C단계에서 RealLlmProvider 로 교체). 보조 테마는 결정형 매칭으로 보강. 테스트 [agent-wiring.test.ts](apps/web/src/data/live/repository.ts)(DB 대역 주입, 유효 ThemeMatch).
-- **Agent getCourse 에이전트화 ✅(2026-06-23, 코드)**: `LiveRepository.getCourse` 를 `planItinerary`(에이전트)에 위임. 공통 루프 `runAgentLoop` 추출 후 진입점 2개(planCourse=테마선택 / planItinerary=코스정리)가 공유. heuristicItineraryProvider 가 get_course→날짜별 reorder_by_congestion→final 오케스트레이션, 실제 재배치 수치는 도구(순수함수)가 계산(**판단=LLM, 수치=코드** 분담). `applyReorderTrace`(순수)가 trace 의 reorder 결과를 base 코스에 반영(refId·체류시간 유지, 시각 슬롯만 이동). 폴백=기존 결정형 재정렬을 `reorderCourseDeterministic` 로 추출. `FinalAnswer`(테마/코스 공용, theme 필드 optional)·`PlanRequest.themeId` 추가. 테스트 [agent-wiring.test.ts](apps/web/src/data/live/agent-wiring.test.ts)에 getCourse 항목보존 케이스 추가. **tsc 클린. vitest 로컬 재확인 필요.** 남음: C단계(RealLlmProvider+키) · 코스 대체지(search_pois) 활용.
-- **Agent D단계 Evaluation 골격 ✅(2026-06-23, 코드, mock 위)**: `apps/web/src/server/agent/eval/` 4파일 — [types.ts](apps/web/src/server/agent/eval/types.ts)(EvalCase/ScoreLine/CaseRun/EvalReport/Scorer)·[scorers.ts](apps/web/src/server/agent/eval/scorers.ts)(룰브릭 채점기: themeValidity/altThemesClean/agentCompleted/constraintAdherence/traceHealth + defaultScorers)·[dataset.ts](apps/web/src/server/agent/eval/dataset.ts)(의도 4케이스 + 오프라인 sampleEvalContext)·[runner.ts](apps/web/src/server/agent/eval/runner.ts)(`runEval` 프로바이더 무관 — llm 만 교체하면 mock↔real 동일 채점, `formatReport`). 테스트 [eval.test.ts](apps/web/src/server/agent/eval/eval.test.ts)(기준선 통과율·가드레일/제약 준수). **핵심 설계: 프로바이더 무관 → C단계 RealLlmProvider 합류 시 같은 데이터셋·채점기로 실모델 품질 정량 비교.** 현재는 룰브릭(코드 규칙)만; LLM-as-judge(주관 품질)는 실 LLM 후 추가. **tsc 클린. vitest 로컬 재확인 필요.**
+3. **실시간 동적** (혼잡도/날씨/대기질/교통) → 요청 시 호출 + 단기 캐시. 방문 적합성 점수의 입력.
+4. **사용자** (회원/저장/리뷰/방문/온보딩) → DB. 신원(email/image)은 Keycloak 세션, 앱 표시명/bio는 `user_profile`.
 
 ## 컨벤션 / 주의사항
 
 - **작업자 컨텍스트(메모)**: 이 프로젝트 담당자는 **AI Agent 설계를 학습 중인 개발자**다. 에이전트 관련 작업(Tool Calling·Multi-step·프롬프트·Evaluation·RAG·멀티모달, `server/agent/*`)을 할 때는 *왜 이렇게 설계했는지·결정형 대비 트레이드오프·일관성 확보 기법* 등을 코드와 함께 간단히 설명해 학습을 돕는다. (단순 사실 질의·잡담엔 불필요)
-- **새 코드는 타입 안전**하게. `design/*.tsx`(icons/ui/brand-logos/data)는 `@ts-nocheck`라 타입 없음 → 화면에서 쓸 땐 [components/screens/_ui.ts](apps/web/src/components/screens/_ui.ts)에서 `UI`/`Icon`을 `any`로 캐스팅해 사용(도메인 데이터 흐름은 정상 타입검사 유지).
+- **새 코드는 타입 안전**하게. `design/*.tsx`는 `@ts-nocheck` → 화면에서 쓸 땐 [screens/_ui.ts](apps/web/src/components/screens/_ui.ts)에서 `UI`/`Icon` 캐스팅 사용(도메인 데이터 흐름은 정상 타입검사 유지).
 - 화면은 **flat `_ko/_en` 직접 접근 금지**. 도메인 타입 + `localized(text, lang)` 사용.
 - **공공 API/서비스키는 서버에서만**. `server/public-api/*`, `lib/env.ts`를 클라이언트에서 import 금지.
-- **데이터 출처 디버그**: `EUMGIL_DEBUG`(=`1` 또는 `http,cache,repo`)로 서버 콘솔에 출처 로그. http=공공API 실호출(✓/✗·ms), cache=HIT/MISS/SET/FLUSH, repo=DB 카탈로그·스팟 보강·코스 재정렬. 구현 [server/log.ts](apps/web/src/server/log.ts). 기본 침묵.
-- env 키는 `lib/env.ts`에서 대부분 optional. 실제 필요한 기능 경로에선 `requireEnv("KEY")` 사용.
+- **data.go.kr 키는 Decoding(원본) 키**를 `.env`에 넣는다 — http.ts가 한 번만 인코딩(Encoding 키를 넣으면 이중 인코딩으로 실패).
+- **데이터 출처 디버그**: `EUMGIL_DEBUG`(=`1` 또는 `http,cache,repo,routing`)로 서버 콘솔에 출처 로그(실호출✓/✗·캐시 HIT/MISS·폴백). 구현 [server/log.ts](apps/web/src/server/log.ts). 기본 침묵. "실연동인지 폴백인지" 확인은 항상 이걸로.
+- env 키는 `lib/env.ts`에서 대부분 optional. 필수 기능 경로에선 `requireEnv("KEY")` 사용.
 - UI 텍스트·코드 주석은 **한국어**. 강원특별자치도 = TourAPI `areaCode` **32**.
-- 확정된 방향: 전체 실연동 제출 / 자연어 매칭은 키워드 우선(후반 LLM 검토). 상세 [docs/구현-계획.md](docs/구현-계획.md).
-- **테스트 전략(단계적, 확정 2026-06-23)**: ① 지금 = 순수 함수 단위 테스트(matching/scoring/grid, Vitest) ② 키 실검증 직후 = API 정규화·LiveRepository 폴백(fetch 목) ③ Phase 4~5 = 화면 RTL + 핵심 플로우 E2E(Playwright). "구현 굳은 것부터" 원칙. 상세 [docs/구현-계획.md](docs/구현-계획.md) "5. 테스트 전략".
-- **이 문서를 최신으로 유지할 것**: 의미 있는 마일스톤(Phase 완료, 주요 모듈 완성, 블로커 발생·해소) 시 위의 **"진행 상태 / 현재 블로커"** 섹션을 별도 요청 없이 갱신한다. 문서 전체를 다시 쓰지 말고 해당 섹션만 국소 수정(상세 체크리스트는 [docs/구현-계획.md](docs/구현-계획.md)가 정본).
+- **테스트 전략(단계적)**: ① 순수 함수 유닛 ② API 정규화·폴백(fetch 목) ③ 화면 RTL + E2E(Playwright, 미착수 — 플랜 §8). "구현 굳은 것부터" 원칙. 상세 [docs/구현-계획.md](docs/구현-계획.md) §5.
+- **샌드박스 환경 제약**: data.go.kr egress 불가(실호출 검증은 로컬에서만), vitest rollup 바이너리 미설치 가능(`pnpm --filter @eumgil/web test`는 로컬 재확인). 실검증이 필요한 변경은 결과 보고에 이 한계를 명시할 것.
+- **문서 유지 규칙**: 진행상태·블로커·남은 작업은 이 파일이 아니라 **[docs/운영-준비-플랜.md](docs/운영-준비-플랜.md)의 체크박스·스냅샷(§0)을 갱신**한다(완료 시 날짜 기입, 새 이슈는 같은 형식으로 추가). 이 파일은 **아키텍처·규칙이 실제로 바뀔 때만** 해당 섹션을 국소 수정한다. 히스토리를 이 파일에 다시 쌓지 말 것.
