@@ -38,6 +38,48 @@ describe("server routing travel-time", () => {
     expect(estimate!.driveMinutes).toBeGreaterThan(0);
   });
 
+  it("maxApiPairs 상한을 정확히 지킨다 (사전 슬라이스 — §3.3)", async () => {
+    let calls = 0;
+    const yangyang: Coord = { lat: 38.0754, lon: 128.619, region: "양양" };
+    const lookup = await buildTravelTimeLookup([gangneung, sokcho, yangyang], {
+      mode: "car",
+      maxApiPairs: 3, // 전쌍은 3×2=6쌍
+      port: {
+        async estimate(_a, _b, mode) {
+          calls++;
+          return { distanceKm: 10, driveMinutes: 20, mode, source: "api" };
+        },
+      },
+    });
+
+    expect(calls).toBe(3);
+    // 상한 밖 쌍도 조회는 근사값으로 항상 답한다.
+    expect(lookup.estimate(yangyang, sokcho, "car")).not.toBeNull();
+  });
+
+  it("apiPairs 지정 시 그 쌍만 실호출하고 나머지는 근사로 답한다 (§3.3)", async () => {
+    const called: string[] = [];
+    const lookup = await buildTravelTimeLookup([gangneung, sokcho], {
+      mode: "car",
+      apiPairs: [
+        [gangneung, sokcho],
+        [gangneung, sokcho], // 중복은 1회만
+        [gangneung, gangneung], // 자기 자신 제외
+      ],
+      port: {
+        async estimate(a, b, mode) {
+          called.push(`${a.region}->${b.region}`);
+          return { distanceKm: 12, driveMinutes: 34, mode, source: "api" };
+        },
+      },
+    });
+
+    expect(called).toEqual(["강릉->속초"]);
+    expect(lookup.estimate(gangneung, sokcho, "car")!.source).toBe("api");
+    // 지정하지 않은 역방향은 근사 폴백.
+    expect(lookup.estimate(sokcho, gangneung, "car")!.source).toBe("approx");
+  });
+
   it("Kakao Mobility Directions 응답을 TravelEstimate 로 정규화한다", async () => {
     const calls: string[] = [];
     const port = kakaoDirectionsPort({

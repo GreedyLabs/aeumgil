@@ -13,11 +13,15 @@ export default async function ProfilePage() {
     repo.listReviews(),
   ]);
 
-  const reviewsPreview: ReviewWithSpot[] = [];
-  for (const review of reviews.slice(0, 2)) {
-    const spot = await repo.getSpot(review.spotId);
-    if (spot) reviewsPreview.push({ review, spot });
-  }
+  // 미리보기 표시용 — 실시간 필드는 안 쓰므로 enrich 없이(§2.3).
+  const reviewsPreview: ReviewWithSpot[] = (
+    await Promise.all(
+      reviews.slice(0, 2).map(async (review) => {
+        const spot = await repo.getSpot(review.spotId, { enrich: false });
+        return spot ? { review, spot } : null;
+      }),
+    )
+  ).filter((r): r is ReviewWithSpot => r !== null);
 
   return (
     <ProfileView

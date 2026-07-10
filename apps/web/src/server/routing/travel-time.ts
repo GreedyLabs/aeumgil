@@ -32,6 +32,12 @@ export interface BuildTravelTimeLookupOptions {
   port?: DirectionsPort;
   /** 실제 API 호출 구간 상한. 초과 구간은 근사값으로 폴백한다. */
   maxApiPairs?: number;
+  /**
+   * 실호출 우선 대상 쌍(예: 코스 타임라인 인접 구간 + 대체지↔인접 스팟).
+   * 지정하면 이 쌍만(상한 내) API 를 태우고, 그 외 쌍은 조회 시 근사값으로 답한다.
+   * 미지정 시 전쌍(N×N) — 후보가 많은 호출부는 반드시 지정할 것. (운영-준비-플랜 §3.3)
+   */
+  apiPairs?: [Coord, Coord][];
 }
 
 interface KakaoDirectionsPortOptions {
@@ -142,26 +148,38 @@ export async function buildTravelTimeLookup(
   const maxApiPairs = options.maxApiPairs ?? DEFAULT_MAX_API_PAIRS;
   const points = uniqueCoords(coords);
   const matrix = new Map<string, TravelEstimate>();
-  let attemptedApiPairs = 0;
 
-  await Promise.all(
-    points.flatMap((from) =>
-      points
-        .filter((to) => coordKey(to) !== coordKey(from))
-        .map(async (to) => {
-          if (attemptedApiPairs >= maxApiPairs && options.port === undefined && port !== approximateDirectionsPort) {
-            return;
-          }
-          attemptedApiPairs++;
-          try {
-            const estimate = await port.estimate(from, to, mode);
-            if (estimate) matrix.set(pairKey(from, to, mode), estimate);
-          } catch {
-            // 구간 단위 실패는 전체 코스 생성을 막지 않는다. 조회 시 근사값으로 폴백한다.
-          }
-        }),
-    ),
-  );
+  // 근사 포트는 조회 시 폴백 계산과 동일하므로 사전 매트릭스를 만들 필요가 없다.
+  if (port !== approximateDirectionsPort) {
+    const candidates: [Coord, Coord][] =
+      options.apiPairs ?? points.flatMap((from) => points.map((to) => [from, to] as [Coord, Coord]));
+
+    // 상한은 호출 목록을 먼저 만들어 사전 슬라이스로 적용한다.
+    // (병렬 콜백 안에서 카운터를 증가시키는 방식은 상한이 정확히 걸리지 않는다 — §3.3)
+    const seen = new Set<string>();
+    const attempts: [Coord, Coord][] = [];
+    for (const [from, to] of candidates) {
+      if (attempts.length >= maxApiPairs) break;
+      if (!isCoord(from) || !isCoord(to)) continue;
+      if (coordKey(from) === coordKey(to)) continue;
+      const key = pairKey(from, to, mode);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      attempts.push([from, to]);
+    }
+
+    await Promise.all(
+      attempts.map(async ([from, to]) => {
+        try {
+          const estimate = await port.estimate(from, to, mode);
+          if (estimate) matrix.set(pairKey(from, to, mode), estimate);
+        } catch {
+          // 구간 단위 실패는 전체 코스 생성을 막지 않는다. 조회 시 근사값으로 폴백한다.
+        }
+      }),
+    );
+    if (log.on) log.log(`lookup built: ${attempts.length} api pair(s) attempted, ${matrix.size} resolved`);
+  }
 
   return {
     estimate(a, b, requestedMode = mode) {

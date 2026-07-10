@@ -22,7 +22,15 @@ export function getDb(): Database | null {
   if (memo) return memo;
   if (!env.DATABASE_URL) return null;
   // serverless/풀러 대비 prepare 비활성. 연결은 첫 쿼리 때 lazy 수립.
-  const client = postgres(env.DATABASE_URL, { prepare: false });
+  // 컨테이너 단일 인스턴스 기준 연결 옵션 명시(운영-준비-플랜 §2.2):
+  //   - connect_timeout 5s: 기본 30s 는 DB 장애 시 에러 바운더리 노출까지 너무 길다.
+  //   - max 10: SSR 동시 렌더 대비 상한. idle 60s 후 반환해 순단 복귀를 따라온다.
+  const client = postgres(env.DATABASE_URL, {
+    prepare: false,
+    max: 10,
+    connect_timeout: 5,
+    idle_timeout: 60,
+  });
   memo = drizzle(client, { schema });
   return memo;
 }

@@ -1,7 +1,7 @@
 // 자연어 → 테마 키워드 매칭 단위 테스트.
 
 import { describe, expect, it } from "vitest";
-import { matchThemes } from "./matching";
+import { matchThemes, normalizeIntentQuery } from "./matching";
 import type { KeywordRule } from "./types";
 
 // design/data.ts 의 KEYWORD_MATCH 와 동일 구조의 대표 규칙(테스트 고정값).
@@ -53,5 +53,15 @@ describe("matchThemes", () => {
     const { primaryId, altIds } = matchThemes("시장 구경하고 카페도 갈래", rules, themeIds);
     expect(primaryId).toBe("market-local");
     expect(altIds).toContain("cafe-viewpoint");
+  });
+});
+
+describe("normalizeIntentQuery", () => {
+  it("연속 공백·개행을 한 칸으로 붙이고 양끝을 자른다", () => {
+    expect(normalizeIntentQuery("  부모님이랑 \n\n 바다  보고 싶어  ")).toBe("부모님이랑 바다 보고 싶어");
+  });
+
+  it("공백뿐인 입력은 빈 문자열이 된다", () => {
+    expect(normalizeIntentQuery("   \n\t ")).toBe("");
   });
 });

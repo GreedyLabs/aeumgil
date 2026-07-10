@@ -7,6 +7,17 @@
 
 import type { KeywordRule, ThemeMatch } from "./types";
 
+/** 자연어 입력 허용 길이 상한 — 초과 입력은 매칭(LLM 경로) 진입 전에 거른다. */
+export const INTENT_QUERY_MAX_LENGTH = 200;
+
+/**
+ * 사용자 자연어 입력 정규화 — 연속 공백(개행 포함)을 한 칸으로 붙이고 양끝을 자른다.
+ * 길이 검증·거부는 호출부 판단(화면은 안내, 서버는 방어 절단).
+ */
+export function normalizeIntentQuery(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim();
+}
+
 /**
  * 입력 문장을 키워드 규칙에 매칭해 대표 테마 1개 + 보조 테마를 고른다.
  *
