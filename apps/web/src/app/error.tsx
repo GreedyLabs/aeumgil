@@ -6,6 +6,7 @@
 // reset() 은 해당 라우트 세그먼트를 다시 렌더링한다(일시 장애 복구용).
 // ─────────────────────────────────────────────
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { RouteNotice } from "@/components/route-fallback";
 
@@ -31,9 +32,9 @@ export default function RouteError({
           <button type="button" className="btn btn-primary" onClick={reset}>
             다시 시도
           </button>
-          <a className="btn btn-secondary" href="/">
+          <Link className="btn btn-secondary" href="/">
             홈으로
-          </a>
+          </Link>
         </>
       }
     />
