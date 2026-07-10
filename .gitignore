@@ -34,5 +34,8 @@ pnpm-debug.log*
 .turbo
 coverage/
 
+# 개인 블로그 초안 (로컬 보관 전용, 저장소에 올리지 않음)
+docs/blog/
+
 # 원자적 쓰기/파일 싱크 임시 잔여물 (0바이트, 소스 아님)
 _tmp_*
