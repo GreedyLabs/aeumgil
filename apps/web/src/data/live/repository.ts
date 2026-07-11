@@ -574,10 +574,13 @@ export class LiveRepository implements Repository {
       );
 
       // 보조 테마(혼잡 분산용)는 DB 테마 텍스트 매칭으로 보강한다.
+      // [§6.1 유효성 가드] LLM 이 낸 테마 id 는 실존 테마와 대조한다 — 헛 id 가
+      // 통과하면 /theme/<없는id> 로 이동해 화면이 깨진다. 무효면 결정형 결과로 대체.
       const det = await this.matchThemesDeterministic(intent);
-      const primaryId = result.primaryThemeId || det.primaryId;
+      const validIds = new Set(ctx.themes.map((t) => t.id));
+      const primaryId = validIds.has(result.primaryThemeId) ? result.primaryThemeId : det.primaryId;
       const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
-      const altIds = altSource.filter((id) => id && id !== primaryId).slice(0, 2);
+      const altIds = altSource.filter((id) => validIds.has(id) && id !== primaryId).slice(0, 2);
 
       log.log(`matchThemes "${intent}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`);
       return { primaryId, altIds };

@@ -93,6 +93,93 @@ describe("openAiChatProvider", () => {
 
     await expect(provider.decide(input)).rejects.toThrow("LLM 호출 실패(401)");
   });
+
+  // 로컬 소형 모델(llama.cpp+Qwen)은 json_object 를 줘도 JSON 앞뒤에 산문을 섞는다.
+  it("final JSON 앞에 산문이 섞여도 JSON 을 추출한다", async () => {
+    const final = {
+      primaryThemeId: "east-sea-sunrise",
+      altThemeIds: [],
+      rationale: L("바다 테마를 골랐어요.", "Selected the sea theme."),
+    };
+    const provider = openAiChatProvider({
+      fetcher: async () =>
+        response({
+          choices: [
+            { message: { content: `요청을 분석한 결과는 다음과 같습니다.\n\n${JSON.stringify(final)}` } },
+          ],
+        }),
+    });
+
+    await expect(provider.decide(input)).resolves.toEqual({ kind: "final", final });
+  });
+
+  it("<think> 블록이 섞인 final 응답도 파싱한다", async () => {
+    const final = {
+      primaryThemeId: "quiet-inland",
+      altThemeIds: [],
+      rationale: L("조용한 내륙.", "Quiet inland."),
+    };
+    const provider = openAiChatProvider({
+      fetcher: async () =>
+        response({
+          choices: [
+            { message: { content: `<think>{테마 후보를 비교}…</think>${JSON.stringify(final)}` } },
+          ],
+        }),
+    });
+
+    await expect(provider.decide(input)).resolves.toEqual({ kind: "final", final });
+  });
+
+  // rationale 은 course 화면 reorderNote 로 노출된다(§6.1) — 개행·제어문자·길이 방어.
+  it("final rationale 의 개행·제어문자를 접고 길이를 300자로 제한한다", async () => {
+    const provider = openAiChatProvider({
+      fetcher: async () =>
+        response({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  primaryThemeId: "quiet-inland",
+                  altThemeIds: [],
+                  rationale: {
+                    ko: `첫 줄\n\n둘째 줄\t탭\u0000제어${"가".repeat(400)}`,
+                    en: "ok",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+    });
+
+    const decision = await provider.decide(input);
+    expect(decision.kind).toBe("final");
+    if (decision.kind === "final") {
+      const ko = decision.final.rationale.ko;
+      expect(ko).not.toMatch(/[\n\t]/);
+      expect(ko.startsWith("첫 줄 둘째 줄 탭 제어")).toBe(true);
+      expect(ko.length).toBeLessThanOrEqual(300);
+      expect(ko.endsWith("…")).toBe(true);
+    }
+  });
+
+  it("apiKey 가 없으면 authorization 헤더를 보내지 않는다(로컬 서버)", async () => {
+    let sentHeaders: Record<string, string> | undefined;
+    const provider = openAiChatProvider({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      fetcher: async (_url, init) => {
+        sentHeaders = init.headers as Record<string, string>;
+        return response({
+          choices: [{ message: { tool_calls: [{ function: { name: "list_themes", arguments: "{}" } }] } }],
+        });
+      },
+    });
+
+    await provider.decide(input);
+    expect(sentHeaders).toBeDefined();
+    expect(sentHeaders).not.toHaveProperty("authorization");
+  });
 });
 
 describe("heuristicItineraryProvider", () => {

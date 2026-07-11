@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval:real": "EUMGIL_EVAL_REAL=1 node --env-file=../../.env node_modules/vitest/vitest.mjs run src/server/agent/eval/real.eval.test.ts",
     "verify:api": "node --env-file=../../.env scripts/verify-public-api.mjs",
     "find:content": "node --env-file=../../.env scripts/find-content-ids.mjs",
     "verify:enrichment": "node --env-file=../../.env scripts/verify-enrichment.mjs",

@@ -49,9 +49,15 @@ const schema = z.object({
   KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().optional(),
 
   // Agent C단계: OpenAI-compatible Chat Completions
+  // 로컬 OpenAI-호환 서버(llama.cpp 등)는 BASE_URL 만 지정하면 API_KEY 없이 동작한다.
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
   OPENAI_BASE_URL: optionalUrl,
+  // LLM 호출 1회 타임아웃(ms). 미설정 시 30초(로컬 소형 모델 생성 속도 고려).
+  OPENAI_TIMEOUT_MS: z.preprocess(
+    (v) => (v === "" || v === undefined ? undefined : Number(v)),
+    z.number().int().positive().optional(),
+  ),
 });
 
 const parsed = schema.safeParse(process.env);

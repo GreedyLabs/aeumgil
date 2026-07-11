@@ -249,9 +249,12 @@ export function heuristicItineraryProvider(): LlmProvider {
 type FetchLike = (input: string, init: RequestInit) => Promise<Pick<Response, "ok" | "status" | "text">>;
 
 interface OpenAiChatProviderOptions {
-  apiKey: string;
+  /** api.openai.com 은 필수. 로컬 OpenAI-호환 서버(llama.cpp 등)는 키 없이 동작하므로 생략 가능. */
+  apiKey?: string;
   model?: string;
   baseUrl?: string;
+  /** 호출 1회 상한(ms). 초과 시 throw → planner 폴백. 기본 30초(로컬 소형 모델의 생성 속도 고려). */
+  timeoutMs?: number;
   fetcher?: FetchLike;
 }
 
@@ -306,9 +309,50 @@ function parseArgs(raw: string | undefined): Record<string, unknown> {
   return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 }
 
+/**
+ * final 텍스트에서 JSON object 를 뽑아낸다.
+ *
+ * [학습 메모] `response_format: json_object` 를 줘도 순수 JSON 이 보장되지 않는다 —
+ * 특히 llama.cpp + 소형 모델(Qwen 계열)은 tools 가 함께 있으면 JSON grammar 를
+ * 적용하지 않아, 최종 답 앞에 추론 산문이나 `<think>` 블록을 섞어 낸다(실측: Qwen3.5-4B).
+ * 전체 파싱이 실패하면 첫 `{` ~ 마지막 `}` 구간을 한 번 더 시도해, 형식 흔들림이
+ * 곧바로 폴백(=에이전트 판단 폐기)으로 이어지는 낭비를 줄인다. 그래도 실패하면
+ * throw → planner 가드레일 4(결정형 폴백)가 받는다.
+ */
+function extractJsonObject(content: string): unknown {
+  const stripped = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  try {
+    return JSON.parse(stripped);
+  } catch {
+    const start = stripped.indexOf("{");
+    const end = stripped.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("LLM final 응답에서 JSON object 를 찾지 못했습니다.");
+    return JSON.parse(stripped.slice(start, end + 1));
+  }
+}
+
+const RATIONALE_MAX_LENGTH = 300;
+
+/**
+ * LLM 산출 텍스트 새니타이즈 — 화면 노출 전 정리 (운영-준비-플랜 §6.1).
+ * rationale 은 course 화면의 reorderNote 로 그대로 렌더되므로(React 가 HTML 은
+ * 이스케이프하지만 레이아웃·문구는 못 지킨다), 제어문자·양방향 제어·개행을 공백으로
+ * 접고 길이 상한을 둔다. 사용자 입력이 intent 로 흘러들어 rationale 에 반사될 수
+ * 있다는 점(프롬프트 인젝션 반사)도 상한의 근거다.
+ */
+function sanitizeLlmText(text: string): string {
+  const collapsed = text
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return collapsed.length > RATIONALE_MAX_LENGTH
+    ? `${collapsed.slice(0, RATIONALE_MAX_LENGTH - 1)}…`
+    : collapsed;
+}
+
 function parseFinal(content: string | null | undefined): LlmDecision {
   if (!content) throw new Error("LLM final 응답이 비어 있습니다.");
-  const parsed = JSON.parse(content) as Partial<FinalAnswer>;
+  const parsed = extractJsonObject(content) as Partial<FinalAnswer>;
   if (!parsed.rationale?.ko || !parsed.rationale?.en) {
     throw new Error("LLM final 응답에 rationale.ko/en 이 없습니다.");
   }
@@ -320,7 +364,10 @@ function parseFinal(content: string | null | undefined): LlmDecision {
     final: {
       primaryThemeId: typeof parsed.primaryThemeId === "string" ? parsed.primaryThemeId : undefined,
       altThemeIds,
-      rationale: parsed.rationale,
+      rationale: {
+        ko: sanitizeLlmText(parsed.rationale.ko),
+        en: sanitizeLlmText(parsed.rationale.en),
+      },
     },
   };
 }
@@ -346,15 +393,17 @@ export function openAiChatProvider(options: OpenAiChatProviderOptions): LlmProvi
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = (options.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
   const model = options.model ?? "gpt-4o-mini";
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
 
   return {
     async decide(input: LlmDecideInput): Promise<LlmDecision> {
       const res = await fetcher(`${baseUrl}/chat/completions`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${options.apiKey}`,
-        },
+        headers,
+        // 타임아웃 초과 시 여기서 throw → planner 가 결정형 폴백으로 복귀(무한 대기 차단).
+        signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
           model,
           temperature: 0.2,
@@ -404,26 +453,29 @@ export function openAiChatProvider(options: OpenAiChatProviderOptions): LlmProvi
   };
 }
 
-/** env 로 실 LLM 을 선택한다. 키가 없으면 기존 heuristic 을 유지한다. */
-export function courseProviderFromEnv(): LlmProvider {
-  if (env.EUMGIL_AGENT_LLM === "openai" && env.OPENAI_API_KEY) {
-    return openAiChatProvider({
-      apiKey: env.OPENAI_API_KEY,
-      model: env.OPENAI_MODEL,
-      baseUrl: env.OPENAI_BASE_URL,
-    });
-  }
-  return heuristicProvider();
+/**
+ * env 로 실 LLM provider 를 만든다. 조건 미충족이면 null(→ 호출부가 heuristic 유지).
+ *
+ * 키 규칙: `OPENAI_BASE_URL` 이 지정된 로컬/사설 OpenAI-호환 서버(llama.cpp·vLLM 등)는
+ * 키 없이 허용하고, 기본 endpoint(api.openai.com)는 키를 요구한다.
+ */
+export function openAiProviderFromEnv(): LlmProvider | null {
+  if (env.EUMGIL_AGENT_LLM !== "openai") return null;
+  if (!env.OPENAI_API_KEY && !env.OPENAI_BASE_URL) return null;
+  return openAiChatProvider({
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_MODEL,
+    baseUrl: env.OPENAI_BASE_URL,
+    timeoutMs: env.OPENAI_TIMEOUT_MS,
+  });
 }
 
-/** 코스 정리용 provider 선택. 현재는 같은 OpenAI provider 를 쓰고, 키 없으면 heuristic. */
+/** env 로 실 LLM 을 선택한다. 미설정이면 기존 heuristic 을 유지한다. */
+export function courseProviderFromEnv(): LlmProvider {
+  return openAiProviderFromEnv() ?? heuristicProvider();
+}
+
+/** 코스 정리용 provider 선택. 현재는 같은 OpenAI provider 를 쓰고, 미설정이면 heuristic. */
 export function itineraryProviderFromEnv(): LlmProvider {
-  if (env.EUMGIL_AGENT_LLM === "openai" && env.OPENAI_API_KEY) {
-    return openAiChatProvider({
-      apiKey: env.OPENAI_API_KEY,
-      model: env.OPENAI_MODEL,
-      baseUrl: env.OPENAI_BASE_URL,
-    });
-  }
-  return heuristicItineraryProvider();
+  return openAiProviderFromEnv() ?? heuristicItineraryProvider();
 }
