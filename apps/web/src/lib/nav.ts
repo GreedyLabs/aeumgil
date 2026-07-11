@@ -84,6 +84,8 @@ export function urlForTab(id: string): string {
 
 export interface AppNav {
   nav: (name: string, params?: NavParams) => void;
+  /** 현재 히스토리 엔트리를 대체하며 이동 — 경유 화면(매칭 애니메이션 등)이 뒤로가기에 남지 않게 할 때 사용 */
+  replace: (name: string, params?: NavParams) => void;
   back: () => void;
   goTab: (id: string) => void;
 }
@@ -93,6 +95,7 @@ export function useAppNav(): AppNav {
   const router = useRouter();
   return {
     nav: (name, params) => router.push(urlFor(name, params)),
+    replace: (name, params) => router.replace(urlFor(name, params)),
     back: () => router.back(),
     goTab: (id) => router.push(urlForTab(id)),
   };

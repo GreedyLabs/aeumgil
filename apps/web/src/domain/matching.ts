@@ -19,6 +19,23 @@ export function normalizeIntentQuery(raw: string): string {
 }
 
 /**
+ * 키워드 규칙에 걸린 테마 id 목록(규칙 순서 = 우선순위, 중복 제거).
+ * 폴백 없이 "걸린 것만" 돌려주므로, 호출부가 히트 여부에 따라 다른 전략
+ * (다른 매칭·기본 테마)을 조합할 수 있다.
+ */
+export function matchThemeIdsByKeyword(query: string, rules: KeywordRule[]): string[] {
+  const q = query.toLowerCase();
+  const matched: string[] = [];
+  for (const rule of rules) {
+    const hit = rule.keywords.some((k) => q.includes(k.toLowerCase()));
+    if (hit && !matched.includes(rule.themeId)) {
+      matched.push(rule.themeId);
+    }
+  }
+  return matched;
+}
+
+/**
  * 입력 문장을 키워드 규칙에 매칭해 대표 테마 1개 + 보조 테마를 고른다.
  *
  * @param query     사용자 자연어 입력
@@ -32,16 +49,7 @@ export function matchThemes(
   themeIds: string[],
   maxAlts = 2,
 ): ThemeMatch {
-  const q = query.toLowerCase();
-
-  const matched: string[] = [];
-  for (const rule of rules) {
-    const hit = rule.keywords.some((k) => q.includes(k.toLowerCase()));
-    if (hit && !matched.includes(rule.themeId)) {
-      matched.push(rule.themeId);
-    }
-  }
-
+  const matched = matchThemeIdsByKeyword(query, rules);
   const primaryId = matched[0] ?? themeIds[0] ?? "";
 
   const altIds: string[] = [];

@@ -1,7 +1,8 @@
 // 자연어 → 테마 키워드 매칭 단위 테스트.
 
 import { describe, expect, it } from "vitest";
-import { matchThemes, normalizeIntentQuery } from "./matching";
+import { matchThemeIdsByKeyword, matchThemes, normalizeIntentQuery } from "./matching";
+import { THEME_KEYWORD_RULES } from "./theme-keywords";
 import type { KeywordRule } from "./types";
 
 // design/data.ts 의 KEYWORD_MATCH 와 동일 구조의 대표 규칙(테스트 고정값).
@@ -53,6 +54,36 @@ describe("matchThemes", () => {
     const { primaryId, altIds } = matchThemes("시장 구경하고 카페도 갈래", rules, themeIds);
     expect(primaryId).toBe("market-local");
     expect(altIds).toContain("cafe-viewpoint");
+  });
+});
+
+describe("matchThemeIdsByKeyword", () => {
+  it("걸린 규칙만 순서대로 돌려주고, 미스면 빈 배열이다(폴백 없음)", () => {
+    expect(matchThemeIdsByKeyword("시장 구경하고 카페도", rules)).toEqual(["market-local", "cafe-viewpoint"]);
+    expect(matchThemeIdsByKeyword("zzzz 의미없는 입력", rules)).toEqual([]);
+  });
+});
+
+describe("THEME_KEYWORD_RULES (도메인 정본 규칙)", () => {
+  it("규칙의 themeId 는 전부 시드 카탈로그의 테마 id 다", () => {
+    for (const rule of THEME_KEYWORD_RULES) {
+      expect(themeIds).toContain(rule.themeId);
+    }
+  });
+
+  it("서로 다른 의도의 쿼리가 같은 테마로 수렴하지 않는다 (2026-07-11 회귀)", () => {
+    // 전부 family-experience 로 수렴하던 실사용 쿼리들.
+    const cases: Array<[string, string]> = [
+      ["부모님이랑 조용한 곳", "quiet-inland"],
+      ["아이들과 신나는 체험 여행", "family-experience"],
+      ["맛있는거 먹으러 가고 싶어", "market-local"],
+      ["바다 보고 힐링", "east-sea-sunrise"], // 구체 장소(바다)가 무드(힐링)보다 우선
+    ];
+    for (const [query, expected] of cases) {
+      expect(matchThemeIdsByKeyword(query, THEME_KEYWORD_RULES)[0]).toBe(expected);
+    }
+    // 무드는 보조 테마로 살아남는다.
+    expect(matchThemeIdsByKeyword("바다 보고 힐링", THEME_KEYWORD_RULES)).toContain("quiet-inland");
   });
 });
 

@@ -12,6 +12,8 @@
 // C단계에서 RealLlmProvider(키 필요)를 추가하면 이 파일의 인터페이스만 구현하면 된다.
 // ─────────────────────────────────────────────
 
+import { matchThemeIdsByKeyword } from "@/domain/matching";
+import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
 import { env } from "@/lib/env";
 import { L } from "@/lib/i18n";
 import type { AgentStep, FinalAnswer, LlmDecideInput, LlmDecision, LlmProvider } from "./types";
@@ -55,9 +57,20 @@ function lastResult(trace: AgentStep[], tool: string): unknown {
   return undefined;
 }
 
-/** list_themes 결과(배열)에서 의도와 가장 겹치는 테마 id 를 고른다(없으면 첫 번째). */
+/**
+ * list_themes 결과(배열)에서 의도와 가장 겹치는 테마 id 를 고른다(없으면 첫 번째).
+ *
+ * [학습 메모] ① 큐레이션 키워드 규칙을 1차 신호로 둔다 — 결정형 폴백(repository)과
+ * 같은 규칙을 공유하므로, heuristic↔폴백 어느 경로를 타도 "바다→동해 테마" 기준선이
+ * 일치한다(프로바이더 교체 시 일관성 확보 기법). ② 규칙 미스일 때만 테마 제목/태그
+ * 근사를 시도한다 — 기존에는 이 근사가 "쿼리가 제목 전체를 포함"해야 해 사실상
+ * 항상 첫 테마로 수렴하는 버그가 있었다(2026-07-11).
+ */
 function chooseTheme(intent: string, themesResult: unknown): string | undefined {
   if (!Array.isArray(themesResult) || themesResult.length === 0) return undefined;
+  const ids = new Set(themesResult.map((t) => String((t as { id: unknown }).id)));
+  const keywordHit = matchThemeIdsByKeyword(intent, THEME_KEYWORD_RULES).find((id) => ids.has(id));
+  if (keywordHit) return keywordHit;
   const q = intent.toLowerCase();
   for (const t of themesResult) {
     const tags: string[] = [

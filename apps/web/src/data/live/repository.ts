@@ -52,7 +52,8 @@ import {
   fetchVisits,
   setSavedTheme,
 } from "@/server/db/user-data";
-import { INTENT_QUERY_MAX_LENGTH, normalizeIntentQuery } from "@/domain/matching";
+import { INTENT_QUERY_MAX_LENGTH, matchThemeIdsByKeyword, normalizeIntentQuery } from "@/domain/matching";
+import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
@@ -583,9 +584,18 @@ export class LiveRepository implements Repository {
     });
   }
 
+  /**
+   * 결정형 매칭 — 에이전트 실패·레이트리밋 시 안전망.
+   * ① 정적 큐레이션 키워드 규칙(도메인 정본, heuristic 판단부와 공유)을 1차 신호로,
+   * ② 테마 텍스트 토큰 겹침 점수를 2차 신호로 합친다. DB 테마 텍스트는 제목뿐이라
+   * (mood 미시드) 토큰 겹침만으로는 대부분의 자연어가 0점 동률 → 첫 테마로 수렴하는
+   * 문제가 있었다(2026-07-11) — 규칙이 그 구멍을 메운다.
+   */
   private async matchThemesDeterministic(query: string): Promise<ThemeMatch> {
     const themes = await this.listThemes();
     const q = query.trim().toLowerCase();
+    const known = new Set(themes.map((t) => t.id));
+    const keywordHits = matchThemeIdsByKeyword(q, THEME_KEYWORD_RULES).filter((id) => known.has(id));
     const scored = themes
       .map((theme) => {
         const haystack = [
@@ -607,8 +617,13 @@ export class LiveRepository implements Repository {
         return { id: theme.id, score };
       })
       .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-    const primaryId = scored[0]?.id ?? "";
-    return { primaryId, altIds: scored.slice(1, 3).map((item) => item.id) };
+
+    const ranked: string[] = [];
+    for (const id of [...keywordHits, ...scored.map((item) => item.id)]) {
+      if (!ranked.includes(id)) ranked.push(id);
+    }
+    const primaryId = ranked[0] ?? "";
+    return { primaryId, altIds: ranked.slice(1, 3) };
   }
 
   /**

@@ -20,7 +20,7 @@ interface MatchingViewProps {
 
 export function MatchingView({ query, primaryId, altIds }: MatchingViewProps) {
   const { lang } = useAppState();
-  const { nav } = useAppNav();
+  const { replace } = useAppNav();
   const [step, setStep] = useState(0);
 
   const steps =
@@ -30,8 +30,11 @@ export function MatchingView({ query, primaryId, altIds }: MatchingViewProps) {
 
   useEffect(() => {
     const timers = steps.map((_, i) => setTimeout(() => setStep(i + 1), (i + 1) * 600));
+    // replace: /result 를 히스토리에서 테마 화면으로 대체한다. push 로 쌓으면 테마에서
+    // 뒤로가기 시 이 화면이 재마운트되어 애니메이션 후 다시 테마로 강제 전진하는
+    // 루프가 생긴다(2026-07-11 수정) — 뒤로가기는 홈(입력 화면)으로 가는 게 자연스럽다.
     const done = setTimeout(
-      () => nav("theme", { themeId: primaryId, altIds, query }),
+      () => replace("theme", { themeId: primaryId, altIds, query }),
       steps.length * 600 + 300,
     );
     return () => {
