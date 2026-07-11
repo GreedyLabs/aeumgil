@@ -2,7 +2,7 @@
 // 실응답(searchKeyword2/areaBasedList2) 모양: 소문자 필드, mapx/mapy 는 문자열.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listGangwonItems } from "./tourapi";
+import { listGangwonItems, searchGangwonKeyword } from "./tourapi";
 
 function mockFetchJson(payload: unknown) {
   vi.stubGlobal(
@@ -65,5 +65,29 @@ describe("listGangwonItems", () => {
   it("items 가 빈 문자열이면 빈 배열을 반환한다", async () => {
     mockFetchJson({ response: { body: { items: "" } } });
     expect(await listGangwonItems()).toEqual([]);
+  });
+});
+
+describe("searchGangwonKeyword", () => {
+  it("searchKeyword2 를 keyword·areaCode 파라미터로 호출하고 결과를 정규화한다", async () => {
+    mockFetchJson({
+      response: {
+        header: { resultCode: "0000" },
+        body: { totalCount: 1, items: { item: [{ contentid: "77", title: "속초관광수산시장", areacode: "32" }] } },
+      },
+    });
+    const items = await searchGangwonKeyword("시장");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ contentId: "77", title: "속초관광수산시장" });
+
+    const calledUrl = String(vi.mocked(fetch).mock.calls[0]?.[0]);
+    expect(calledUrl).toContain("searchKeyword2");
+    expect(calledUrl).toContain(`keyword=${encodeURIComponent("시장")}`);
+    expect(calledUrl).toContain("areaCode=32");
+  });
+
+  it("검색 결과가 없으면 빈 배열을 반환한다", async () => {
+    mockFetchJson({ response: { body: { items: "" } } });
+    expect(await searchGangwonKeyword("없는키워드")).toEqual([]);
   });
 });

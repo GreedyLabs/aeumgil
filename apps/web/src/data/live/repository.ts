@@ -60,7 +60,7 @@ import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-re
 import { composeCourse, type ComposeCourseOptions } from "@/domain/course-compose";
 import { getWeatherByCoords } from "@/server/public-api/kma";
 import { getAirForStation } from "@/server/public-api/airkorea";
-import { getItemDetail, listGangwonItems } from "@/server/public-api/tourapi";
+import { getItemDetail, listGangwonItems, searchGangwonKeyword } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
 import { apiCache } from "@/server/cache";
 import { agentMatchLimiter, requestClientKey } from "@/server/rate-limit";
@@ -657,11 +657,20 @@ export class LiveRepository implements Repository {
         return { khaiGrade: a.khaiGrade, grade: a.grade };
       },
       searchPois: async (keyword) => {
-        // listGangwonItems 는 지역기반 목록(키워드 검색 아님) → 받아온 뒤 제목으로 근사 필터.
+        // TourAPI 키워드 검색(searchKeyword2)으로 관련 POI 를 조회하고, 키워드별로
+        // 캐시한다(§4.5). 키워드는 도구 인자(LLM 산출 가능)라 캐시 키 길이를 제한.
+        const k = keyword.trim().slice(0, 30);
+        if (k) {
+          const hits = await cached(`pois:kw:${k.toLowerCase()}`, DAY_MS, () =>
+            searchGangwonKeyword(k, { numOfRows: 20 }),
+          );
+          if (hits.length > 0) {
+            return hits.slice(0, 8).map((it) => ({ id: it.contentId, name: L(it.title) }));
+          }
+        }
+        // 키워드 미스/빈 키워드 → 지역기반 목록 폴백(종전 동작 유지).
         const items = await cached(`pois:list`, DAY_MS, () => listGangwonItems({ numOfRows: 30 }));
-        const k = keyword.trim();
-        const hit = k ? items.filter((it) => it.title.includes(k)) : items;
-        return (hit.length > 0 ? hit : items).slice(0, 8).map((it) => ({ id: it.contentId, name: L(it.title) }));
+        return items.slice(0, 8).map((it) => ({ id: it.contentId, name: L(it.title) }));
       },
       now: () => nowKst(),
     };

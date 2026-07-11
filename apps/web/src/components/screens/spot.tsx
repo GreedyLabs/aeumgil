@@ -68,6 +68,12 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
     <div className="screen-enter">
       <div style={{ position: "relative" }}>
         <Placeholder label={localized(s.name, lang)} src={s.imageUrl} h={260} overlay />
+        {s.imageUrl?.includes("visitkorea.or.kr") && (
+          // TourAPI(firstimage) 사진은 공공누리 출처표시 조건 — 캡션으로 고지(§7.1).
+          <div style={{ position: "absolute", right: 10, bottom: 8, fontSize: 9.5, color: "rgba(255,255,255,0.85)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+            {lang === "ko" ? "사진 제공: 한국관광공사" : "Photo: Korea Tourism Organization"}
+          </div>
+        )}
         <div style={{ position: "absolute", top: 14, left: 14, right: 14, display: "flex", justifyContent: "space-between" }}>
           <button className="icon-btn filled" onClick={back}>
             <Icon.back />
@@ -184,7 +190,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                 <Icon.wind />
                 <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>{localized(s.air, lang)}</span>
               </div>
-              <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>PM 18</div>
+              <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>{lang === "ko" ? "에어코리아" : "AirKorea"}</div>
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 10, color: "var(--ink-3)", marginBottom: 2, letterSpacing: "0.04em" }}>{lang === "ko" ? "교통" : "Traffic"}</div>
@@ -196,6 +202,12 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               </div>
               <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>{lang === "ko" ? "인근 도로" : "Roads"}</div>
             </div>
+          </div>
+
+          <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 10, lineHeight: 1.5 }}>
+            {lang === "ko"
+              ? "날씨·대기질은 기상청·에어코리아 공공데이터 기반 참고 정보로, 측정소 사정에 따라 실제와 다를 수 있어요."
+              : "Weather and air data are based on KMA and AirKorea public data and may differ from on-site conditions."}
           </div>
         </div>
       </div>

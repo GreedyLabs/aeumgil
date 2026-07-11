@@ -127,6 +127,30 @@ export async function listGangwonItems(options: SearchOptions = {}): Promise<Tou
   return extractItems(data);
 }
 
+/**
+ * 강원 키워드 검색 (searchKeyword2) — 대체지 후보 조회용.
+ * 지역기반 목록(areaBasedList2)+제목 근사 필터와 달리, 포털 검색엔진이 키워드
+ * 관련 POI 를 돌려주므로 "시장"·"해변" 같은 대체지 키워드에 맞는 결과가 온다(§4.5).
+ */
+export async function searchGangwonKeyword(keyword: string, options: SearchOptions = {}): Promise<TourItem[]> {
+  const { pageNo = 1, numOfRows = 20, contentTypeId, sigunguCode, arrange = "C" } = options;
+  const params: Record<string, string | number> = {
+    ...COMMON,
+    areaCode: GANGWON_AREA_CODE,
+    keyword,
+    numOfRows,
+    pageNo,
+    arrange,
+  };
+  if (contentTypeId) params.contentTypeId = contentTypeId;
+  if (sigunguCode) params.sigunguCode = sigunguCode;
+
+  const data = await callDataGoKr<RawListResponse>(`${BASE}/searchKeyword2`, params, {
+    serviceKey: requireEnv("TOUR_API_SERVICE_KEY"),
+  });
+  return extractItems(data);
+}
+
 export interface TourDetail extends TourItem {
   overview: string;
   homepage: string;

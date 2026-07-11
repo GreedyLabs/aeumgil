@@ -79,6 +79,7 @@ export function SettingsView() {
           <MenuRow icon={<Icon.headset />} label={lang === "ko" ? "고객센터" : "Support"} onClick={() => nav("doc", { doc: "support" })} />
           <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "이용약관" : "Terms of service"} onClick={() => nav("doc", { doc: "terms" })} />
           <MenuRow icon={<Icon.lock />} label={lang === "ko" ? "개인정보처리방침" : "Privacy policy"} onClick={() => nav("doc", { doc: "privacy" })} />
+          <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "데이터 출처" : "Data sources"} onClick={() => nav("doc", { doc: "sources" })} />
           <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "앱 버전" : "App version"} value="1.4.0" last />
         </div>
       </div>
