@@ -6,13 +6,17 @@ import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { SpotRow } from "./home";
 import { UI, Icon } from "./_ui";
-import type { Course, Spot, Theme } from "@/domain/types";
+import type { Congestion, Course, Spot, Theme } from "@/domain/types";
 
 const { TopBar, Signal, ThemeHueBg } = UI;
 
 interface SavedTheme {
   theme: Theme;
   course: Course | null;
+  /** 저장 일자 (ISO "YYYY-MM-DD") */
+  savedAt: string;
+  /** 대표 스팟의 현재 혼잡 (코스 미생성 시 null → Signal 미표시) */
+  congestion: Congestion | null;
 }
 
 interface Props {
@@ -40,7 +44,7 @@ export function SavedView({ saved, recentSpots }: Props) {
       </div>
 
       <div className="desk-2" style={{ padding: "0 20px", display: "grid", gap: 14 }}>
-        {saved.map(({ theme: th, course: cs }) => (
+        {saved.map(({ theme: th, course: cs, savedAt, congestion }) => (
           <button key={th.id} onClick={() => nav("theme", { themeId: th.id })} className="card" style={{ padding: 0, textAlign: "left" }}>
             <ThemeHueBg hue={th.hue} h={130} themeId={th.id}>
               <div style={{ position: "absolute", top: 12, right: 12 }}>
@@ -55,9 +59,10 @@ export function SavedView({ saved, recentSpots }: Props) {
             </ThemeHueBg>
             <div style={{ padding: "12px 16px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                {cs ? localized(cs.title, lang) : ""} · <span style={{ fontFamily: "SF Mono, monospace" }}>Apr 24-25</span>
+                {cs ? <>{localized(cs.title, lang)} · </> : null}
+                <span style={{ fontFamily: "SF Mono, monospace" }}>{savedAt.replaceAll("-", ".")}</span>
               </div>
-              <Signal level="calm" lang={lang} />
+              {congestion ? <Signal level={congestion} lang={lang} /> : null}
             </div>
           </button>
         ))}

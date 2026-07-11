@@ -29,6 +29,12 @@ export interface SpotQueryOptions {
   enrich?: boolean;
 }
 
+export interface SavedThemeRef {
+  themeId: string;
+  /** 저장 일자 (ISO "YYYY-MM-DD") */
+  savedAt: string;
+}
+
 export interface Repository {
   // ── 테마 ──
   listThemes(): Promise<Theme[]>;
@@ -57,6 +63,8 @@ export interface Repository {
   listVisits(): Promise<Visit[]>;
   /** 현재 사용자가 저장한 테마 id 목록. 미로그인 시 빈 배열. */
   listSavedThemeIds(): Promise<string[]>;
+  /** 현재 사용자가 저장한 테마 목록(저장 일자 포함, 최근 저장 순). 미로그인 시 빈 배열. */
+  listSavedThemes(): Promise<SavedThemeRef[]>;
   /** 테마 저장/해제 (멱등). 로그인 사용자 DB에만 반영. */
   setThemeSaved(themeId: string, saved: boolean): Promise<void>;
 

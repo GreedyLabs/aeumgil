@@ -15,7 +15,33 @@ permissions:
   packages: write
 
 jobs:
+  # 타입 검사 + 유닛 테스트 게이트 (운영-준비-플랜 §8.3) — 실패 시 빌드·배포 중단.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4 # 버전은 package.json packageManager 필드를 따른다
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Next.js route types
+        run: pnpm --filter @eumgil/web exec next typegen
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @eumgil/web test
+
   build:
+    needs: test
     uses: ./.github/workflows/_build-image.yml
     with:
       image: ${{ github.repository_owner }}/eumgil

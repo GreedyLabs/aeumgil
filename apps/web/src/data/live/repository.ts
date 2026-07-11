@@ -14,7 +14,7 @@
 // 화면은 Repository 인터페이스만 보므로 이 교체로 코드 수정이 없다.
 // ─────────────────────────────────────────────
 
-import type { Repository, SpotQueryOptions } from "@/domain/repository";
+import type { Repository, SavedThemeRef, SpotQueryOptions } from "@/domain/repository";
 import type {
   AuthProvider,
   Companion,
@@ -47,6 +47,7 @@ import {
   fetchOnboardingPreference,
   fetchReviews,
   fetchSavedThemeIds,
+  fetchSavedThemes,
   fetchUserProfile,
   fetchVisits,
   setSavedTheme,
@@ -72,6 +73,7 @@ import { planCourse, planItinerary } from "@/server/agent/planner";
 import { courseProviderFromEnv, itineraryProviderFromEnv } from "@/server/agent/llm";
 import type { AgentStep, SpotMeta, ToolContext } from "@/server/agent/types";
 import { getSpotMapping } from "./spot-mapping";
+import { nowKst } from "./congestion-now";
 
 const log = createLogger("repo");
 
@@ -80,12 +82,6 @@ const TTL_MS = 10 * 60 * 1000; // 동적 데이터(날씨/대기질) 10분
 const DAY_MS = 24 * 60 * 60 * 1000; // 관광 상세 24시간
 const MATCH_TTL_MS = 60 * 60 * 1000; // 자연어 매칭 결과(LLM 비용 방어) 1시간
 const cached = apiCache.cached;
-
-/** 서버 TZ 무관하게 KST 벽시계를 로컬 필드로 갖는 Date. */
-function nowKst(): Date {
-  const k = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate(), k.getUTCHours(), k.getUTCMinutes());
-}
 
 /** "HH:MM" → 분(정렬용). 파싱 실패 시 720(정오). */
 function minutesOf(time: string): number {
@@ -522,6 +518,12 @@ export class LiveRepository implements Repository {
     const uid = (await this.sessionUser())?.id;
     if (!uid) return [];
     return fetchSavedThemeIds(requireDb(), uid);
+  }
+
+  async listSavedThemes(): Promise<SavedThemeRef[]> {
+    const uid = (await this.sessionUser())?.id;
+    if (!uid) return [];
+    return fetchSavedThemes(requireDb(), uid);
   }
 
   async setThemeSaved(themeId: string, saved: boolean): Promise<void> {

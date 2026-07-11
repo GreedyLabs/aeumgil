@@ -61,6 +61,8 @@ export interface PersistentCache {
   cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T>;
   /** 대기 중인 변경을 즉시 파일에 기록(테스트·종료 훅용). */
   flush(): Promise<void>;
+  /** 현재 상태(헬스체크·§5.1 재배포 후 캐시 생존 확인용). loaded=파일 스냅샷 병합 완료 여부. */
+  stats(): { entries: number; loaded: boolean };
 }
 
 export interface CacheOptions {
@@ -160,7 +162,7 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
     return pendingFetch;
   }
 
-  return { cached, flush };
+  return { cached, flush, stats: () => ({ entries: mem.size, loaded }) };
 }
 
 /** 기본 파일 경로 — EUMGIL_CACHE_DIR 또는 OS 임시 디렉터리. */

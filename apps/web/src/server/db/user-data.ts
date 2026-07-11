@@ -43,14 +43,25 @@ export async function computeStats(db: Database, userId: string): Promise<UserSt
   };
 }
 
-/** userId 가 저장한 테마 id 목록(최근 저장 순). */
-export async function fetchSavedThemeIds(db: Database, userId: string): Promise<string[]> {
+export interface SavedThemeRow {
+  themeId: string;
+  /** 저장 일자 (ISO "YYYY-MM-DD") */
+  savedAt: string;
+}
+
+/** userId 가 저장한 테마 목록(최근 저장 순) — 저장 일자 포함. */
+export async function fetchSavedThemes(db: Database, userId: string): Promise<SavedThemeRow[]> {
   const rows = await db
-    .select({ themeId: savedThemes.themeId })
+    .select({ themeId: savedThemes.themeId, savedAt: savedThemes.savedAt })
     .from(savedThemes)
     .where(eq(savedThemes.userId, userId))
     .orderBy(desc(savedThemes.savedAt));
-  return rows.map((r) => r.themeId);
+  return rows.map((r) => ({ themeId: r.themeId, savedAt: isoDate(r.savedAt) }));
+}
+
+/** userId 가 저장한 테마 id 목록(최근 저장 순). */
+export async function fetchSavedThemeIds(db: Database, userId: string): Promise<string[]> {
+  return (await fetchSavedThemes(db, userId)).map((r) => r.themeId);
 }
 
 /** 테마 저장/해제 (멱등). */
