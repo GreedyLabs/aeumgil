@@ -78,6 +78,22 @@ export async function setSavedTheme(
   }
 }
 
+/**
+ * 회원 탈퇴 시 앱 DB 의 사용자 데이터 전체 삭제 (§7.2).
+ * 앱 DB 에 신원 정보는 없고 `sub` 에 연결된 서비스 데이터만 있으므로,
+ * 5개 테이블에서 해당 userId 행을 지우면 파기가 완료된다. 인증 계정(Keycloak)
+ * 삭제는 별도 경로(server/keycloak-admin.ts 또는 운영 수동 절차).
+ */
+export async function deleteUserData(db: Database, userId: string): Promise<void> {
+  await Promise.all([
+    db.delete(savedThemes).where(eq(savedThemes.userId, userId)),
+    db.delete(reviews).where(eq(reviews.userId, userId)),
+    db.delete(visits).where(eq(visits.userId, userId)),
+    db.delete(onboardingPreferences).where(eq(onboardingPreferences.userId, userId)),
+    db.delete(userProfiles).where(eq(userProfiles.userId, userId)),
+  ]);
+}
+
 /** 온보딩 선호 조회. 없으면 null 을 돌려 mock 기본값을 유지하게 한다. */
 export async function fetchOnboardingPreference(db: Database, userId: string): Promise<OnboardingPreference | null> {
   const [row] = await db

@@ -43,6 +43,10 @@ const schema = z.object({
   AUTH_KEYCLOAK_ID: z.string().optional(),
   AUTH_KEYCLOAK_SECRET: z.string().optional(),
   AUTH_KEYCLOAK_ISSUER: z.string().url().optional(),
+  // 회원 탈퇴 시 Keycloak 계정 삭제용 service account 클라이언트(realm-management: manage-users).
+  // 미설정이면 앱 DB 만 삭제하고 Keycloak 계정은 수동 절차(플랜 §7.2)로 정리한다.
+  KEYCLOAK_ADMIN_CLIENT_ID: z.string().optional(),
+  KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().optional(),
 
   // Agent C단계: OpenAI-compatible Chat Completions
   OPENAI_API_KEY: z.string().optional(),
