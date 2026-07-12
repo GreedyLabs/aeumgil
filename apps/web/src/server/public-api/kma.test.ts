@@ -2,7 +2,7 @@
 // 픽스처는 실응답(2026-06-23 강릉) 모양: items.item[] 에 category/fcstValue.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getVilageWeather } from "./kma";
+import { getVilageWeather, weatherCacheKey } from "./kma";
 
 function mockFetchJson(payload: unknown) {
   vi.stubGlobal(
@@ -58,5 +58,20 @@ describe("getVilageWeather", () => {
   it("응답 items 가 비면 에러를 던진다", async () => {
     mockFetchJson({ response: { body: { items: "" } } });
     await expect(getVilageWeather(92, 132)).rejects.toThrow();
+  });
+});
+
+describe("weatherCacheKey", () => {
+  // 좌표는 data/live/spot-mapping.ts 실값 — 스팟 좌표가 바뀌면 함께 갱신.
+  it("같은 KMA 격자의 스팟은 같은 키를 공유한다 (속초시장↔동명항, 약 1.1km)", () => {
+    expect(weatherCacheKey(38.2040463, 128.5905776)).toBe(weatherCacheKey(38.2114151, 128.5998182));
+  });
+
+  it("다른 격자의 스팟은 다른 키를 갖는다 (속초시장↔대관령 양떼목장)", () => {
+    expect(weatherCacheKey(38.2040463, 128.5905776)).not.toBe(weatherCacheKey(37.6889, 128.7178));
+  });
+
+  it("키는 격자 좌표로 구성된다 (강릉 기준점 92,132 — grid.test.ts 검증점과 동일)", () => {
+    expect(weatherCacheKey(37.7519, 128.8761)).toBe("wx:g92,132");
   });
 });

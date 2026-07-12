@@ -13,7 +13,7 @@
 //   [eumgil:http]  ⤳ getVilageFcst {nx:92, ny:131}
 //   [eumgil:http]  ✓ getVilageFcst 200 (142ms)
 //   [eumgil:cache] HIT  air:sokcho (age 12s)
-//   [eumgil:cache] MISS wx:dongmyeong-port → SET (ttl 600s)
+//   [eumgil:cache] MISS wx:g87,141 → SET (ttl 1800s)
 //   [eumgil:repo]  enrich dongmyeong-port → live (wx✓ air✓ tour✓) congestion=calm suit=100
 //   [eumgil:repo]  enrich xyz → mock (no mapping)
 // ─────────────────────────────────────────────

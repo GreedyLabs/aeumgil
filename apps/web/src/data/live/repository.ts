@@ -58,7 +58,7 @@ import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
 import { composeCourse, type ComposeCourseOptions } from "@/domain/course-compose";
-import { getWeatherByCoords } from "@/server/public-api/kma";
+import { getWeatherByCoords, weatherCacheKey } from "@/server/public-api/kma";
 import { getAirForStation } from "@/server/public-api/airkorea";
 import { getItemDetail, listGangwonItems, searchGangwonKeyword } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
@@ -79,7 +79,9 @@ import { nowKst } from "./congestion-now";
 const log = createLogger("repo");
 
 // ── 영속 TTL 캐시 (메모리+파일, server/cache.ts) ──
-const TTL_MS = 10 * 60 * 1000; // 동적 데이터(날씨/대기질) 10분
+// 30분: KMA 단기예보는 3시간 주기 발표, 에어코리아는 1시간 단위 측정이라
+// 10분 TTL 은 원천 데이터 갱신 주기보다 잦았다(§3.2 쿼터 계산은 플랜 문서 참고).
+const TTL_MS = 30 * 60 * 1000; // 동적 데이터(날씨/대기질) 30분
 const DAY_MS = 24 * 60 * 60 * 1000; // 관광 상세 24시간
 const MATCH_TTL_MS = 60 * 60 * 1000; // 자연어 매칭 결과(LLM 비용 방어) 1시간
 const cached = apiCache.cached;
@@ -221,7 +223,7 @@ export class LiveRepository implements Repository {
     try {
       const station = REGIONS[m.region].station;
       const [weather, air] = await Promise.all([
-        cached(`wx:${spot.id}`, TTL_MS, () => getWeatherByCoords(m.lat, m.lon)),
+        cached(weatherCacheKey(m.lat, m.lon), TTL_MS, () => getWeatherByCoords(m.lat, m.lon)),
         cached(`air:${m.region}`, TTL_MS, () => getAirForStation(station)),
       ]);
 
@@ -650,7 +652,7 @@ export class LiveRepository implements Repository {
       spots,
       getCourse: (themeId) => this.composeSeedCourse(themeId, options),
       weather: async (meta) => {
-        const w = await cached(`wx:${meta.id}`, TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
+        const w = await cached(weatherCacheKey(meta.lat, meta.lon), TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
         return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: w.desc };
       },
       air: async (region) => {

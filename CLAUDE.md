@@ -68,7 +68,7 @@ pnpm --filter @eumgil/web db:apply          # 앱 스키마 적용 (그 외 db:*
 - 공통 fetch: [public-api/http.ts](apps/web/src/server/public-api/http.ts) — serviceKey 주입·타임아웃·XML 에러 감지.
 - 클라이언트: [tourapi.ts](apps/web/src/server/public-api/tourapi.ts)(KorService2, 강원 areaCode=32)·[kma.ts](apps/web/src/server/public-api/kma.ts)(단기예보+격자변환 [grid.ts](apps/web/src/server/public-api/grid.ts))·[airkorea.ts](apps/web/src/server/public-api/airkorea.ts)(권역-측정소 매핑 [regions.ts](apps/web/src/server/public-api/regions.ts)).
 - 스팟↔좌표/권역/contentId 매핑: [data/live/spot-mapping.ts](apps/web/src/data/live/spot-mapping.ts).
-- 응답 캐시: [server/cache.ts](apps/web/src/server/cache.ts) — 메모리+파일 2층, TTL은 호출부(날씨/대기질 10분·관광상세 24h). `CacheStore` 주입식이라 백엔드 교체 지점은 한 곳.
+- 응답 캐시: [server/cache.ts](apps/web/src/server/cache.ts) — 메모리+파일 2층, TTL은 호출부(날씨/대기질 30분·관광상세 24h). 날씨 캐시 키는 스팟이 아니라 KMA 격자 단위(`wx:g{nx},{ny}`, kma.ts `weatherCacheKey` — 쿼터 절감, 플랜 §3.2). `CacheStore` 주입식이라 백엔드 교체 지점은 한 곳.
 - 이동시간: [server/routing/travel-time.ts](apps/web/src/server/routing/travel-time.ts) — 근사(기본)/Kakao Mobility(`ROUTING_PROVIDER=kakao`+키) 포트.
 - 환경변수: 루트 `.env`(next.config.mjs가 dotenv 로드) → [lib/env.ts](apps/web/src/lib/env.ts)(zod). 템플릿 [.env.example](.env.example). 키 발급 가이드: [docs/공공API-신청가이드.md](docs/공공API-신청가이드.md).
 

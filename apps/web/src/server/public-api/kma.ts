@@ -117,3 +117,13 @@ export async function getWeatherByCoords(lat: number, lon: number): Promise<Weat
   const { nx, ny } = latLonToGrid(lat, lon);
   return getVilageWeather(nx, ny);
 }
+
+/**
+ * 날씨 캐시 키 — KMA 5km 격자(nx,ny) 단위. 스팟별 키 대신 격자 키를 쓰면
+ * 같은 격자에 속한 스팟들이 한 번의 실호출을 공유해 일일 쿼터 소모가
+ * 스팟 수가 아니라 격자 수에 비례한다(§3.2). API 자체가 격자 입력이라 정밀도 손실 없음.
+ */
+export function weatherCacheKey(lat: number, lon: number): string {
+  const { nx, ny } = latLonToGrid(lat, lon);
+  return `wx:g${nx},${ny}`;
+}
