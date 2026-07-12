@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "eval:real": "EUMGIL_EVAL_REAL=1 node --env-file=../../.env node_modules/vitest/vitest.mjs run src/server/agent/eval/real.eval.test.ts",
     "verify:api": "node --env-file=../../.env scripts/verify-public-api.mjs",
     "find:content": "node --env-file=../../.env scripts/find-content-ids.mjs",
@@ -39,12 +40,13 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.0.0",
-    "dotenv": "^16.4.7",
-    "drizzle-kit": "^0.28.1",
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.28.1",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.6",
     "tailwindcss": "^4.0.0",

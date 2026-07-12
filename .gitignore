@@ -34,6 +34,10 @@ pnpm-debug.log*
 .turbo
 coverage/
 
+# playwright (E2E 산출물)
+test-results/
+playwright-report/
+
 # 개인 블로그 초안 (로컬 보관 전용, 저장소에 올리지 않음)
 docs/blog/
 
