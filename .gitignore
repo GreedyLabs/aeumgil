@@ -43,3 +43,6 @@ docs/blog/
 
 # 원자적 쓰기/파일 싱크 임시 잔여물 (0바이트, 소스 아님)
 _tmp_*
+
+# Keycloak 커스텀 IdP SPI jar (바이너리 — pnpm keycloak:providers 로 다운로드)
+infra/keycloak/providers/*.jar

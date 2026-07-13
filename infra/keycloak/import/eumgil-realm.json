@@ -64,6 +64,76 @@
       ]
     }
   ],
+  "identityProviders": [
+    {
+      "alias": "kakao",
+      "displayName": "카카오",
+      "providerId": "oidc",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "${SOCIAL_KAKAO_CLIENT_ID}",
+        "clientSecret": "${SOCIAL_KAKAO_CLIENT_SECRET}",
+        "authorizationUrl": "https://kauth.kakao.com/oauth/authorize",
+        "tokenUrl": "https://kauth.kakao.com/oauth/token",
+        "userInfoUrl": "https://kapi.kakao.com/v1/oidc/userinfo",
+        "issuer": "https://kauth.kakao.com",
+        "jwksUrl": "https://kauth.kakao.com/.well-known/jwks.json",
+        "useJwksUrl": "true",
+        "validateSignature": "true",
+        "clientAuthMethod": "client_secret_post",
+        "defaultScope": "openid account_email profile_nickname profile_image",
+        "syncMode": "IMPORT"
+      }
+    },
+    {
+      "alias": "naver",
+      "displayName": "네이버",
+      "providerId": "naver",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "${SOCIAL_NAVER_CLIENT_ID}",
+        "clientSecret": "${SOCIAL_NAVER_CLIENT_SECRET}",
+        "syncMode": "IMPORT"
+      }
+    },
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "config": {
+        "clientId": "${SOCIAL_GOOGLE_CLIENT_ID}",
+        "clientSecret": "${SOCIAL_GOOGLE_CLIENT_SECRET}",
+        "defaultScope": "openid profile email",
+        "syncMode": "IMPORT"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "kakao-nickname-to-firstname",
+      "identityProviderAlias": "kakao",
+      "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": {
+        "claim": "nickname",
+        "user.attribute": "firstName",
+        "syncMode": "INHERIT"
+      }
+    },
+    {
+      "name": "kakao-picture",
+      "identityProviderAlias": "kakao",
+      "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": {
+        "claim": "picture",
+        "user.attribute": "picture",
+        "syncMode": "INHERIT"
+      }
+    }
+  ],
   "users": [
     {
       "username": "demo",

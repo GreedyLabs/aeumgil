@@ -44,11 +44,22 @@ services:
       KC_METRICS_ENABLED: "true"
       KC_HOSTNAME: localhost
       KC_HTTP_ENABLED: "true"
+      # 소셜 IdP 브로커 자격증명 — realm import JSON 의 ${SOCIAL_*} 플레이스홀더가
+      # 이 env 로 치환된다(Keycloak 기본 동작). 값은 루트 .env 에서 전달.
+      SOCIAL_KAKAO_CLIENT_ID: ${SOCIAL_KAKAO_CLIENT_ID:-}
+      SOCIAL_KAKAO_CLIENT_SECRET: ${SOCIAL_KAKAO_CLIENT_SECRET:-}
+      SOCIAL_NAVER_CLIENT_ID: ${SOCIAL_NAVER_CLIENT_ID:-}
+      SOCIAL_NAVER_CLIENT_SECRET: ${SOCIAL_NAVER_CLIENT_SECRET:-}
+      SOCIAL_GOOGLE_CLIENT_ID: ${SOCIAL_GOOGLE_CLIENT_ID:-}
+      SOCIAL_GOOGLE_CLIENT_SECRET: ${SOCIAL_GOOGLE_CLIENT_SECRET:-}
     ports:
       - "8080:8080"
       - "9000:9000"
     volumes:
       - ./infra/keycloak/import:/opt/keycloak/data/import:ro
+      # 커스텀 IdP SPI(네이버) jar — start-dev 는 기동 시 자동 반영한다.
+      # jar 는 git 미추적: pnpm keycloak:providers 로 다운로드 (infra/keycloak/README.md)
+      - ./infra/keycloak/providers:/opt/keycloak/providers
     command: ["start-dev", "--import-realm"]
     healthcheck:
       test:

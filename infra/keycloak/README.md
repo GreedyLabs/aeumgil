@@ -63,6 +63,62 @@ Auth.js callback URL:
 http://localhost:3000/api/auth/callback/keycloak
 ```
 
+## 소셜 로그인 브로커 (카카오 / 네이버 / 구글)
+
+realm import(`eumgil-realm.json`)에 IdP 3종이 선언돼 있다. 자격증명은 하드코딩하지 않고
+`${SOCIAL_*}` 플레이스홀더로 두었고, import 시 환경변수로 치환된다(Keycloak 기본 동작) —
+compose 가 루트 `.env` 의 `SOCIAL_*` 값을 컨테이너에 전달한다.
+
+| IdP | 방식 | 비고 |
+| --- | --- | --- |
+| 구글 | Keycloak 내장 `google` 프로바이더 | 설정만 필요 |
+| 카카오 | 범용 OIDC 프로바이더 (`kauth.kakao.com`) | 카카오 앱에서 **OpenID Connect 활성화 필수**, 토큰 인증은 `client_secret_post`(카카오는 Basic 미지원) |
+| 네이버 | 커스텀 SPI ([senshilabs/keycloak-naver-social-provider](https://github.com/senshilabs/keycloak-naver-social-provider)) | 네이버는 OIDC 미지원이라 플러그인 필요. **Keycloak 26.6.1 동작 확인(2026-07-13)** |
+
+### 1) 네이버 SPI jar 다운로드 (최초 1회)
+
+jar 는 git 미추적(바이너리)이라 클론 직후 받아야 한다:
+
+```bash
+pnpm keycloak:providers   # infra/keycloak/providers/ 에 다운로드
+```
+
+### 2) 각 개발자센터에서 앱 생성
+
+공통 Redirect(Callback) URI 형식 — `{keycloak-origin}/realms/eumgil/broker/{alias}/endpoint`:
+
+| IdP | 로컬 Redirect URI |
+| --- | --- |
+| 카카오 | `http://localhost:8080/realms/eumgil/broker/kakao/endpoint` |
+| 네이버 | `http://localhost:8080/realms/eumgil/broker/naver/endpoint` |
+| 구글 | `http://localhost:8080/realms/eumgil/broker/google/endpoint` |
+
+- **카카오** ([developers.kakao.com](https://developers.kakao.com)): 애플리케이션 추가 → 카카오 로그인 **활성화** + **OpenID Connect 활성화** → Redirect URI 등록 → 동의항목(닉네임·프로필사진·**카카오계정 이메일**) 설정 → [보안]에서 Client Secret 생성·활성화. `SOCIAL_KAKAO_CLIENT_ID` 에는 **REST API 키**를 넣는다. 이메일 동의항목은 비즈 앱 전환이 필요할 수 있다.
+- **네이버** ([developers.naver.com](https://developers.naver.com)): 애플리케이션 등록 → 사용 API "네이버 로그인" → 제공 정보(이메일·별명·프로필사진) 필수 동의 → 서비스 URL `http://localhost:3000`, Callback URL 위 표 값. SPI 매퍼가 attribute 를 채우려면 제공 정보 동의가 설정돼 있어야 한다.
+- **구글** ([console.cloud.google.com](https://console.cloud.google.com)): 프로젝트 → OAuth 동의 화면 구성(외부) → 사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션) → 승인된 리디렉션 URI 에 위 표 값.
+
+### 3) 반영 및 검증
+
+```bash
+# .env 에 SOCIAL_* 6개 채운 뒤 (realm import 는 빈 DB에서만 적용되므로 reset 필요)
+pnpm keycloak:reset && pnpm keycloak:up
+pnpm --filter @eumgil/web verify:keycloak
+```
+
+`http://localhost:3000/login` → Keycloak 로그인 화면에 카카오/네이버/Google 버튼 →
+각 IdP 왕복 → 앱 프로필 화면에 이메일/이름 표시까지 확인한다.
+
+이미 쓰던 로컬 realm 을 초기화하고 싶지 않으면 reset 대신 Admin console →
+Identity providers 에서 수동으로 같은 값을 추가해도 된다(운영 Keycloak 적용 방식과 동일).
+
+### 운영 적용 시 (플랜 §1.2)
+
+- 운영 Keycloak 의 Admin console 에서 동일 구성(또는 이 realm JSON 참고) — Redirect URI 의
+  origin 만 운영 Keycloak 도메인으로 교체해 **각 개발자센터와 Keycloak 양쪽**에 등록.
+- 카카오/네이버 앱은 검수(운영) 전환 전까지 팀원 계정만 로그인 가능(플랜 §7.2, 리드타임 있음).
+- 앱에서 특정 IdP 로 바로 보내려면 Auth.js `signIn("keycloak", ...)` 호출에
+  `kc_idp_hint=kakao|naver|google` 파라미터를 넘기면 Keycloak 중간 화면을 건너뛴다(선택).
+
 ## 초기화
 
 Realm import 는 처음 컨테이너가 빈 DB로 뜰 때 적용된다. import JSON을 바꾼 뒤 다시 적용하려면:

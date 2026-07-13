@@ -17,7 +17,8 @@
     "keycloak:up": "docker compose -f docker-compose.keycloak.yml up -d",
     "keycloak:down": "docker compose -f docker-compose.keycloak.yml down",
     "keycloak:logs": "docker compose -f docker-compose.keycloak.yml logs -f keycloak",
-    "keycloak:reset": "docker compose -f docker-compose.keycloak.yml down -v"
+    "keycloak:reset": "docker compose -f docker-compose.keycloak.yml down -v",
+    "keycloak:providers": "curl -sL --create-dirs -o infra/keycloak/providers/keycloak-naver-social-provider-1.0.0.jar https://github.com/senshilabs/keycloak-naver-social-provider/releases/download/1.0.0/keycloak-naver-social-provider-1.0.0.jar"
   },
   "devDependencies": {
     "prettier": "^3.4.2",
