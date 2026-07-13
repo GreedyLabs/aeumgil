@@ -20,6 +20,8 @@ const schema = z.object({
   EUMGIL_CACHE_DIR: z.string().optional(),
   /** 에이전트 LLM 선택. 기본 heuristic 은 키 없이 동작한다. */
   EUMGIL_AGENT_LLM: z.enum(["heuristic", "openai"]).default("heuristic"),
+  /** "1"이면 dev 에서도 기동 워밍 실행(운영 런타임은 항상). server/warmup.ts */
+  EUMGIL_WARMUP: z.string().optional(),
 
   // 데이터베이스
   DATABASE_URL: z.string().optional(),
