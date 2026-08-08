@@ -175,6 +175,7 @@ const SPOTS = {
     duration_ko: '1시간',
     rating: 4.3, reviews: 932,
     tags_ko: ['역사', '실내외', '가족'],
+    desc_ko: '신사임당과 율곡 이이가 태어난 조선 초기 사대부 가옥. 뜰의 검은 대나무(오죽)에서 이름이 유래했다. 실내외를 함께 둘러볼 수 있어 날씨 영향이 적은 편이다.',
   },
   'daegwallyeong-sheep': {
     id: 'daegwallyeong-sheep', name_ko: '대관령 양떼목장', name_en: 'Daegwallyeong Sheep Farm',
@@ -188,6 +189,7 @@ const SPOTS = {
     duration_ko: '1시간 30분',
     rating: 4.5, reviews: 1587,
     tags_ko: ['가족', '자연', '산책'],
+    desc_ko: '해발 850m 대관령 능선의 초원 목장. 20여 분이면 도는 순환 산책로에서 양 떼를 가까이 볼 수 있어 아이 동반 가족에게 인기가 많다. 바람이 강해 겉옷을 챙기는 편이 좋다.',
   },
   'woljeongsa-trail': {
     id: 'woljeongsa-trail', name_ko: '월정사 선재길', name_en: 'Woljeongsa Seonjae Trail',
@@ -255,6 +257,7 @@ const SPOTS = {
     duration_ko: '1시간',
     rating: 4.7, reviews: 1011,
     tags_ko: ['뷰', '사진'],
+    desc_ko: '주문진 바닷가 언덕에 오션뷰 카페가 모인 구역. 통유리 너머로 동해가 바로 보여 사진 명소로 꼽히며, 창가 자리는 오전이 비교적 여유로운 편이다.',
   },
 };
 

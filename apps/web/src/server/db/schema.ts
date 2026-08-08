@@ -118,6 +118,13 @@ export const spotProfiles = table("spot_profile", {
   source: text("source").notNull().default("seed"),
   sourceContentId: text("source_content_id"),
   imageUrl: text("image_url"),
+  /**
+   * 큐레이션 스팟 개요(정적). contentId 가 있으면 런타임에 TourAPI 개요가 우선하고,
+   * 없으면(§4.4 4건 등) 이 값이 상세 화면 설명으로 노출된다. 정본은 design/data.ts 의
+   * desc_ko/desc_en → 시드가 채운다(image_url 과 달리 재시드 시 갱신).
+   */
+  descriptionKo: text("description_ko"),
+  descriptionEn: text("description_en"),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 

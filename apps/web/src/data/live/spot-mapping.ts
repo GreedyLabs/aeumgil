@@ -16,6 +16,9 @@
 //     - ojukheon      : 후보가 여행코스(type25)뿐, 오죽헌 POI(12) 없음
 //     - daegwallyeong-sheep : 후보 "정선 양떼목장"은 평창 대관령과 다른 목장 → 미사용
 //     - jumunjin-cafe : 카페 POI 없음(후보는 방파제/캠핑/음식점)
+//   → 위 4건의 설명은 TourAPI 개요 대신 큐레이션 개요(design/data.ts desc_ko → spot_profile.description_ko)로
+//     채운다(§4.4). 이미지는 실 라이선스 자산 확보 후 image_url 에 주입(자체 이미지 방침, Unsplash 제외).
+//     분기별 1회 `pnpm find:content` 로 신규 POI 등록 시 contentId 를 채우면 TourAPI 개요가 우선한다.
 // ─────────────────────────────────────────────
 
 import type { EnvKind } from "@/domain/scoring";

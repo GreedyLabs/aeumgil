@@ -46,6 +46,8 @@ function mapSpotProfile(row: typeof spotProfiles.$inferSelect): Spot {
     lat: row.lat ?? undefined,
     lon: row.lon ?? undefined,
     imageUrl: row.imageUrl ?? undefined,
+    // 큐레이션 개요. contentId 가 있으면 런타임에 TourAPI 개요가 이 값을 덮는다(repository).
+    description: row.descriptionKo ? L(row.descriptionKo, row.descriptionEn ?? undefined) : undefined,
   };
 }
 

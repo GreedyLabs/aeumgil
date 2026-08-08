@@ -245,8 +245,9 @@ export class LiveRepository implements Repository {
         kind: m.env,
       });
 
-      // contentId 가 확정된 경우에만 TourAPI 개요로 설명 보강
-      let description = L(reason.ko, reason.en);
+      // 설명 우선순위: TourAPI 개요(contentId 확정 시) > 큐레이션 개요(spot_profile.description) > 적합성 사유.
+      // contentId 미확정 스팟(§4.4)은 큐레이션 개요가 상세 화면 설명이 된다.
+      let description = spot.description ?? L(reason.ko, reason.en);
       let imageUrl = spot.imageUrl;
       let tourMark = "tour–";
       if (m.tourContentId) {

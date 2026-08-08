@@ -206,6 +206,8 @@ async function ensureSpotProfile() {
       source text not null default 'seed',
       source_content_id text,
       image_url text,
+      description_ko text,
+      description_en text,
       updated_at timestamp not null default now()
     )
   `);
@@ -231,6 +233,8 @@ async function ensureSpotProfile() {
     ["source", "text"],
     ["source_content_id", "text"],
     ["image_url", "text"],
+    ["description_ko", "text"],
+    ["description_en", "text"],
     ["updated_at", "timestamp"],
   ];
   for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("spot_profile")} add column if not exists ${quoteIdent(name)} ${type}`);
