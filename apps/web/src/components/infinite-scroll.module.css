@@ -1,0 +1,36 @@
+.boundary {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 12px 4px;
+  min-height: 52px;
+  scroll-margin-block: 100px 160px;
+  text-align: center;
+}
+.status,
+.error {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.status p,
+.error {
+  margin: 0;
+}
+.boundary > button {
+  max-width: 100%;
+  min-height: 44px;
+  white-space: normal;
+}
+.keyboardAction:not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

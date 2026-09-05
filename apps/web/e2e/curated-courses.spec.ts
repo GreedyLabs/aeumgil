@@ -1,16 +1,16 @@
 import { expect, test } from "@playwright/test";
 
-test("코스 더 보기는 목록과 충분히 떨어져 있고 기간별 테마를 찾을 수 있다", async ({ page }) => {
+test("테마는 스크롤로 이어지고 앞 목록·추천 순서와 기간 필터를 유지한다", async ({ page }) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/discover");
-    const more = page.getByRole("button", { name: "코스 더 보기", exact: true });
-    await expect(more).toBeVisible();
+    const boundary = page.locator("#theme-scroll-boundary");
+    await expect(page.getByRole("button", { name: "코스 더 보기", exact: true })).toHaveCount(0);
     await expect(page.locator("#theme-results > .theme-card")).toHaveCount(18);
     const firstOrder = await page
       .locator("#theme-results > .theme-card")
       .evaluateAll((cards) => cards.map((card) => card.getAttribute("href")));
-    const space = await page.locator(".theme-load-more").evaluate((element) => {
+    const space = await boundary.evaluate((element) => {
       const list = document.querySelector("#theme-results")!.getBoundingClientRect();
       const controls = element.getBoundingClientRect();
       return {
@@ -20,14 +20,21 @@ test("코스 더 보기는 목록과 충분히 떨어져 있고 기간별 테마
     });
     expect(space.gap).toBeGreaterThanOrEqual(28);
     expect(space.overflow).toBe(false);
-    await more.click();
+    await boundary.scrollIntoViewIfNeeded();
     await expect(page.locator("#theme-results > .theme-card")).toHaveCount(36);
+    const expandedOrder = await page
+      .locator("#theme-results > .theme-card")
+      .evaluateAll((cards) => cards.map((card) => card.getAttribute("href")));
+    expect(expandedOrder.slice(0, 18)).toEqual(firstOrder);
+    expect(new Set(expandedOrder).size).toBe(36);
+    await page.getByRole("combobox", { name: "테마 여행 기간" }).scrollIntoViewIfNeeded();
     await page.getByRole("combobox", { name: "테마 여행 기간" }).selectOption("2");
     expect(await page.locator("#theme-results > .theme-card").count()).toBeGreaterThan(3);
     for (const card of await page.locator("#theme-results > .theme-card").all()) {
       await expect(card.locator(".theme-card-meta")).toContainText(/1박 2일|2일/);
     }
     await page.getByRole("combobox", { name: "테마 여행 기간" }).selectOption("");
+    await expect(page.locator("#theme-results > .theme-card")).toHaveCount(18);
     expect(
       await page
         .locator("#theme-results > .theme-card")
@@ -41,6 +48,29 @@ test("코스 더 보기는 목록과 충분히 떨어져 있고 기간별 테마
       animations: "disabled",
     });
   }
+});
+
+test("자동 스크롤 미지원 환경에서도 키보드로 다음 테마를 읽고 마지막에서 멈춘다", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Reflect.deleteProperty(window, "IntersectionObserver");
+  });
+  await page.goto("/discover");
+  const next = page.getByRole("button", { name: "다음 테마 코스 불러오기", exact: true });
+  await expect(next).toBeVisible();
+  while (await next.count()) {
+    await next.focus();
+    await next.press("Enter");
+  }
+  const cards = page.locator("#theme-results > .theme-card");
+  await expect(page.locator("#theme-scroll-boundary")).toContainText("목록을 모두 확인했어요");
+  const count = await cards.count();
+  expect(count).toBeGreaterThan(36);
+  expect(
+    new Set(await cards.evaluateAll((items) => items.map((item) => item.getAttribute("href"))))
+      .size,
+  ).toBe(count);
 });
 
 test("2~5일 편집 코스의 오후 도착·전체 일차·참고 자료가 실제 화면에 유지된다", async ({ page }) => {

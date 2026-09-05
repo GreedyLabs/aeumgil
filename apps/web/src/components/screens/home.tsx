@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useHydrated } from "@/lib/use-hydrated";
 import { GANGWON_REGIONS } from "@/domain/place-search";
 import { ThemeCard } from "./theme-card";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { localized, type Lang } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -20,10 +20,12 @@ export function HomeView({
   themes,
   prompts,
   bestSpots,
+  traffic,
 }: {
   themes: Theme[];
   prompts: SamplePrompt[];
   bestSpots: Spot[];
+  traffic: ReactNode;
 }) {
   const ready = useHydrated();
   const { lang } = useAppState();
@@ -154,6 +156,7 @@ export function HomeView({
           </Link>
         </div>
       </section>
+      {traffic}
       <footer className="page-section home-footer">
         <span>에움길 · 강원특별자치도 테마 여행</span>
         <div>

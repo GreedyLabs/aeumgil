@@ -310,9 +310,22 @@ export interface RegionalVisitors {
 }
 
 export interface HighwayStatus {
+  routeCode: string;
   route: string;
+  status: "current" | "stale" | "unavailable";
   segments: number;
   slowSegments: number;
+  delayedSegments: number;
+  staleSegments: number;
+  unavailableSegments: number;
+  observedAt?: string;
+  details: HighwaySegment[];
+}
+
+export interface HighwaySegment {
+  id: string;
+  name: string;
+  directionCode?: string;
+  speed: number;
   observedAt: string;
-  slow: { name: string; speed: number }[];
 }

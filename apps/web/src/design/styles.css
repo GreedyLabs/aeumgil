@@ -1425,14 +1425,6 @@ button, a, input, textarea, select { touch-action: manipulation; }
 .saved-theme-caption { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; padding:16px; color:var(--ink-3); font-size:13px; }
 @media(max-width:1199px) { .personal-course-layout { grid-template-columns:minmax(0,1fr); } .personal-search-results { max-height:500px; } }
 @media(max-width:599px) { .personal-course-meta { margin:0 16px 20px; padding:16px; } .personal-course-layout { margin:0 16px 24px; } .personal-save-row, .course-customize { align-items:stretch; flex-direction:column; } .personal-course-cards { grid-template-columns:1fr; } .saved-section { padding:0 16px 24px; } .personal-stop-controls { gap:8px; } .personal-search { padding:16px; } }
-.traffic-overview { padding:24px; }
-.traffic-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
-.traffic-cards article { padding:20px; }
-.traffic-cards h3 { font-size:17px; margin:0 0 16px; }
-.traffic-cards p { font-size:14px; color:var(--ink-2); }
-.traffic-cards strong { font-size:30px; margin-right:6px; color:var(--ink); }
-.traffic-cards small { color:var(--ink-3); font-size:12px; }
-@media(max-width:767px) { .traffic-cards { grid-template-columns:1fr; } .traffic-overview { padding:20px 16px; } }
 
 .editor-controls { display:contents; padding:0; border:0; min-width:0; }
 .place-card.is-selected { border-color:var(--brand); background:var(--brand-soft); box-shadow:inset 0 0 0 1px var(--brand),0 0 0 3px color-mix(in srgb,var(--brand) 10%,transparent); }

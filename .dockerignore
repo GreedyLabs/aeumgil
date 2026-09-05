@@ -35,7 +35,7 @@ Dockerfile
 .dockerignore
 docker-compose.yml
 
-# local authentication fixtures and browser artifacts
+# 인증 서버 테마는 Gitops로 별도 배포한다. 브라우저 검사 산출물도 앱 이미지에서 제외한다.
 infra
 **/test-results
 **/playwright-report

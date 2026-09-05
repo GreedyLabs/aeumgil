@@ -20,7 +20,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-DB와 인증은 개발용 연결 대상을 준비합니다. 카탈로그·사용자 데이터는 실제 DB를 사용하며 런타임 샘플 데이터로 대체하지 않습니다. 설정은 [환경변수·배포](docs/환경변수-배포.md), DB 준비는 [인증·DB](docs/Phase4-인증DB-셋업.md)를 참고하세요.
+카탈로그·사용자 데이터는 실제 DB를 사용하며 런타임 샘플 데이터로 대체하지 않습니다. 로컬 앱도 `https://auth.greedylabs.kr/realms/eumgil`의 기존 인증 서버에 연결합니다. `.env`의 Client Secret과 localhost 콜백 허용 주소를 확인하고 별도 Keycloak 컨테이너는 실행하지 않습니다. 설정은 [환경변수·배포](docs/환경변수-배포.md), DB 준비는 [인증·DB](docs/Phase4-인증DB-셋업.md)를 참고하세요.
 
 ```bash
 pnpm --filter @eumgil/web exec next typegen
@@ -40,7 +40,7 @@ pnpm build
 | `apps/web/src/domain`    | 도메인 모델·추천·검색·코스 계산                     |
 | `apps/web/src/data/live` | 화면에 DB와 공공 API 데이터를 제공하는 Repository   |
 | `apps/web/src/server`    | DB·Auth.js/Keycloak·API·캐시·선택적 에이전트        |
-| `infra/keycloak`         | 에움길 인증 테마·로컬 미리보기                      |
+| `infra/keycloak`         | 운영 인증 테마 소스·Gitops 반영 안내                |
 | `docs`                   | 현행 기획·아키텍처·운영·검증·별도 AI 학습 자료      |
 
 운영은 GitHub Actions → GHCR 이미지 → 별도 Gitops 저장소의 Dockhand 스택으로 배포합니다. 환경별 비밀값은 Git에 저장하지 않습니다.

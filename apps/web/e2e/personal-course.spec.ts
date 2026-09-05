@@ -1,6 +1,69 @@
 import { expect, test } from "@playwright/test";
 import { sessionCookie } from "./helpers/session";
 
+test("개인 코스 검색은 24곳씩 누적하고 종류·지역·검색 변경과 모바일 숨김에서 목록을 분리한다", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([await sessionCookie()]);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/my-courses/new", { waitUntil: "domcontentloaded" });
+  const results = page.locator(".personal-search-results");
+  const cards = results.locator("article");
+  await expect(cards).toHaveCount(24);
+  const firstNames = await cards.locator("strong").allTextContents();
+  const firstName = firstNames[0]!;
+  await cards
+    .first()
+    .getByRole("button", { name: `${firstName} 추가`, exact: true })
+    .click();
+  await page.locator("#personal-place-pagination").scrollIntoViewIfNeeded();
+  await expect(cards).toHaveCount(48);
+  expect((await cards.locator("strong").allTextContents()).slice(0, 24)).toEqual(firstNames);
+  await expect(
+    cards.first().getByRole("button", { name: `${firstName} 추가`, exact: true }),
+  ).toBeDisabled();
+
+  await page.getByRole("combobox", { name: "추가할 장소 종류", exact: true }).selectOption("eat");
+  await expect(cards).toHaveCount(24);
+  await expect(cards.first().getByRole("link")).toHaveAttribute("href", /map\.kakao\.com/);
+  await page
+    .getByRole("combobox", { name: "추가할 여행지 지역", exact: true })
+    .selectOption("강릉");
+  await expect(cards).toHaveCount(24);
+  await expect
+    .poll(async () =>
+      (await cards.locator("small").allTextContents()).every((text) => text.startsWith("강릉")),
+    )
+    .toBe(true);
+  await page.getByRole("combobox", { name: "추가할 장소 종류", exact: true }).selectOption("stay");
+  await expect(cards).toHaveCount(24);
+  await page.getByRole("combobox", { name: "추가할 여행지 지역", exact: true }).selectOption("");
+  await page.getByRole("combobox", { name: "추가할 장소 종류", exact: true }).selectOption("spot");
+  await page.getByRole("searchbox", { name: "내 코스 여행지 검색", exact: true }).fill(firstName);
+  const added = cards.filter({
+    has: page.getByRole("button", { name: `${firstName} 추가`, exact: true }),
+  });
+  await expect(added).toHaveCount(1);
+  await expect(
+    added.getByRole("button", { name: `${firstName} 추가`, exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("searchbox", { name: "내 코스 여행지 검색", exact: true }).fill("");
+  await expect(cards).toHaveCount(24);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("region", { name: "코스에 장소 추가", exact: true }),
+  ).not.toBeVisible();
+  await expect(cards).toHaveCount(24);
+  await page.getByRole("tab", { name: "+ 장소 추가", exact: true }).click();
+  await page.locator("#personal-place-pagination").scrollIntoViewIfNeeded();
+  await expect(cards).toHaveCount(48);
+  await page.getByRole("tab", { name: /^일정/ }).click();
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(1);
+  await expect(page.locator(".personal-stop-list")).toContainText(firstName);
+});
+
 test("실제 여행 날짜와 8일차를 저장하고 기간 축소·날짜 미정 전환에서 장소를 보존한다", async ({
   page,
   context,

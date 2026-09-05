@@ -1,5 +1,6 @@
 "use client";
 import { Select } from "@/components/select";
+import { InfiniteScroll } from "@/components/infinite-scroll";
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -187,7 +188,7 @@ export function DiscoverView({
           </div>
           {filtered.length > visible && (
             <p className="section-description">
-              먼저 {visible}개 코스를 보여드려요. 지역이나 검색어로 좁혀보세요.
+              아래로 내려가면 다음 코스가 이어져요. 지역이나 기간으로 좁혀보세요.
             </p>
           )}
           {filtered.length ? (
@@ -213,19 +214,18 @@ export function DiscoverView({
               </button>
             </div>
           )}
-          {filtered.length > visible && (
-            <div className="theme-load-more">
-              <p>
-                {filtered.length}개 중 {visible}개 코스를 보고 있어요
-              </p>
-              <button
-                className="btn btn-secondary"
-                aria-controls="theme-results"
-                onClick={() => setVisible((v) => v + 18)}
-              >
-                코스 더 보기 <Icon.chevD />
-              </button>
-            </div>
+          {filtered.length > 0 && (
+            <InfiniteScroll
+              id="theme-scroll-boundary"
+              label="테마 코스"
+              hasMore={filtered.length > visible}
+              disabled={!ready}
+              resetKey={JSON.stringify([query, region, days, lang])}
+              progressKey={visible}
+              onLoadMore={() => setVisible((v) => Math.min(v + 18, filtered.length))}
+            >
+              {filtered.length}개 중 {Math.min(visible, filtered.length)}개 코스를 보고 있어요
+            </InfiniteScroll>
           )}
         </>
       )}

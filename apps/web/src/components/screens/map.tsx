@@ -1,5 +1,7 @@
 "use client";
 import { Select } from "@/components/select";
+import { InfiniteScroll } from "@/components/infinite-scroll";
+import { searchPlacesAction } from "@/app/actions/search-places";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -28,6 +30,12 @@ export function MapView({
   const { lang } = useAppState();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [searchWaiting, setSearchWaiting] = useState(false);
+  const filterPending = useRef(false);
+  const requestGeneration = useRef(0);
+  const loadingRequest = useRef(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
   const draftFilters = useRef(result.query);
   const [displayFilters, setDisplayFilters] = useState(result.query);
   useEffect(() => setDisplayFilters(result.query), [result.query]);
@@ -35,11 +43,44 @@ export function MapView({
   const [query, setQuery] = useState(result.query.q);
   const [selectedId, setSelectedId] = useState<string>();
   const [showMap, setShowMap] = useState(false);
+  const [compactLayout, setCompactLayout] = useState(false);
+  const mapBlocksLoading = compactLayout && showMap;
+  const mapLoadingPaused = useRef(mapBlocksLoading);
+  mapLoadingPaused.current = mapBlocksLoading;
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1099px)");
+    const update = () => setCompactLayout(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!mapBlocksLoading) return;
+    // 모바일 지도 위치를 유지하는 동안 목록이 앞뒤로 계속 늘어나지 않게 한다.
+    requestGeneration.current++;
+    loadingRequest.current = false;
+    setLoadingMore(false);
+  }, [mapBlocksLoading]);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const composing = useRef(false);
   const previousQuery = useRef(result.query.q);
   const mapRef = useRef<HTMLElement>(null);
   const searchKey = placeSearchParams(result.query).toString();
+  const activeSearchKey = useRef(searchKey);
+  activeSearchKey.current = searchKey;
+  const [loaded, setLoaded] = useState({ key: searchKey, result, complete: false });
+  const listing = loaded.key === searchKey ? loaded.result : result;
+  const hasMore =
+    !(loaded.key === searchKey && loaded.complete) &&
+    listing.page < 500 &&
+    listing.page * listing.pageSize < listing.total;
+  useEffect(() => {
+    requestGeneration.current++;
+    loadingRequest.current = false;
+    setLoadingMore(false);
+    setLoadError(undefined);
+    setLoaded({ key: searchKey, result, complete: false });
+  }, [result, searchKey]);
   // 뒤로 가기로 검색 조건이 돌아와도 입력값과 결과를 일치시킨다.
   useEffect(() => {
     const previous = previousQuery.current;
@@ -48,27 +89,111 @@ export function MapView({
     setSelectedId(undefined);
     setShowMap(false);
   }, [searchKey, result.query.q]);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      requestGeneration.current++;
+    },
+    [],
+  );
   useEffect(() => {
-    if (!pending) draftFilters.current = result.query;
+    if (!pending && !timer.current && !composing.current) {
+      draftFilters.current = result.query;
+      filterPending.current = false;
+      setSearchWaiting(false);
+    }
   }, [pending, result.query]);
+  const invalidateMore = () => {
+    requestGeneration.current++;
+    loadingRequest.current = false;
+    filterPending.current = true;
+    setSearchWaiting(true);
+    setLoadingMore(false);
+    setLoadError(undefined);
+  };
   const navigate = (changes: PlaceSearchQuery) => {
     clearTimeout(timer.current);
+    timer.current = undefined;
+    invalidateMore();
     draftFilters.current = { ...draftFilters.current, q: query, page: 1, ...changes };
     setDisplayFilters(draftFilters.current);
     const params = placeSearchParams(draftFilters.current);
+    if (params.toString() === searchKey) {
+      filterPending.current = false;
+      setSearchWaiting(false);
+      return;
+    }
     startTransition(() =>
       router.replace(`/discover?tab=places${params.size ? `&${params}` : ""}`, { scroll: false }),
     );
   };
   const search = (value: string) => {
+    invalidateMore();
     setQuery(value);
     clearTimeout(timer.current);
     if (composing.current) return;
-    timer.current = setTimeout(() => navigate({ q: value }), 350);
+    timer.current = setTimeout(() => {
+      timer.current = undefined;
+      navigate({ q: value });
+    }, 350);
   };
-  const selected = result.items.find((p) => p.id === selectedId) ?? result.items[0];
-  const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
+  const loadMore = async () => {
+    if (
+      !ready ||
+      pending ||
+      filterPending.current ||
+      mapLoadingPaused.current ||
+      loadingRequest.current ||
+      !hasMore
+    )
+      return;
+    const generation = requestGeneration.current;
+    const key = searchKey;
+    const previousPage = listing.page;
+    loadingRequest.current = true;
+    setLoadingMore(true);
+    setLoadError(undefined);
+    try {
+      const response = await searchPlacesAction({ ...result.query, page: previousPage + 1 });
+      if (
+        generation !== requestGeneration.current ||
+        key !== activeSearchKey.current ||
+        mapLoadingPaused.current
+      )
+        return;
+      if (!response.ok) {
+        setLoadError(response.error);
+        return;
+      }
+      setLoaded((current) => {
+        if (current.key !== key || current.result.page !== previousPage) return current;
+        const seen = new Set(current.result.items.map((place) => place.id));
+        const additional = response.result.items.filter((place) => {
+          if (seen.has(place.id)) return false;
+          seen.add(place.id);
+          return true;
+        });
+        return {
+          key,
+          complete: additional.length === 0 || response.result.page <= previousPage,
+          result: { ...response.result, items: [...current.result.items, ...additional] },
+        };
+      });
+    } catch {
+      if (
+        generation === requestGeneration.current &&
+        key === activeSearchKey.current &&
+        !mapLoadingPaused.current
+      )
+        setLoadError("여행지를 더 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      if (generation === requestGeneration.current && key === activeSearchKey.current) {
+        loadingRequest.current = false;
+        setLoadingMore(false);
+      }
+    }
+  };
+  const selected = listing.items.find((p) => p.id === selectedId) ?? listing.items[0];
   return (
     <div className="screen-enter places-page">
       {!embedded && (
@@ -109,8 +234,10 @@ export function MapView({
             maxLength={100}
             onChange={(e) => search(e.target.value)}
             onCompositionStart={() => {
+              invalidateMore();
               composing.current = true;
               clearTimeout(timer.current);
+              timer.current = undefined;
             }}
             onCompositionEnd={(e) => {
               composing.current = false;
@@ -167,11 +294,11 @@ export function MapView({
       </details>
       <div className="results-heading">
         <h2 aria-live="polite">
-          {pending ? (
+          {pending || searchWaiting ? (
             "여행지를 찾고 있어요…"
           ) : (
             <>
-              여행지 <span>{result.total.toLocaleString()}곳</span>
+              여행지 <span>{listing.total.toLocaleString()}곳</span>
             </>
           )}
         </h2>
@@ -191,12 +318,12 @@ export function MapView({
           </button>
         )}
       </div>
-      <div className="places-layout" aria-busy={pending}>
+      <div className="places-layout" aria-busy={pending || searchWaiting}>
         <section className="places-results" aria-label="관광지 검색 결과">
-          {result.items.length ? (
+          {listing.items.length ? (
             <>
               <div className="places-grid">
-                {result.items.map((p) => (
+                {listing.items.map((p) => (
                   <article
                     key={p.id}
                     className={`place-card${selected?.id === p.id ? " is-selected" : ""}`}
@@ -245,25 +372,31 @@ export function MapView({
                   </article>
                 ))}
               </div>
-              <nav className="places-pagination" aria-label="여행지 페이지">
-                <button
-                  className="btn btn-secondary"
-                  disabled={!ready || result.page <= 1 || pending}
-                  onClick={() => navigate({ page: result.page - 1 })}
-                >
-                  이전
-                </button>
+              <InfiniteScroll
+                id="places-load-more"
+                hasMore={hasMore}
+                loading={loadingMore}
+                error={loadError}
+                disabled={!ready || pending || searchWaiting || mapBlocksLoading}
+                onLoadMore={loadMore}
+                onRetry={loadMore}
+                label="여행지"
+                resetKey={searchKey}
+                progressKey={`${listing.page}:${listing.items.length}`}
+              >
                 <span>
-                  {result.page} / {pages} 페이지
+                  {listing.total.toLocaleString()}곳 중 {listing.items.length.toLocaleString()}곳을
+                  보고 있어요.
                 </span>
-                <button
-                  className="btn btn-secondary"
-                  disabled={!ready || result.page >= pages || pending}
-                  onClick={() => navigate({ page: result.page + 1 })}
-                >
-                  다음
-                </button>
-              </nav>
+                {result.page > 1 && (
+                  <Link
+                    className="text-link"
+                    href={`/discover?tab=places&${placeSearchParams({ ...result.query, page: 1 })}`}
+                  >
+                    첫 여행지부터 보기
+                  </Link>
+                )}
+              </InfiniteScroll>
             </>
           ) : (
             <div className="empty-state">

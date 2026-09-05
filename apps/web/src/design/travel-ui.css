@@ -62,21 +62,6 @@ body[data-palette="ocean"] {
   flex: 1 1 150px;
   min-width: 0;
 }
-.theme-load-more {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  margin-top: 32px;
-}
-.theme-load-more > p {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 13px;
-}
-.theme-load-more > .btn {
-  width: min(100%, 320px);
-  min-height: 48px;
-}
 .theme-planning-info {
   display: grid;
   gap: 12px;

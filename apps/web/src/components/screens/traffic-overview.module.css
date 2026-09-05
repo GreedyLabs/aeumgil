@@ -1,0 +1,276 @@
+.overview {
+  min-width: 0;
+  margin-top: 32px;
+  padding: clamp(18px, 2.2vw, 30px);
+  border: 1px solid #ccdce1;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #f5fafb, #e9f1f3);
+  box-shadow: 0 8px 24px #183e4b08;
+  color: #233d48;
+}
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.heading p {
+  margin: 8px 0 0;
+  color: #526b76;
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+.heading > a {
+  flex-shrink: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.road {
+  min-width: 0;
+  border: 1px solid #d6e1e5;
+  border-radius: 16px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 3px 7px #233d4805;
+}
+.roadHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+}
+.roadHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.roadHeader small {
+  color: #60727b;
+  font-size: 12px;
+}
+.routeNumber {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 40px;
+  border: 2px solid #e3ebf0;
+  border-top: 6px solid #be443d;
+  border-radius: 8px 8px 15px 15px;
+  background: #234c76;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+}
+.roadStatus {
+  display: grid;
+  gap: 5px;
+  margin: 20px 0 13px;
+}
+.roadStatus > strong {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.roadStatus > small,
+.observed {
+  color: #60727b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.bar {
+  display: flex;
+  height: 9px;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #e4e9ed;
+}
+.barSlow {
+  background: #cb4844;
+}
+.barDelayed {
+  background: #d09529;
+}
+.barClear {
+  background: #388677;
+}
+.barUnknown {
+  background: #aebbc2;
+}
+.breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #536974;
+}
+.breakdown > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.breakdown i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.segmentList {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+.segment {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid #e7edef;
+}
+.segmentBody {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+.segmentBody > strong {
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.segmentBody > small {
+  font-size: 11px;
+  color: #60727b;
+  line-height: 1.6;
+}
+.speed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.speed > span {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.speed > strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.speed small {
+  font-size: 10px;
+  font-weight: 500;
+}
+.slow {
+  color: #af332f;
+}
+.delayed {
+  color: #895900;
+}
+.clear {
+  color: #247064;
+}
+.observed {
+  margin: 10px 0 0;
+}
+.more summary,
+.explanation summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.more summary {
+  color: #265968;
+}
+.more[open] .segmentList {
+  margin-top: 0;
+}
+.explanation {
+  margin-top: 18px;
+  border-top: 1px solid #ccdce1;
+}
+.explanation p {
+  font-size: 13px;
+  color: #536974;
+  line-height: 1.8;
+  margin: 0 0 10px;
+}
+.source {
+  margin: 0;
+  font-size: 11px;
+  color: #617780;
+  line-height: 1.8;
+}
+@media (max-width: 1250px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+  .road {
+    padding: 20px;
+  }
+}
+@media (max-width: 767px) {
+  .overview {
+    margin: 28px 20px 0;
+  }
+}
+@media (max-width: 600px) {
+  .overview {
+    border-radius: 18px;
+  }
+  .heading {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .heading h2 {
+    font-size: 21px;
+    line-height: 1.5;
+    word-break: keep-all;
+  }
+  .heading p {
+    font-size: 13px;
+  }
+  .cards {
+    gap: 12px;
+  }
+  .road {
+    padding: 16px;
+  }
+}
+@media (max-width: 359px) {
+  .overview {
+    padding: 14px;
+  }
+  .road {
+    padding: 13px;
+  }
+  .segment {
+    gap: 7px;
+  }
+  .segmentBody > strong {
+    font-size: 12px;
+  }
+  .speed > strong {
+    font-size: 17px;
+  }
+}

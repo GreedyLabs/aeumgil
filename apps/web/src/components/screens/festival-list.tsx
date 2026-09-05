@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
+import { InfiniteScroll } from "@/components/infinite-scroll";
 
 import type { FestivalListing } from "@/domain/types";
 import { UI, Icon } from "./_ui";
 
 export function FestivalList({ listing }: { listing: FestivalListing }) {
+  const [visible, setVisible] = useState(12);
   return (
     <section className="festival-section" aria-label="다가오는 강원 행사">
       <div className="results-heading">
@@ -18,23 +21,36 @@ export function FestivalList({ listing }: { listing: FestivalListing }) {
         있어요.
       </p>
       {listing.items.length ? (
-        <div className="commerce-grid">
-          {listing.items.map((event) => (
-            <article className="card festival-card" key={event.id}>
-              <UI.Placeholder label={event.name.ko} src={event.imageUrl} h={190} />
-              <div className="commerce-body">
-                <span className="eyebrow">
-                  {event.startsOn.replaceAll("-", ".")} — {event.endsOn.replaceAll("-", ".")}
-                </span>
-                <h3>{event.name.ko}</h3>
-                <p>{event.address}</p>
-                <Link className="text-link" href={`/festival/${event.id}`}>
-                  행사 자세히 보기 <Icon.chevR />
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        <>
+          <div className="commerce-grid">
+            {listing.items.slice(0, visible).map((event) => (
+              <article className="card festival-card" key={event.id}>
+                <UI.Placeholder label={event.name.ko} src={event.imageUrl} h={190} />
+                <div className="commerce-body">
+                  <span className="eyebrow">
+                    {event.startsOn.replaceAll("-", ".")} — {event.endsOn.replaceAll("-", ".")}
+                  </span>
+                  <h3>{event.name.ko}</h3>
+                  <p>{event.address}</p>
+                  <Link className="text-link" href={`/festival/${event.id}`}>
+                    행사 자세히 보기 <Icon.chevR />
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+          <InfiniteScroll
+            label="행사 목록"
+            id="festival-scroll-boundary"
+            hasMore={visible < listing.items.length}
+            progressKey={visible}
+            resetKey={listing.items.map((event) => event.id).join(",")}
+            onLoadMore={() => setVisible((value) => Math.min(value + 12, listing.items.length))}
+          >
+            {listing.items.length}개 중 {Math.min(visible, listing.items.length)}개 행사를 보고
+            있어요
+          </InfiniteScroll>
+        </>
       ) : (
         <div className="empty-state">
           <Icon.clock />

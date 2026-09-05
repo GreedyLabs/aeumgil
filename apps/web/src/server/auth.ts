@@ -2,7 +2,7 @@
 // Auth.js (NextAuth v5) 설정 — 서버 전용.
 //
 // Keycloak 전환 후 앱은 "OIDC Client" 역할만 한다.
-// - 사용자 원장, 소셜 로그인 브로커링(Kakao/Naver/Google), 세션/계정 관리는 Keycloak 책임.
+// - 사용자 원장, Google 로그인 연결, 세션/계정 관리는 Keycloak 책임.
 // - 에움길 DB 에는 Auth.js adapter 테이블을 만들지 않고, 서비스 데이터(saved/review/visit)만
 //   Keycloak `sub`(subject, 전역 사용자 id)에 연결한다.
 //
@@ -28,9 +28,9 @@ function authEnv(
   return isProductionRuntime ? requireEnv(key) : env[key] || devDefault;
 }
 
-const KEYCLOAK_ISSUER = authEnv("AUTH_KEYCLOAK_ISSUER", "http://localhost:8080/realms/eumgil");
-const KEYCLOAK_CLIENT_ID = authEnv("AUTH_KEYCLOAK_ID", "eumgil-web");
-const KEYCLOAK_CLIENT_SECRET = authEnv("AUTH_KEYCLOAK_SECRET", "eumgil-local-dev-secret");
+const KEYCLOAK_ISSUER = authEnv("AUTH_KEYCLOAK_ISSUER", "https://auth.greedylabs.kr/realms/eumgil");
+const KEYCLOAK_CLIENT_ID = authEnv("AUTH_KEYCLOAK_ID", "eumgil");
+const KEYCLOAK_CLIENT_SECRET = authEnv("AUTH_KEYCLOAK_SECRET", "");
 const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 const TOKEN_REFRESH_MARGIN_SECONDS = 60;
 
@@ -87,7 +87,8 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     return {
       ...token,
       accessToken: refreshed.access_token,
-      accessTokenExpiresAt: Math.floor(Date.now() / 1000) + (refreshed.expires_in ?? SESSION_MAX_AGE_SECONDS),
+      accessTokenExpiresAt:
+        Math.floor(Date.now() / 1000) + (refreshed.expires_in ?? SESSION_MAX_AGE_SECONDS),
       refreshToken: refreshed.refresh_token ?? token.refreshToken,
       idToken: refreshed.id_token ?? token.idToken,
       error: undefined,
@@ -117,8 +118,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: Boolean(env.AUTH_URL) || !isProductionRuntime,
   providers: [
     Keycloak({
-      // 로컬 Keycloak 을 나중에 바로 띄워 붙일 수 있게 개발 기본값을 둔다.
-      // 실제 검증 시에는 .env 의 AUTH_KEYCLOAK_* 값이 우선된다.
+      // 개발 앱도 공용 인증 서버를 사용한다. 로그인에는 발급받은 Client Secret이 필요하다.
       clientId: KEYCLOAK_CLIENT_ID,
       clientSecret: KEYCLOAK_CLIENT_SECRET,
       issuer: KEYCLOAK_ISSUER,
@@ -136,7 +136,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessTokenExpiresAt = account.expires_at;
         token.roles = rolesFromProfile(profile);
       }
-      const expiresAt = typeof token.accessTokenExpiresAt === "number" ? token.accessTokenExpiresAt : 0;
+      const expiresAt =
+        typeof token.accessTokenExpiresAt === "number" ? token.accessTokenExpiresAt : 0;
       if (expiresAt > Math.floor(Date.now() / 1000) + TOKEN_REFRESH_MARGIN_SECONDS) return token;
       if (token.refreshToken) return refreshAccessToken(token);
       return token;

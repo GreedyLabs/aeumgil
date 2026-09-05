@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   savePersonalCourseAction,
   deletePersonalCourseAction,
-  searchCoursePlacesAction,
 } from "@/app/actions/personal-course";
 import { Select } from "@/components/select";
 import { CourseDayInput } from "@/components/course-day-input";
+import { InfiniteScroll } from "@/components/infinite-scroll";
+import { useCoursePlaceSearch } from "./use-course-place-search";
 import {
   calendarDateAt,
   courseDateCount,
@@ -73,18 +74,27 @@ export function PersonalCourseEditor({
   const [recoverySourceVersion, setRecoverySourceVersion] = useState<number>();
   const storageKey = `eumgil.draft:${ownerId}:${draftKey}`;
   const olderStorageKey = `${storageKey}:older`;
-  const [query, setQuery] = useState("");
-  const [region, setRegion] = useState("");
-  const [searchKind, setSearchKind] = useState<CourseSearchKind>("spot");
-  const [accessible, setAccessible] = useState(false);
-  const [results, setResults] = useState(initialSearch);
-  const [searchError, setSearchError] = useState("");
+  const [desktopSearch, setDesktopSearch] = useState(false);
+  const searchVisible = ready && (desktopSearch || panel === "search");
+  const search = useCoursePlaceSearch(initialSearch, searchVisible);
+  const { q: query, region, kind: searchKind, accessibility } = search.filters;
+  const accessible = accessibility === "info";
+  const { result: results, loading: searching, error: searchError } = search;
   const [error, setError] = useState("");
   const [saving, startSave] = useTransition();
-  const [searching, startSearch] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const request = useRef(0);
-  const firstSearch = useRef(true);
+  const searchResults = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1200px)");
+    const updateDesktop = () => setDesktopSearch(media.matches);
+    updateDesktop();
+    media.addEventListener("change", updateDesktop);
+    return () => media.removeEventListener("change", updateDesktop);
+  }, []);
+  useEffect(() => {
+    // PC 중첩 목록만 처음으로 돌린다. 모바일의 문서 스크롤은 사용자가 보던 위치를 유지한다.
+    if (searchResults.current) searchResults.current.scrollTop = 0;
+  }, [search.resetKey]);
   const update = (change: Partial<PersonalCourseInput>) => {
     setDraft((value) => ({ ...value, ...change }));
     setDirty(true);
@@ -155,38 +165,6 @@ export function PersonalCourseEditor({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, draftCached]);
-  const searchPage = (page: number) => {
-    const seq = ++request.current;
-    setSearchError("");
-    startSearch(async () => {
-      try {
-        const result = await searchCoursePlacesAction(
-          {
-            q: query,
-            region,
-            accessibility: accessible ? "info" : "",
-            page,
-          },
-          searchKind,
-        );
-        if (seq === request.current) setResults(result);
-      } catch {
-        if (seq === request.current)
-          setSearchError("장소 검색을 불러오지 못했어요. 다시 검색해 주세요.");
-      }
-    });
-  };
-  useEffect(() => {
-    if (firstSearch.current) {
-      firstSearch.current = false;
-      return;
-    }
-    ++request.current;
-    const timer = setTimeout(() => searchPage(1), 350);
-    return () => clearTimeout(timer);
-    // 검색 입력이 바뀔 때만 실행한다. 요청 번호로 늦게 도착한 응답을 무시한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, region, accessible, searchKind]);
   const items = useMemo(() => orderPersonalItems(draft.items), [draft.items]);
   const dateProblem = courseDateProblem(draft, items);
   const selectedDayProblem = courseDateProblem(draft, [{ day }]);
@@ -681,9 +659,11 @@ export function PersonalCourseEditor({
               aria-label="추가할 장소 종류"
               value={searchKind}
               onChange={(e) => {
-                setSearchKind(e.target.value as CourseSearchKind);
-                setQuery("");
-                setAccessible(false);
+                search.changeFilters({
+                  kind: e.target.value as CourseSearchKind,
+                  q: "",
+                  accessibility: "",
+                });
               }}
             >
               <option value="spot">여행지</option>
@@ -694,7 +674,7 @@ export function PersonalCourseEditor({
               role="search"
               onSubmit={(e) => {
                 e.preventDefault();
-                searchPage(1);
+                search.refresh();
               }}
             >
               <div className="search-field">
@@ -706,7 +686,7 @@ export function PersonalCourseEditor({
                   maxLength={100}
                   placeholder={`${{ spot: "여행지", eat: "음식점", stay: "숙소" }[searchKind]} 이름이나 지역 검색`}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => search.changeFilters({ q: e.target.value })}
                 />
                 <button className="btn btn-primary btn-sm" type="submit">
                   검색
@@ -715,7 +695,7 @@ export function PersonalCourseEditor({
               <Select
                 aria-label="추가할 여행지 지역"
                 value={region}
-                onChange={(e) => setRegion(e.target.value)}
+                onChange={(e) => search.changeFilters({ region: e.target.value })}
               >
                 <option value="">강원 전체</option>
                 {GANGWON_REGIONS.map((r) => (
@@ -729,19 +709,20 @@ export function PersonalCourseEditor({
                   <input
                     type="checkbox"
                     checked={accessible}
-                    onChange={(e) => setAccessible(e.target.checked)}
+                    onChange={(e) =>
+                      search.changeFilters({ accessibility: e.target.checked ? "info" : "" })
+                    }
                   />
                   무장애 안내 있는 곳
                 </label>
               )}
             </form>
-            {searchError && <p role="alert">{searchError}</p>}
             <p className="data-caption" aria-live="polite">
               {searching
                 ? "장소를 찾고 있어요…"
                 : `${results.total.toLocaleString()}곳 · Day ${day}에 추가`}
             </p>
-            <div className="personal-search-results" aria-busy={searching}>
+            <div className="personal-search-results" aria-busy={searching} ref={searchResults}>
               {results.kind === searchKind &&
                 results.items.map((spot) => {
                   const added = draft.items.some(
@@ -779,27 +760,24 @@ export function PersonalCourseEditor({
                     </article>
                   );
                 })}
+              <InfiniteScroll
+                id="personal-place-pagination"
+                hasMore={search.hasMore}
+                loading={searching}
+                error={searchError}
+                disabled={!searchVisible}
+                onLoadMore={search.loadMore}
+                onRetry={search.retry}
+                label="가볼 곳 추가 검색 결과"
+                resetKey={search.resetKey}
+                progressKey={search.progressKey}
+              >
+                {results.items.length.toLocaleString()} / {results.total.toLocaleString()}곳
+              </InfiniteScroll>
             </div>
-            {!results.items.length && <p>검색 결과가 없어요. 검색어나 지역 조건을 바꿔보세요.</p>}
-            <nav className="places-pagination" aria-label="추가할 여행지 페이지">
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={searching || results.page <= 1}
-                onClick={() => searchPage(results.page - 1)}
-              >
-                이전
-              </button>
-              <span>
-                {results.page} / {Math.max(1, Math.ceil(results.total / results.pageSize))}
-              </span>
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={searching || results.page * results.pageSize >= results.total}
-                onClick={() => searchPage(results.page + 1)}
-              >
-                다음
-              </button>
-            </nav>
+            {!searching && !searchError && !results.items.length && (
+              <p>검색 결과가 없어요. 검색어나 지역 조건을 바꿔보세요.</p>
+            )}
           </section>
         </div>
         {draft.id && (

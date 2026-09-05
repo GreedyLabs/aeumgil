@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const PROD_AUTH_ENV = {
   AUTH_SECRET: "test-secret-32bytes-random-value",
   AUTH_URL: "https://eumgil.example.com",
-  AUTH_KEYCLOAK_ID: "eumgil-web",
+  AUTH_KEYCLOAK_ID: "eumgil",
   AUTH_KEYCLOAK_SECRET: "test-keycloak-secret",
   AUTH_KEYCLOAK_ISSUER: "https://auth.eumgil.example.com/realms/eumgil",
 } as const;

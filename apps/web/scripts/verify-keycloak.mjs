@@ -13,7 +13,7 @@
 
 const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
 
-const issuer = (process.env.AUTH_KEYCLOAK_ISSUER || "http://localhost:8080/realms/eumgil").replace(/\/$/, "");
+const issuer = (process.env.AUTH_KEYCLOAK_ISSUER || "https://auth.greedylabs.kr/realms/eumgil").replace(/\/$/, "");
 const appUrl = (process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
 
 function localhostFallback(url) {
@@ -67,10 +67,9 @@ try {
 } catch (e) {
   console.error(`${C.red}✗ Keycloak discovery 실패${C.reset} — ${e instanceof Error ? e.message : String(e)}`);
   console.error(`  ${C.gray}확인 순서:${C.reset}`);
-  console.error(`  ${C.gray}1) Docker Desktop/daemon 실행${C.reset}`);
-  console.error(`  ${C.gray}2) pnpm keycloak:up${C.reset}`);
-  console.error(`  ${C.gray}3) docker compose -f docker-compose.keycloak.yml ps 에서 keycloak healthy 확인${C.reset}`);
-  console.error(`  ${C.gray}4) 브라우저에서 ${issuer}/.well-known/openid-configuration 접속 확인${C.reset}`);
+  console.error(`  ${C.gray}1) .env의 AUTH_KEYCLOAK_ISSUER가 운영 eumgil realm 주소인지 확인${C.reset}`);
+  console.error(`  ${C.gray}2) 브라우저에서 ${issuer}/.well-known/openid-configuration 접속 확인${C.reset}`);
+  console.error(`  ${C.gray}3) auth.greedylabs.kr의 DNS/TLS와 Gitops Keycloak 배포 상태 확인${C.reset}`);
   process.exitCode = 1;
   console.log("──────────────────────────────\n");
   process.exit();

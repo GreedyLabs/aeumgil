@@ -1,4 +1,3 @@
-import { TrafficOverview } from "@/components/screens/traffic-overview";
 import { Suspense } from "react";
 import { MapView } from "@/components/screens/map";
 import { DiscoverView } from "@/components/screens/discover";
@@ -13,16 +12,7 @@ async function Festivals() {
 }
 
 async function Visitors() {
-  const [snapshot, roads] = await Promise.all([
-    getRepository().getRegionalVisitors(),
-    getRepository().getTravelTraffic(),
-  ]);
-  return (
-    <>
-      <RegionVisitors snapshot={snapshot} />
-      <TrafficOverview roads={roads} />
-    </>
-  );
+  return <RegionVisitors snapshot={await getRepository().getRegionalVisitors()} />;
 }
 
 export default async function DiscoverPage({

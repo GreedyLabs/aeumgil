@@ -23,7 +23,9 @@ OAuth Client Secret은 앱이 Keycloak에 자신의 신원을 증명하는 값�
 | Google 브로커 Callback | `https://auth.greedylabs.kr/realms/eumgil/broker/google/endpoint` |
 | 앱 세션                | 암호화 JWT 쿠키, 최대 8시간                                       |
 
-운영 Keycloak은 26.6.3이며 에움길 테마·한국어/영어·Google 버튼을 확인했다. 실제 Google 계정 왕복과 SMTP는 [검증 기록](검증.md)에서 별도로 추적한다. 로컬 import의 기본 `eumgil-web` Client는 운영 Client ID와 다르다.
+운영 Keycloak은 26.6.3이며 에움길 테마·한국어/영어·Google 버튼을 확인했다. 실제 Google 계정 왕복과 SMTP는 [검증 기록](검증.md)에서 별도로 추적한다. 로컬 앱도 위 issuer와 Client ID를 사용하며 별도 Keycloak 컨테이너·초기 realm import는 제공하지 않는다.
+
+개발 앱의 `AUTH_URL`은 `http://localhost:3000`으로 두고 `AUTH_KEYCLOAK_SECRET`에는 기존 Client의 실제 값을 설정한다. Keycloak Client의 Valid redirect URIs에 `http://localhost:3000/api/auth/callback/keycloak`, Valid post logout redirect URIs에 `http://localhost:3000`이 허용되어야 한다. 앱 주소가 달라지면 해당 앱의 정확한 주소도 등록한다. Google 자격증명을 로컬 앱에 복사할 필요는 없다.
 
 ## 로그인·토큰·로그아웃
 
@@ -79,9 +81,9 @@ Server Action이 세션과 입력을 검사하고 Repository/DB 계층이 소유
 
 관리 Client 미설정 또는 삭제 실패 시 앱 DB는 삭제되지만 Keycloak 계정은 남을 수 있다. 액션 결과의 `keycloakDeleted`와 서버 로그를 확인하고 운영자가 동일 `sub`의 인증 계정을 수동 정리한다. 다른 GreedyLabs 서비스와의 신원 공유 정책도 함께 고려해야 한다.
 
-## Keycloak 테마·로컬 미리보기
+## 운영 Keycloak 테마와 진단
 
-테마 소스는 [infra/keycloak/themes/eumgil](../infra/keycloak/themes/eumgil), 배포 방식은 [테마 안내](../infra/keycloak/THEME.md)에 있다. 운영 배포는 별도 Gitops 저장소의 Keycloak Compose를 사용한다. 로컬 Compose의 초기 realm import를 운영 realm 갱신 방법으로 쓰지 않는다.
+테마 소스는 [infra/keycloak/themes/eumgil](../infra/keycloak/themes/eumgil), 배포 방식은 [테마 안내](../infra/keycloak/THEME.md)에 있다. 별도 Gitops 저장소의 Keycloak Compose로 반영하며 기존 realm의 테마 설정을 갱신한다. 전체 realm을 삭제하거나 재import하지 않는다.
 
 테마 선택은 realm의 Login theme 설정에서 확인한다. CSS/아이콘을 변경한 경우 실제 응답 자산과 브라우저 캐시를 함께 확인한다. 파비콘 URL 버전을 바꾸는 코드가 포함되어 있다. 에움길 앱의 파비콘과 인증 서버의 파비콘은 서로 다른 배포 자산이다.
 
@@ -89,4 +91,4 @@ Server Action이 세션과 입력을 검사하고 Repository/DB 계층이 소유
 pnpm --filter @eumgil/web verify:keycloak
 ```
 
-이 명령의 discovery/Client 인증 성공은 사용자 로그인 완료를 뜻하지 않는다. 세션 픽스처 기반 앱 E2E, 독립 Keycloak 미리보기, 운영 Google 인증을 구분해서 기록한다.
+이 명령은 `.env`를 읽어 OIDC discovery와 실행 중인 앱의 provider 구성을 조회한다. Client Secret 검증이나 사용자 로그인 완료를 뜻하지 않는다. 세션 픽스처 기반 앱 E2E와 운영 Keycloak/Google 인증의 실제 왕복은 구분해서 기록한다.
