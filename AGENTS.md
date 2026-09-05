@@ -10,7 +10,7 @@
 - data.go.kr 7종과 도로공사 1종, 총 **8종** 공공 API를 사용한다. 공통 키는 `DATA_GO_KR_SERVICE_KEY`, 도로공사는 별도 `EX_ROAD_SERVICE_KEY`. API별 활용 승인은 따로 필요하다.
 - TourAPI 강원 법정동 코드 `lDongRegnCd=51`, 시군구 `lDongSignguCd` 3자리. 집중률·방문자수의 시군구 코드는 5자리이므로 혼용하지 않는다.
 - 카탈로그 기준선(2026-09-05): 관광지 1,975(사진 1,744)·음식점 1,551·숙소 954·테마 137(다일 편집 코스 18개 포함), 강원 18개 시군, 무장애 안내 연결 661. [선정·갱신 기준](docs/관광카탈로그-탐색-고도화-2026-09-05.md).
-- 최신 운영 앱/image revision `233b741`, Gitops `3128600`. Actions `33967933125` 검사·GHCR 빌드·Dockhand 웹훅 성공, 실제 컨테이너 revision·running/healthy·deep health 정상 확인. 단위 314개·로컬 프로덕션 Chrome 39개 통과. 운영 PC/390px 추천 비율·필터 순서 유지·Enter 검색·오후 시작·음식점 외부 링크와 사진 로딩을 확인했다. 실제 Google 로그인 전체 왕복은 미검증이다. 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
+- 최신 운영 앱/image revision `1d6bf04`, Gitops `3128600`. Actions `33970421778` 검사·GHCR 빌드·Dockhand 웹훅 성공, 실제 컨테이너 revision·running/healthy·deep health 정상 확인. 단위 325개·로컬 프로덕션 Chrome 44개 통과. 운영 PC/모바일의 홈 교통 구간·관측 시각·위/좌우 간격과 테마 18→36·여행지 24→48 누적·순서 보존을 확인했다. 로컬 Keycloak 실행 구성은 제거했으며 공용 discovery·앱 provider 진단은 통과했다. 실제 Google 로그인 전체 왕복은 미검증이다. 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
 - GitHub `main/dev` push → Actions 타입·단위 게이트 → GHCR 이미지 → Dockhand 스택 7. 현재 두 브랜치 모두 latest에 영향을 준다. 별도 Gitops 저장소의 Compose로 pull하며 서비스 기동 때 수집·시드를 실행하지 않는다.
 
 ## 제품 계약과 보류 결정
