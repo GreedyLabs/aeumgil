@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { NewTabLink } from "@/components/external-link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { appendPersonalCourseAction } from "@/app/actions/personal-course";
 import { useAppState } from "@/components/app-shell";
 import { Select } from "@/components/select";
+import { CourseDayInput } from "@/components/course-day-input";
+import { courseDateProblem, courseDayLabel } from "@/domain/course-dates";
 import { appendPersonalPlaces, type CourseAddition } from "@/domain/append-personal-course";
 import type { PersonalCourse } from "@/domain/personal-course";
 import { UI, Icon } from "./_ui";
@@ -38,8 +41,9 @@ export function AddToCourseView({
   const selected = courses.find((course) => course.id === courseId);
   const next = appendPersonalPlaces(selected?.items ?? [], places, day);
   const tooMany = next.items.length > 30;
+  const dateProblem = selected ? courseDateProblem(selected, next.items) : undefined;
   const add = () => {
-    if (!selected) return;
+    if (!selected || dateProblem) return;
     setError("");
     startTransition(async () => {
       try {
@@ -53,7 +57,7 @@ export function AddToCourseView({
           setError(result.error);
           return;
         }
-        showToast(`${result.added}곳을 Day ${day}에 담았어요.`);
+        showToast(`${result.added}곳을 ${courseDayLabel(day, selected.startDate)}에 담았어요.`);
         router.push(`/my-courses/${result.course.id}`);
       } catch {
         setError("연결이 원활하지 않아요. 잠시 후 다시 시도해 주세요.");
@@ -88,14 +92,18 @@ export function AddToCourseView({
                     {place.region} · {place.note}
                   </p>
                   {place.detailUrl && (
-                    <Link href={place.detailUrl} target="_blank" className="text-link">
-                      상세 확인 ↗
-                    </Link>
+                    <NewTabLink href={place.detailUrl} className="text-link">
+                      상세 확인
+                    </NewTabLink>
                   )}
                   {selected?.items.some(
                     (item) =>
                       item.kind === place.kind && item.refId === place.refId && item.day === day,
-                  ) && <span className="accessibility-badge">Day {day}에 이미 포함</span>}
+                  ) && (
+                    <span className="accessibility-badge">
+                      {courseDayLabel(day, selected?.startDate)}에 이미 포함
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
@@ -111,6 +119,7 @@ export function AddToCourseView({
                 value={courseId}
                 onChange={(event) => {
                   setCourseId(event.target.value);
+                  setDay(1);
                   setError("");
                 }}
               >
@@ -123,22 +132,26 @@ export function AddToCourseView({
             </label>
             <label>
               추가할 날짜
-              <Select
-                aria-label="추가할 날짜"
+              <CourseDayInput
+                label="추가할 날짜"
                 value={day}
-                onChange={(event) => {
-                  setDay(Number(event.target.value));
+                onChange={(value) => {
+                  setDay(value);
                   setError("");
                 }}
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={value}>
-                    Day {value} · {selected?.items.filter((item) => item.day === value).length ?? 0}
-                    곳
-                  </option>
-                ))}
-              </Select>
+                startDate={selected?.startDate}
+                endDate={selected?.endDate}
+                navigation
+                disabled={!ready || pending}
+              />
             </label>
+            <p className="personal-day-label">
+              {courseDayLabel(day, selected?.startDate)} ·{" "}
+              {selected?.startDate && selected.endDate
+                ? `${selected.startDate} ~ ${selected.endDate} 여행`
+                : "날짜 미정 여행"}
+            </p>
+            {dateProblem && <p role="alert">{dateProblem}</p>}
             <p role="status">
               {next.added
                 ? `${next.added}곳 추가 · 코스 전체 ${next.items.length}/30곳`
@@ -152,7 +165,7 @@ export function AddToCourseView({
             <button
               type="button"
               className="btn btn-primary btn-block"
-              disabled={!selected || !next.added || tooMany}
+              disabled={!selected || !next.added || tooMany || Boolean(dateProblem)}
               onClick={add}
             >
               <Icon.plus /> {pending ? "담는 중…" : `이 코스에 ${next.added}곳 담기`}

@@ -37,6 +37,7 @@ import type {
   FestivalListing,
   Grade,
   Pace,
+  OnboardingPreference,
   Review,
   SamplePrompt,
   Spot,
@@ -74,6 +75,7 @@ import {
   normalizeIntentQuery,
 } from "@/domain/matching";
 import { courseMapStops } from "@/domain/course-map";
+import { applyTravelPreference, normalizeTravelPreference } from "@/domain/travel-preferences";
 import { routingPortFromEnv, approximateDirectionsPort } from "@/server/routing/travel-time";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
@@ -460,12 +462,13 @@ export class LiveRepository implements Repository {
    * 기존 결정형 재정렬(reorderCourseDeterministic)으로 무중단 폴백 → 화면은 늘 Course 를 받는다.
    */
   async getCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
+    const preference = applyTravelPreference(options, await this.travelPreference());
+    if (preference.labels.length) options = preference.options;
     const base = await this.composeSeedCourse(themeId, options);
     if (!base) return base;
     const spots = await fetchSpotProfilesForTheme(requireDb(), themeId);
     const finalize = async (course: Course): Promise<Course> => {
       const mode = options?.transport ?? "car";
-      const scheduled = scheduleCourse(course, spots, mode);
       const spotMap = Object.fromEntries(spots.map((s) => [s.id, s]));
       const eatRows = await Promise.all(
         [...new Set(course.items.filter((i) => i.kind === "eat").map((i) => i.refId))].map((id) =>
@@ -479,6 +482,10 @@ export class LiveRepository implements Repository {
       );
       const eats = Object.fromEntries(eatRows.flatMap((p) => (p ? [[p.id, p]] : [])));
       const stays = Object.fromEntries(stayRows.flatMap((p) => (p ? [[p.id, p]] : [])));
+      const scheduled = scheduleCourse(course, spots, mode, {
+        eats,
+        stays,
+      });
       const port = routingPortFromEnv();
       const routeLegs: import("@/domain/course-map").CourseRouteLeg[] = [];
       for (let day = 1; day <= scheduled.dayCount; day++) {
@@ -507,8 +514,23 @@ export class LiveRepository implements Repository {
           }),
         );
       }
-      return { ...scheduled, routeLegs };
+      return {
+        ...scheduled,
+        routeLegs,
+        appliedOptions: options,
+        ...(preference.labels.length
+          ? {
+              preferenceNote: L(
+                `지정하지 않은 조건에 저장한 여행 취향(${preference.labels.join(" · ")})을 적용했어요. 조건을 바꾸면 이번 코스에 우선 적용돼요.`,
+                "Your saved pace and companion fill unspecified conditions. Changes here take priority.",
+              ),
+            }
+          : {}),
+      };
     };
+
+    // 도착·귀가와 긴 체험을 고려한 편집 코스는 일자별 방문 순서를 유지한다.
+    if (base.preserveStopOrder) return finalize(base);
 
     try {
       const ctx = await this.buildAgentContext(options);
@@ -676,6 +698,14 @@ export class LiveRepository implements Repository {
     }
   }
 
+  /** 공유 Repository 인스턴스에 보관하지 않고 매 요청의 세션 소유자로 조회한다. */
+  private async travelPreference(): Promise<OnboardingPreference | null> {
+    const uid = (await this.sessionUser())?.id;
+    return uid
+      ? normalizeTravelPreference(await fetchOnboardingPreference(requireDb(), uid))
+      : null;
+  }
+
   async getFestival(id: string) {
     return fetchFestivalDetail(id);
   }
@@ -724,11 +754,12 @@ export class LiveRepository implements Repository {
     if (!sessionUser) return null;
 
     const db = requireDb();
-    const [stats, preference, profile] = await Promise.all([
+    const [stats, storedPreference, profile] = await Promise.all([
       computeStats(db, sessionUser.id),
       fetchOnboardingPreference(db, sessionUser.id),
       fetchUserProfile(db, sessionUser.id),
     ]);
+    const preference = normalizeTravelPreference(storedPreference);
     const visits = stats.visits;
     const level = visits >= 15 ? 3 : visits >= 5 ? 2 : 1;
     const currentGrade = REFERENCE_GRADES.find((g) => g.level === level) ?? REFERENCE_GRADES[0]!;
@@ -748,6 +779,7 @@ export class LiveRepository implements Repository {
       nextGrade: nextGrade.name,
       levelProgress: Math.min(100, Math.round((visits / 15) * 100)),
       interests: preference?.interestThemeIds ?? [],
+      preference,
       stats,
     };
   }
@@ -783,15 +815,18 @@ export class LiveRepository implements Repository {
   }
 
   /**
-   * 여행 목적 검색은 명시적 키워드만으로 결정한다. DB 테마 한 번 조회 후 순수 계산하므로
+   * 여행 목적 검색은 명시적 키워드가 우선이며 동점 후보에만 저장 취향을 참고한다.
+   * DB 테마 한 번과 로그인 사용자의 취향을 조회한 뒤 순수 계산하므로
    * 검색마다 코스·혼잡 API를 호출하지 않는다. 입력과 결과도 외부 LLM으로 보내지 않는다.
    * 실험용 에이전트는 코스 정리에만 남겨 검색 품질과 비용을 예측 가능하게 유지한다.
    */
   async matchThemes(query: string): Promise<ThemeMatch> {
     const intent = normalizeIntentQuery(query).slice(0, INTENT_QUERY_MAX_LENGTH);
     if (!intent) return rankCatalogThemes(intent, []);
-    const themes = await this.listThemes();
-    return rankCatalogThemes(intent, themes.map(matchingTheme));
+    const [themes, preference] = await Promise.all([this.listThemes(), this.travelPreference()]);
+    return rankCatalogThemes(intent, themes.map(matchingTheme), 2, {
+      preferredTopicIds: preference?.interestThemeIds.map((id) => id.replace(/^topic:/, "")),
+    });
   }
 
   /**

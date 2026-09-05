@@ -1,4 +1,5 @@
 "use client";
+import { ExternalLink, ExternalLinkIndicator } from "@/components/external-link";
 
 import { Icon, UI } from "./_ui";
 
@@ -24,12 +25,11 @@ export function NearbyPlaceCard({
 }: NearbyPlaceCardProps) {
   const PlaceIcon = icon === "utensils" ? Icon.utensils : Icon.bed;
   return (
-    <a
+    <ExternalLink
       className="card commerce-card"
       href={`https://map.kakao.com/link/search/${encodeURIComponent(`${title} ${address ?? "강원"}`)}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${title} 지도에서 보기 (새 탭)`}
+      indicatorPlacement="within"
+      aria-label={`${title} 카카오맵에서 지도·영업정보 확인`}
     >
       <UI.Placeholder label={title} src={imageUrl} h={150} />
       <div className="commerce-body">
@@ -41,9 +41,9 @@ export function NearbyPlaceCard({
         {address && <p>{address}</p>}
         {meta && <p>{meta}</p>}
         <span className="text-link">
-          지도·영업정보 확인 <Icon.chevR />
+          카카오맵 · 영업정보 <ExternalLinkIndicator />
         </span>
       </div>
-    </a>
+    </ExternalLink>
   );
 }

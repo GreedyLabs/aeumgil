@@ -31,7 +31,10 @@ const snapshot: CourseDraftSnapshot = {
     note: "놓치면 안 되는 메모",
     transport: "transit",
     startTime: "10:45",
-    items: [{ kind: "eat", refId: "eat-one", day: 1, durationMin: 60 }],
+    dayStartTimes: { "1": "13:00", "2": "09:00" },
+    startDate: "2028-02-28",
+    endDate: "2028-03-06",
+    items: [{ kind: "eat", refId: "eat-one", day: 1, durationMin: 60, notBeforeTime: "13:30" }],
   },
   places: {
     "eat-one": { id: "eat-one", name: L("강릉 식당"), region: L("강릉"), lat: 37.7, lon: 128.9 },
@@ -40,6 +43,18 @@ const snapshot: CourseDraftSnapshot = {
 const key = `eumgil.draft:user:${courseId}`;
 
 describe("개인 코스 충돌 초안 보존", () => {
+  it("날짜 입력 중인 미완성 초안과 기간 밖 장소도 버리지 않고 복원한다", () => {
+    for (const endDate of [undefined, "2028-02-28"]) {
+      const draft = {
+        ...snapshot.draft,
+        endDate,
+        items: [{ ...snapshot.draft.items[0]!, day: 8 }],
+      };
+      const restored = readCourseDraft(JSON.stringify({ ...snapshot, draft }), "user");
+      expect(restored?.draft).toMatchObject({ startDate: "2028-02-28", items: draft.items });
+      expect(restored?.draft.endDate).toBe(endDate);
+    }
+  });
   it("이전 버전을 별도 키에 보존해 최신 편집·저장이 덮어쓰지 않게 한다", () => {
     const store = storage();
     const raw = JSON.stringify(snapshot);
@@ -79,6 +94,9 @@ describe("개인 코스 충돌 초안 보존", () => {
       title: "이전 탭 여행 · 복구",
       transport: "transit",
       startTime: "10:45",
+      dayStartTimes: { "1": "13:00", "2": "09:00" },
+      startDate: "2028-02-28",
+      endDate: "2028-03-06",
       note: snapshot.draft.note,
       items: snapshot.draft.items,
     });

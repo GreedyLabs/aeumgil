@@ -1,0 +1,50 @@
+.indicator {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  min-width: 1em;
+  flex: 0 0 auto;
+  margin-inline-start: 0.3em;
+  vertical-align: -0.12em;
+}
+
+:global(.text-link) > .indicator,
+:global(.btn) > .indicator {
+  margin-inline-start: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.photoLink {
+  position: relative;
+  display: block;
+}
+
+.photoIndicator {
+  position: absolute;
+  inset: 8px 8px auto auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+  pointer-events: none;
+}
+
+.photoIndicator > .indicator {
+  margin: 0;
+}

@@ -1,8 +1,30 @@
 // 기획에서 확정한 테마 설명. 노출 여부·장소 수·일정은 DB 카탈로그가 결정한다.
 import { L } from "@/lib/i18n";
 import type { Theme } from "./types";
-type ThemeCopy = Pick<Theme, "title" | "subtitle" | "tag" | "hue" | "mood" | "blurb">;
+import curatedCourses from "./curated-courses.json";
+type ThemeCopy = Pick<
+  Theme,
+  "title" | "subtitle" | "tag" | "hue" | "mood" | "blurb" | "sources" | "planningNote"
+>;
+
+export const CURATED_THEME_ORDER = curatedCourses.map((course) => course.id);
+
 export const THEME_COPY: Record<string, ThemeCopy> = {
+  ...Object.fromEntries(
+    curatedCourses.map((course): [string, ThemeCopy] => [
+      course.id,
+      {
+        title: L(course.title),
+        subtitle: L(course.subtitle),
+        tag: L(course.tag),
+        hue: course.hue,
+        mood: course.mood.map((mood) => L(mood)),
+        blurb: L(course.blurb),
+        planningNote: L(course.planningNote),
+        sources: course.sources,
+      },
+    ]),
+  ),
   "quiet-inland": {
     title: L("조용한 내륙 힐링"),
     subtitle: L("숲길에서 천천히 쉬어가는 여행"),
@@ -57,6 +79,12 @@ export const THEME_COPY: Record<string, ThemeCopy> = {
 
 // 대표 사진은 해당 테마 소속 장소 중 분위기가 맞는 장소부터 선택한다.
 export const THEME_COVER_PRIORITY: Record<string, string[]> = {
+  ...Object.fromEntries(
+    curatedCourses.map((course) => [
+      course.id,
+      course.days.flatMap((day) => day.stops.map((stop) => stop.id)),
+    ]),
+  ),
   "east-sea-sunrise": ["anmok-beach", "sacheon-beach", "dongmyeong-port"],
   "cafe-viewpoint": ["jumunjin-cafe", "anmok-beach", "sacheon-beach"],
   "mountain-trek": ["seorak-gwongeum", "woljeongsa-trail"],

@@ -1,9 +1,12 @@
 "use client";
+import { ExternalLink, ExternalLinkIndicator } from "@/components/external-link";
 import Link from "next/link";
 import { Select } from "@/components/select";
 import { CourseMap } from "./course-map";
+import { ThemePlanningInfo } from "./theme-planning-info";
 import { courseMapStops } from "@/domain/course-map";
 import { GANGWON_REGIONS } from "@/domain/place-search";
+import { COURSE_DAY_CHOICES } from "@/domain/course-options";
 
 // CourseView — Phase 1b. 코스 타임라인(혼잡도 포함). 데이터는 서버에서 주입.
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
@@ -29,7 +32,7 @@ interface Props {
   onSaveTheme: (themeId: string, saved: boolean) => Promise<{ saved: boolean }>;
 }
 
-const dayChoices = [1, 2, 3];
+const dayChoices = COURSE_DAY_CHOICES;
 const paceChoices = [
   { id: "calm", ko: "여유", en: "Calm" },
   { id: "balanced", ko: "균형", en: "Balanced" },
@@ -214,6 +217,9 @@ export function CourseView({
               </button>
             </div>
           )}
+          {course.preferenceNote && (
+            <p className="course-note">{localized(course.preferenceNote, lang)}</p>
+          )}
           {course.reorderNote && (
             <div className="course-note">
               <Icon.clock /> {localized(course.reorderNote, lang)}
@@ -225,6 +231,7 @@ export function CourseView({
               <p>{localized(course.altNote, lang)}</p>
             </details>
           )}
+          <ThemePlanningInfo theme={theme} lang={lang} />
           <div className="course-tabs" aria-label="여행 날짜">
             {Array.from({ length: course.dayCount }, (_, i) => i + 1).map((d) => (
               <button
@@ -262,8 +269,8 @@ export function CourseView({
             ))}
           </div>
           <p className="section-description">
-            이동시간은 관광지 좌표를 바탕으로 한 예상값이에요. 음식점·숙소 이동, 영업시간과 대중교통
-            운행은 지도에서 확인해 주세요.
+            같은 날 관광지·식당·숙소 사이의 이동은 좌표로 추정해요. 첫 장소까지의 이동과 날짜 사이
+            이동·귀가 시간은 별도로 잡아주세요. 실제 영업시간과 교통편은 출발 전에 확인해 주세요.
           </p>
         </div>
         <aside className="detail-aside summary-panel mobile-first" aria-label="코스 조건과 저장">
@@ -585,12 +592,12 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
           {isEat ? <Icon.utensils /> : <Icon.bed />}
         </span>
       </div>
-      <a
+      <ExternalLink
         className="card itinerary-commerce"
         href={`https://map.kakao.com/link/search/${encodeURIComponent(`${name} ${place.address ?? place.region.ko}`)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`${name} 지도·영업정보 (새 탭)`}
+        indicatorPlacement="within"
+        lang={lang}
+        aria-label={`${name} ${lang === "ko" ? "카카오맵 지도·영업정보" : "map and business information on KakaoMap"}`}
       >
         <Placeholder
           src={place.imageUrl}
@@ -603,10 +610,11 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
           <h3>{name}</h3>
           <p>{[localized(place.type, lang), price].filter(Boolean).join(" · ")}</p>
           <span className="text-link">
-            지도·영업정보 <Icon.chevR />
+            {lang === "ko" ? "카카오맵 · 영업정보" : "KakaoMap · Business info"}{" "}
+            <ExternalLinkIndicator />
           </span>
         </div>
-      </a>
+      </ExternalLink>
     </div>
   );
 }

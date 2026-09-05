@@ -5,6 +5,8 @@ import { DiscoverView } from "@/components/screens/discover";
 import { RegionVisitors } from "@/components/screens/region-visitors";
 import { FestivalList } from "@/components/screens/festival-list";
 import { getRepository } from "@/data";
+import { randomUUID } from "node:crypto";
+import { orderDiscoverThemes } from "@/domain/theme-exposure";
 
 async function Festivals() {
   return <FestivalList listing={await getRepository().listFestivals()} />;
@@ -39,7 +41,10 @@ export default async function DiscoverPage({
   const activeTab = ["themes", "places", "festivals", "visitors"].includes(params.tab || "")
     ? params.tab!
     : "themes";
-  const themes = activeTab === "themes" ? await getRepository().listThemes() : [];
+  const themes =
+    activeTab === "themes"
+      ? orderDiscoverThemes(await getRepository().listThemes(), randomUUID())
+      : [];
   const places =
     activeTab === "places"
       ? await getRepository().searchSpots({ ...params, page: Number(params.page || 1) })

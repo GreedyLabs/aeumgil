@@ -29,7 +29,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:collect:gangwon": "node --env-file=../../.env --experimental-strip-types scripts/collect-gangwon-catalog.mjs",
-    "db:sync:accessibility": "node --env-file=../../.env scripts/sync-accessibility.mjs"
+    "db:sync:accessibility": "node --env-file=../../.env scripts/sync-accessibility.mjs",
+    "db:expand:curated": "node --env-file=../../.env --experimental-strip-types scripts/expand-curated-courses.mjs"
   },
   "dependencies": {
     "@eumgil/ui": "workspace:*",

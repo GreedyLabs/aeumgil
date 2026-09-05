@@ -1,0 +1,41 @@
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.picker > button {
+  flex: 0 0 40px;
+  padding-inline: 0;
+  font-size: 22px;
+}
+
+.field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field > input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+}
+
+.field > input.undated {
+  padding-inline-start: 44px;
+}
+
+.prefix {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--ink-3);
+  pointer-events: none;
+}

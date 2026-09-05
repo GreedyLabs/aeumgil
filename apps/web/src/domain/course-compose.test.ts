@@ -44,19 +44,59 @@ function spot(
   };
 }
 
-const busyBeach = spot("anmok-beach", "강릉", "busy", 62, ["바다", "커피"], { lat: 37.7713, lon: 128.9472 });
-const quietBeach = spot("sacheon-beach", "강릉", "calm", 88, ["바다", "한적"], { lat: 37.8368, lon: 128.8782 });
-const farBeach = spot("far-beach", "삼척", "calm", 99, ["바다", "한적"], { lat: 37.289, lon: 129.17 });
-const port = spot("dongmyeong-port", "속초", "calm", 84, ["항구", "로컬"], { lat: 38.2114, lon: 128.5998 });
+const busyBeach = spot("anmok-beach", "강릉", "busy", 62, ["바다", "커피"], {
+  lat: 37.7713,
+  lon: 128.9472,
+});
+const quietBeach = spot("sacheon-beach", "강릉", "calm", 88, ["바다", "한적"], {
+  lat: 37.8368,
+  lon: 128.8782,
+});
+const farBeach = spot("far-beach", "삼척", "calm", 99, ["바다", "한적"], {
+  lat: 37.289,
+  lon: 129.17,
+});
+const port = spot("dongmyeong-port", "속초", "calm", 84, ["항구", "로컬"], {
+  lat: 38.2114,
+  lon: 128.5998,
+});
 
 const eats: Eat[] = [
-  { id: "e-gangneung", name: L("강릉 밥집"), type: L("로컬"), price: "₩", rating: 4.6, region: L("강릉") },
-  { id: "e-sokcho", name: L("속초 밥집"), type: L("로컬"), price: "₩", rating: 4.8, region: L("속초") },
+  {
+    id: "e-gangneung",
+    name: L("강릉 밥집"),
+    type: L("로컬"),
+    price: "₩",
+    rating: 4.6,
+    region: L("강릉"),
+  },
+  {
+    id: "e-sokcho",
+    name: L("속초 밥집"),
+    type: L("로컬"),
+    price: "₩",
+    rating: 4.8,
+    region: L("속초"),
+  },
 ];
 
 const stays: Stay[] = [
-  { id: "stay-gangneung", name: L("강릉 숙소"), type: L("호텔"), price: L("₩100,000/박"), rating: 4.4, region: L("강릉") },
-  { id: "stay-sokcho", name: L("속초 숙소"), type: L("호텔"), price: L("₩120,000/박"), rating: 4.9, region: L("속초") },
+  {
+    id: "stay-gangneung",
+    name: L("강릉 숙소"),
+    type: L("호텔"),
+    price: L("₩100,000/박"),
+    rating: 4.4,
+    region: L("강릉"),
+  },
+  {
+    id: "stay-sokcho",
+    name: L("속초 숙소"),
+    type: L("호텔"),
+    price: L("₩120,000/박"),
+    rating: 4.9,
+    region: L("속초"),
+  },
 ];
 
 const baseCourse: Course = {
@@ -145,8 +185,14 @@ describe("composeCourse", () => {
         { kind: "spot", day: 1, time: "14:00", refId: "dongmyeong-port", durationMin: 60 },
       ],
     };
-    const nearLowScore = spot("near-route-beach", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.8368, lon: 128.8782 });
-    const farHighScore = spot("far-detour-beach", "삼척", "calm", 96, ["바다", "한적"], { lat: 37.289, lon: 129.17 });
+    const nearLowScore = spot("near-route-beach", "강릉", "calm", 78, ["바다", "한적"], {
+      lat: 37.8368,
+      lon: 128.8782,
+    });
+    const farHighScore = spot("far-detour-beach", "삼척", "calm", 96, ["바다", "한적"], {
+      lat: 37.289,
+      lon: 129.17,
+    });
 
     const course = composeCourse({
       theme,
@@ -168,12 +214,23 @@ describe("composeCourse", () => {
         { kind: "spot", day: 1, time: "14:00", refId: "dongmyeong-port", durationMin: 60 },
       ],
     };
-    const normallyGood = spot("api-slow-beach", "강릉", "calm", 90, ["바다", "한적"], { lat: 37.781, lon: 128.95 });
-    const normallyLower = spot("api-fast-beach", "강릉", "calm", 86, ["바다", "한적"], { lat: 37.79, lon: 128.951 });
+    const normallyGood = spot("api-slow-beach", "강릉", "calm", 90, ["바다", "한적"], {
+      lat: 37.781,
+      lon: 128.95,
+    });
+    const normallyLower = spot("api-fast-beach", "강릉", "calm", 86, ["바다", "한적"], {
+      lat: 37.79,
+      lon: 128.951,
+    });
     const apiLookup: TravelTimeLookup = {
       estimate(a, b, mode = "car") {
         const touchesSlow = [a, b].some((c) => Math.abs(c.lat - normallyGood.lat!) < 0.001);
-        return { distanceKm: touchesSlow ? 8 : 2, driveMinutes: touchesSlow ? 130 : 8, mode, source: "api" };
+        return {
+          distanceKm: touchesSlow ? 8 : 2,
+          driveMinutes: touchesSlow ? 130 : 8,
+          mode,
+          source: "api",
+        };
       },
     };
 
@@ -208,8 +265,14 @@ describe("composeCourse", () => {
   });
 
   it("새 코스 생성에서도 연속 이동시간이 긴 후보를 낮춘다", () => {
-    const pyeongchangHighScore = spot("pyeongchang-detour", "평창", "calm", 100, ["바다", "전망"], { lat: 37.3705, lon: 128.3902 });
-    const gangneungNext = spot("gangneung-next", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.8368, lon: 128.8782 });
+    const pyeongchangHighScore = spot("pyeongchang-detour", "평창", "calm", 100, ["바다", "전망"], {
+      lat: 37.3705,
+      lon: 128.3902,
+    });
+    const gangneungNext = spot("gangneung-next", "강릉", "calm", 78, ["바다", "한적"], {
+      lat: 37.8368,
+      lon: 128.8782,
+    });
     const course = composeCourse(
       {
         theme,
@@ -227,8 +290,14 @@ describe("composeCourse", () => {
   });
 
   it("도보 이동 조건은 멀리 떨어진 후보를 더 강하게 낮춘다", () => {
-    const farWalkCandidate = spot("walk-too-far", "속초", "calm", 88, ["바다", "한적"], { lat: 38.204, lon: 128.5906 });
-    const nearWalkCandidate = spot("walk-near", "강릉", "calm", 78, ["바다", "한적"], { lat: 37.773, lon: 128.946 });
+    const farWalkCandidate = spot("walk-too-far", "속초", "calm", 88, ["바다", "한적"], {
+      lat: 38.204,
+      lon: 128.5906,
+    });
+    const nearWalkCandidate = spot("walk-near", "강릉", "calm", 78, ["바다", "한적"], {
+      lat: 37.773,
+      lon: 128.946,
+    });
     const course = composeCourse(
       {
         theme,
@@ -261,7 +330,10 @@ describe("composeCourse", () => {
   });
 
   it("startRegion 조건은 같은 권역 후보를 우선한다", () => {
-    const gangneung = spot("gangneung-calm", "강릉", "calm", 80, ["바다"], { lat: 37.77, lon: 128.94 });
+    const gangneung = spot("gangneung-calm", "강릉", "calm", 80, ["바다"], {
+      lat: 37.77,
+      lon: 128.94,
+    });
     const sokcho = spot("sokcho-calm", "속초", "calm", 86, ["바다"], { lat: 38.2, lon: 128.59 });
     const course = composeCourse(
       {
@@ -283,12 +355,20 @@ describe("코스 생성 회귀", () => {
   it("일정을 늘려도 빈 날짜가 생기지 않는다", () => {
     const course = composeCourse(input, { days: 3 })!;
     expect(course.dayCount).toBe(3);
-    for (let day = 1; day <= 3; day++) expect(course.items.some((it) => it.day === day && it.kind === "spot")).toBe(true);
+    for (let day = 1; day <= 3; day++)
+      expect(course.items.some((it) => it.day === day && it.kind === "spot")).toBe(true);
   });
   it("여유 페이스는 템플릿에도 적용된다", () => {
-    const course = composeCourse({ ...input, baseCourse: { ...baseCourse, items: [...baseCourse.items,
-      { kind: "spot", day: 1, time: "16:30", refId: "far-beach" },
-    ] } }, { pace: "calm" })!;
+    const course = composeCourse(
+      {
+        ...input,
+        baseCourse: {
+          ...baseCourse,
+          items: [...baseCourse.items, { kind: "spot", day: 1, time: "16:30", refId: "far-beach" }],
+        },
+      },
+      { pace: "calm" },
+    )!;
     expect(course.items.filter((it) => it.kind === "spot")).toHaveLength(2);
   });
   it("앞 슬롯의 대체지로 이미 사용한 원본 스팟을 중복 방문하지 않는다", () => {
@@ -297,9 +377,115 @@ describe("코스 생성 회귀", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
   it("일정을 줄이면 마지막 날의 숙박을 제거한다", () => {
-    const course = composeCourse({ ...input, baseCourse: { ...baseCourse, dayCount: 2, items: [...baseCourse.items,
-      { kind: "stay", day: 1, time: "18:00", refId: "stay-gangneung" },
-    ] } }, { days: 1 })!;
+    const course = composeCourse(
+      {
+        ...input,
+        baseCourse: {
+          ...baseCourse,
+          dayCount: 2,
+          items: [
+            ...baseCourse.items,
+            { kind: "stay", day: 1, time: "18:00", refId: "stay-gangneung" },
+          ],
+        },
+      },
+      { days: 1 },
+    )!;
     expect(course.items.some((it) => it.kind === "stay")).toBe(false);
+  });
+});
+
+describe("여러 날의 동선과 식사·숙박", () => {
+  it("4박 5일 템플릿의 각 날짜와 모든 원래 방문지를 보존한다", () => {
+    const places = Array.from({ length: 10 }, (_, i) =>
+      spot(`stop-${i}`, "강릉", "moderate", 70, ["바다"], { lat: 37.77 + i / 1000, lon: 128.94 }),
+    );
+    const base: Course = {
+      themeId: theme.id,
+      title: L("4박 5일"),
+      dayCount: 5,
+      items: places.map((place, i) => ({
+        kind: "spot",
+        day: Math.floor(i / 2) + 1,
+        time: i % 2 ? "14:00" : "10:00",
+        refId: place.id,
+      })),
+    };
+    const course = composeCourse({
+      theme,
+      baseCourse: base,
+      spots: places,
+      eats: [],
+      stays: [],
+      alternativesBySpot: { "stop-0": [{ ...places[9]!, suitability: 100, congestion: "calm" }] },
+    })!;
+    expect(course.dayCount).toBe(5);
+    expect(course.items).toHaveLength(10);
+    for (let day = 1; day <= 5; day++)
+      expect(course.items.filter((item) => item.day === day)).toHaveLength(2);
+    expect(course.items[0]!.refId).toBe("stop-0");
+  });
+
+  it("같은 지역의 먼 고평점 식당보다 식사 직전 방문지 가까운 식당을 고른다", () => {
+    const near = {
+      ...eats[0]!,
+      id: "near",
+      rating: 0,
+      lat: busyBeach.lat! + 0.001,
+      lon: busyBeach.lon,
+    };
+    const far = {
+      ...eats[0]!,
+      id: "far",
+      rating: 5,
+      lat: busyBeach.lat! + 0.5,
+      lon: busyBeach.lon,
+    };
+    const course = composeCourse({
+      theme,
+      baseCourse,
+      spots: [busyBeach, port],
+      eats: [far, near],
+      stays: [],
+    })!;
+    expect(course.items.find((item) => item.kind === "eat")?.refId).toBe("near");
+  });
+
+  it("인근의 원래 식당과 같은 숙소 연박을 불필요하게 교체하지 않는다", () => {
+    const meal = { ...eats[0]!, id: "planned-meal", rating: 0, lat: 37.772, lon: 128.947 };
+    const hotel = { ...stays[0]!, id: "planned-hotel", rating: 0, lat: 37.772, lon: 128.947 };
+    const places = Array.from({ length: 3 }, (_, i) => ({
+      ...busyBeach,
+      id: `day-${i}`,
+      lat: 37.772 + i / 1000,
+    }));
+    const base: Course = {
+      themeId: theme.id,
+      title: L("연박 여행"),
+      dayCount: 3,
+      items: [
+        ...places.map((place, i) => ({
+          kind: "spot" as const,
+          day: i + 1,
+          time: "10:00",
+          refId: place.id,
+        })),
+        { kind: "eat", day: 1, time: "12:30", refId: meal.id },
+        { kind: "stay", day: 1, time: "18:00", refId: hotel.id },
+        { kind: "stay", day: 2, time: "18:00", refId: hotel.id },
+      ],
+    };
+    const course = composeCourse({
+      theme,
+      baseCourse: base,
+      spots: places,
+      eats: [{ ...meal, id: "other-meal", rating: 5 }, meal],
+      stays: [{ ...hotel, id: "other-hotel", rating: 5 }, hotel],
+    })!;
+    expect(course.items.find((item) => item.kind === "eat")?.refId).toBe(meal.id);
+    expect(course.items.filter((item) => item.kind === "stay").map((item) => item.refId)).toEqual([
+      hotel.id,
+      hotel.id,
+    ]);
   });
 });

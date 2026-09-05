@@ -9,6 +9,7 @@ import { localized } from "@/lib/i18n";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
 import { ThemeCard } from "./theme-card";
+import { COURSE_DAY_CHOICES, inferCourseOptions } from "@/domain/course-options";
 import type { Theme } from "@/domain/types";
 
 export function DiscoverView({
@@ -32,7 +33,10 @@ export function DiscoverView({
   const [query, setQuery] = useState("");
   const [visible, setVisible] = useState(18);
   const [region, setRegion] = useState("");
-  const regions = [...new Set(themes.flatMap((theme) => theme.region.ko.split(" · ")))];
+  const [days, setDays] = useState("");
+  const regions = [...new Set(themes.flatMap((theme) => theme.region.ko.split(" · ")))].sort(
+    (a, b) => a.localeCompare(b, "ko"),
+  );
   const filtered = themes.filter((theme) => {
     const text = [theme.title, theme.subtitle, theme.region, theme.tag, ...theme.mood]
       .map((t) => localized(t, lang))
@@ -44,7 +48,8 @@ export function DiscoverView({
         .toLowerCase()
         .split(/\s+/)
         .every((term) => text.replace(/\s+/g, "").includes(term)) &&
-      (!region || theme.region.ko.split(" · ").includes(region))
+      (!region || theme.region.ko.split(" · ").includes(region)) &&
+      (!days || inferCourseOptions(theme.duration.ko).days === Number(days))
     );
   });
 
@@ -73,7 +78,7 @@ export function DiscoverView({
             {
               {
                 places: "장소와 위치를 비교하고 내 여행에 담아보세요.",
-                themes: "준비된 여행에 나만의 장소와 순서를 더하세요.",
+                themes: "도착부터 귀가까지, 여행 기간에 맞는 코스를 골라보세요.",
                 festivals: "행사 일정과 주변 여행지를 함께 살펴보세요.",
                 visitors: "지난 방문 추이로 여행 지역을 비교해보세요.",
               }[mode]
@@ -122,7 +127,7 @@ export function DiscoverView({
         festivals
       ) : (
         <>
-          <section className="explore-toolbar" aria-label="테마 검색과 지역 필터">
+          <section className="explore-toolbar" aria-label="테마 검색과 지역·기간 필터">
             <div className="search-field">
               <Icon.search />
               <input
@@ -155,6 +160,24 @@ export function DiscoverView({
                 ))}
               </Select>
             </label>
+            <label className="places-region">
+              <span>기간</span>
+              <Select
+                aria-label="테마 여행 기간"
+                value={days}
+                onChange={(event) => {
+                  setDays(event.target.value);
+                  setVisible(18);
+                }}
+              >
+                <option value="">전체 기간</option>
+                {COURSE_DAY_CHOICES.map((day) => (
+                  <option key={day} value={day}>
+                    {day === 1 ? "당일" : `${day - 1}박 ${day}일`}
+                  </option>
+                ))}
+              </Select>
+            </label>
           </section>
           <div className="results-heading">
             <h2>
@@ -168,7 +191,7 @@ export function DiscoverView({
             </p>
           )}
           {filtered.length ? (
-            <div className="theme-grid">
+            <div className="theme-grid" id="theme-results">
               {filtered.slice(0, visible).map((theme) => (
                 <ThemeCard key={theme.id} theme={theme} lang={lang} />
               ))}
@@ -183,6 +206,7 @@ export function DiscoverView({
                 onClick={() => {
                   setQuery("");
                   setRegion("");
+                  setDays("");
                 }}
               >
                 검색 초기화
@@ -190,9 +214,18 @@ export function DiscoverView({
             </div>
           )}
           {filtered.length > visible && (
-            <button className="btn btn-secondary" onClick={() => setVisible((v) => v + 18)}>
-              코스 더 보기 ({visible} / {filtered.length})
-            </button>
+            <div className="theme-load-more">
+              <p>
+                {filtered.length}개 중 {visible}개 코스를 보고 있어요
+              </p>
+              <button
+                className="btn btn-secondary"
+                aria-controls="theme-results"
+                onClick={() => setVisible((v) => v + 18)}
+              >
+                코스 더 보기 <Icon.chevD />
+              </button>
+            </div>
           )}
         </>
       )}

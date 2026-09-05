@@ -4,7 +4,7 @@ import type { PersonalCourseItem } from "./personal-course";
 export const appendPersonalCourseInput = z.object({
   courseId: z.string().uuid(),
   version: z.number().int().nonnegative(),
-  day: z.number().int().min(1).max(5),
+  day: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   places: z
     .array(
       z.object({

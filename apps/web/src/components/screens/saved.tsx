@@ -44,8 +44,10 @@ export function SavedView({
               <h3>{course.title}</h3>
               {course.note && <p>{course.note}</p>}
               <span className="data-caption">
-                {new Set(course.items.map((item) => item.day)).size}일 일정 · {course.items.length}
-                곳 · {course.updatedAt.slice(0, 10)} 수정
+                {course.startDate && course.endDate
+                  ? `${course.startDate} ~ ${course.endDate}`
+                  : `날짜 미정 · ${new Set(course.items.map((item) => item.day)).size}일에 장소 있음`}{" "}
+                · {course.items.length}곳 · {course.updatedAt.slice(0, 10)} 수정
               </span>
               <span className="text-link">
                 코스 편집 <Icon.chevR />

@@ -21,6 +21,7 @@ const course = {
   updatedAt: "2026-09-05T00:00:00Z",
   transport: "transit",
   startTime: "08:00",
+  dayStartTimes: { "1": "13:00", "2": "09:00" },
 };
 
 beforeEach(() => {
@@ -66,6 +67,21 @@ describe("장소 담기 서버 액션", () => {
     });
     expect(mocks.revalidate).toHaveBeenCalledWith(`/my-courses/${id}`);
     expect(mocks.revalidate).toHaveBeenCalledWith("/saved");
+  });
+
+  it("실제 여행 날짜를 유지하며 8일차에 담고 기간 밖 날짜는 저장하지 않는다", async () => {
+    const dated = { ...course, startDate: "2028-02-28", endDate: "2028-03-06" };
+    mocks.getPersonalCourse.mockResolvedValue(dated);
+    expect(await appendPersonalCourseAction({ ...input, day: 8 })).toMatchObject({ ok: true });
+    expect(mocks.savePersonalCourse).toHaveBeenCalledWith(
+      expect.objectContaining({ startDate: dated.startDate, endDate: dated.endDate }),
+    );
+    mocks.savePersonalCourse.mockClear();
+    expect(await appendPersonalCourseAction({ ...input, day: 9 })).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Day 9"),
+    });
+    expect(mocks.savePersonalCourse).not.toHaveBeenCalled();
   });
 
   it("전부 중복이거나 30곳을 초과하면 저장하지 않는다", async () => {

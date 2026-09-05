@@ -53,15 +53,15 @@ pnpm --filter @eumgil/web db:sync:accessibility --apply
 
 `db:apply`는 [현재 스키마 적용 스크립트](../apps/web/scripts/apply-app-schema.mjs)를 실행한다. 카탈로그 수집의 `--apply`는 실제 DB를 수정하므로 대상 DB와 검토 결과를 확인하고 실행한다. 앱 부팅 시 자동 수집하지 않는다. 폐기한 프로토타입 시드 명령을 신규 DB 준비에 사용하지 않는다.
 
-| 테이블                                    | 역할                                                         |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| `spot_profile`                            | 원천 콘텐츠 ID·관광지·좌표·사진·검색 분류·무장애 안내 보유   |
-| `course_template`, `course_template_item` | 추천 테마와 일정 틀                                          |
-| `commerce_profile`                        | 실제 음식점·숙박                                             |
-| `saved_theme`                             | 사용자가 보관한 추천 테마 ID                                 |
-| `personal_course`                         | 소유자·일정 항목·이름·메모·이동수단·하루 출발 시간·수정 버전 |
-| `review`, `visit`                         | 사용자 리뷰·방문 기록                                        |
-| `onboarding_preference`, `user_profile`   | 앱 취향·표시명·소개                                          |
+| 테이블                                    | 역할                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `spot_profile`                            | 원천 콘텐츠 ID·관광지·좌표·사진·검색 분류·무장애 안내 보유             |
+| `course_template`, `course_template_item` | 추천 테마와 일정 틀                                                    |
+| `commerce_profile`                        | 실제 음식점·숙박                                                       |
+| `saved_theme`                             | 사용자가 보관한 추천 테마 ID                                           |
+| `personal_course`                         | 소유자·일정 항목·이름·메모·여행 날짜·이동수단·하루 출발 시간·수정 버전 |
+| `review`, `visit`                         | 사용자 리뷰·방문 기록                                                  |
+| `onboarding_preference`, `user_profile`   | 앱 취향·표시명·소개                                                    |
 
 Auth.js adapter용 users/accounts/sessions 테이블은 사용하지 않는다. 신원은 Keycloak, 앱 프로필과 여행 데이터는 PostgreSQL이라는 경계를 유지한다.
 
@@ -69,7 +69,11 @@ Auth.js adapter용 users/accounts/sessions 테이블은 사용하지 않는다. 
 
 Server Action이 세션과 입력을 검사하고 Repository/DB 계층이 소유자 조건을 적용한다. 개인 코스는 조회한 버전과 현재 버전이 다르면 충돌을 반환한다. 기존 코스에 장소를 추가하는 액션도 저장 시 버전을 재검사한다. 다른 탭의 변경을 마지막 저장으로 무조건 덮어쓰지 않는다.
 
-`transport`는 car/transit/walk, `start_time`은 HH:mm으로 저장한다. 이전 행의 기본값은 car/09:30이며 추천 복사 시 현재 이동 방식과 첫 출발 시각을 가져온다. 편집 초안은 같은 탭의 sessionStorage에 계정별로 격리한다. 서버 버전이 같으면 자동 복원하고, 다르면 기존 DB를 덮어쓰지 않고 새 코스로 복구하는 선택을 제공한다. 로그아웃 후 다른 사용자에게 같은 초안을 연결하지 않으며 DB 저장과 임시 저장을 구분한다. 이전 버전 백업은 최신 편집 초안과 별도 키에 보존하며, 복구본 DB 저장이 성공한 뒤 동일 사용자·원본 버전 조건을 확인해 정리한다.
+`personal_course.start_date`와 `end_date`는 nullable PostgreSQL DATE이며 앱에는 `YYYY-MM-DD` 문자열로 전달한다. 이전 코스의 두 값은 NULL(날짜 미정)로 남긴다. `db:apply`가 두 컬럼을 멱등 추가하므로 새 앱 배포 전에 적용하고 `verify:db`로 확인한다. 날짜를 지정할 때는 둘 다 필요하며 종료일이 시작일보다 빠르거나 항목의 일차가 기간을 넘으면 저장을 거절한다. 날짜 미정으로 전환하면 두 컬럼을 NULL로 저장하고 기존 장소의 일차·순서를 유지한다. 5일 제한은 없으며 장소는 최대 30곳이다. 기존 코스 담기도 저장된 날짜 범위를 검증한다.
+
+`transport`는 car/transit/walk, `start_time`은 HH:mm으로 저장한다. 이전 행의 기본값은 car/09:30이다. `day_start_times`는 일차별 출발 시각 예외를 담는 JSONB이며 기본값은 `{}`다. 추천 복사 시 현재 이동 방식과 날짜별 첫 출발 시각을 가져오므로 첫날 오후 도착과 다음 날 오전 시작을 보존한다. 해당 일차의 예외가 없으면 `start_time`을 쓴다. `db:apply`는 이 컬럼도 멱등 추가한다.
+
+편집 초안은 같은 탭의 sessionStorage에 계정별로 격리한다. 서버 버전이 같으면 자동 복원하고, 다르면 기존 DB를 덮어쓰지 않고 새 코스로 복구하는 선택을 제공한다. 로그아웃 후 다른 사용자에게 같은 초안을 연결하지 않으며 DB 저장과 임시 저장을 구분한다. 이전 버전 백업은 최신 편집 초안과 별도 키에 보존하며, 복구본 DB 저장이 성공한 뒤 동일 사용자·원본 버전 조건을 확인해 정리한다.
 
 탈퇴는 앱 데이터 6개 테이블을 삭제한 뒤 Keycloak 계정 삭제를 시도한다. 자동 삭제를 쓰려면 별도 service account Client에 `realm-management/manage-users` 역할을 부여하고 `KEYCLOAK_ADMIN_CLIENT_ID`·`KEYCLOAK_ADMIN_CLIENT_SECRET`을 설정한다. 앱의 일반 로그인 Client Secret과는 다른 권한이다.
 

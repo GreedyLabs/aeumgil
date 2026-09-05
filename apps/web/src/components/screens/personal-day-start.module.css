@@ -1,0 +1,57 @@
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 14px;
+  margin: 0 0 18px;
+  padding: 16px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.panel > label,
+.visitTime > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.panel input,
+.visitTime input {
+  width: 100%;
+  min-width: 0;
+}
+
+.visitTime {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.scheduleHint {
+  margin: 0 0 18px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.panel > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+@media (max-width: 380px) {
+  .panel,
+  .visitTime {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

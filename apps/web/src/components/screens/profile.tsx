@@ -9,6 +9,8 @@ import { Avatar } from "./avatar";
 import { ThemeCard } from "./theme-card";
 import { ReviewCard, type ReviewWithSpot } from "./review-card";
 import type { Theme, User } from "@/domain/types";
+import { TRAVEL_INTERESTS, PACE_LABELS, COMPANION_LABELS } from "@/domain/travel-preferences";
+import styles from "./travel-preferences.module.css";
 
 export type { ReviewWithSpot } from "./review-card";
 
@@ -50,17 +52,16 @@ export function MenuRow({
 
 export function ProfileView({
   user,
-  interestThemes,
   savedThemes,
   reviewsPreview,
 }: {
   user: User | null;
-  interestThemes: Theme[];
   savedThemes: Theme[];
   reviewsPreview: ReviewWithSpot[];
 }) {
   const { lang, logout } = useAppState();
   const { nav } = useAppNav();
+  const interests = TRAVEL_INTERESTS.filter((interest) => user?.interests.includes(interest.id));
   return (
     <div className="screen-enter profile-page">
       <UI.TopBar
@@ -124,25 +125,40 @@ export function ProfileView({
                 ))}
               </div>
               <div className="profile-interests">
-                <div className="section-heading">
-                  <h2>관심 있는 여행</h2>
+                <div className={styles.summaryHeading}>
+                  <h2>나의 여행 취향</h2>
                   <Link className="text-link" href="/onboarding">
                     여행 취향 설정 <Icon.chevR />
                   </Link>
                 </div>
                 <div className="mood-list">
-                  {interestThemes.length ? (
-                    interestThemes.map((theme) => (
-                      <Link className="chip brand" key={theme.id} href={`/theme/${theme.id}`}>
-                        {localized(theme.title, lang)}
+                  {interests.length ? (
+                    interests.map((interest) => (
+                      <Link
+                        className="chip brand"
+                        key={interest.id}
+                        href={`/result?q=${encodeURIComponent(interest.query)}`}
+                      >
+                        {localized(interest.label, lang)}
                       </Link>
                     ))
                   ) : (
                     <p className="empty-message">
-                      관심 테마를 선택하면 내 취향을 기억할 수 있어요.
+                      아직 선택한 관심 분야가 없어요. 여행 취향을 설정하면 추천에 참고해요.
                     </p>
                   )}
                 </div>
+                <div className={styles.summaryStyles}>
+                  <span>
+                    페이스 · {PACE_LABELS[user.preference?.paceId ?? ""] ?? "그때그때 결정"}
+                  </span>
+                  <span>
+                    동행 · {COMPANION_LABELS[user.preference?.companionId ?? ""] ?? "그때그때 결정"}
+                  </span>
+                </div>
+                <p className="section-description">
+                  검색한 조건이 우선이고, 비워 둔 코스 조건에는 저장한 페이스와 동행을 적용해요.
+                </p>
               </div>
             </section>
           </div>

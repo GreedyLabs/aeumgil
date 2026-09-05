@@ -2,12 +2,14 @@
 import { GANGWON_REGIONS } from "./place-search";
 import type { ComposeCourseOptions } from "./course-compose";
 
+export const COURSE_DAY_CHOICES = [1, 2, 3, 4, 5] as const;
+
 export function parseCourseOptions(
   values: Record<string, string | undefined>,
 ): ComposeCourseOptions {
   const result: ComposeCourseOptions = {};
   const days = Number(values.days);
-  if (Number.isInteger(days) && days >= 1 && days <= 3) result.days = days;
+  if (Number.isInteger(days) && days >= 1 && days <= 5) result.days = days;
   if (["calm", "balanced", "active"].includes(values.pace ?? "")) result.pace = values.pace;
   if (["solo", "couple", "family"].includes(values.companion ?? ""))
     result.companion = values.companion;
@@ -21,11 +23,17 @@ export function parseCourseOptions(
 /** 확실하게 표현된 조건만 옮긴다. 무드 형용사로 동행/교통을 추측하지 않는다. */
 export function inferCourseOptions(query: string): ComposeCourseOptions {
   const result: ComposeCourseOptions = {};
-  const nights = /([12])\s*박\s*([23])\s*일/.exec(query);
-  const days = /([123])\s*일/.exec(query);
-  if (nights) result.days = Number(nights[2]);
-  else if (/당일/.test(query)) result.days = 1;
-  else if (days) result.days = Number(days[1]);
+  if (/당일/.test(query)) result.days = 1;
+  else {
+    for (const match of query.matchAll(/(?<!\d)(\d+)\s*일/g)) {
+      if (/월\s*$/.test(query.slice(0, match.index))) continue;
+      const days = parseCourseOptions({ days: match[1] }).days;
+      if (days !== undefined) {
+        result.days = days;
+        break;
+      }
+    }
+  }
   if (/대중교통|버스|뚜벅이/.test(query)) result.transport = "transit";
   else if (/도보|걸어서/.test(query)) result.transport = "walk";
   else if (/자동차|자가용|렌터카|드라이브/.test(query)) result.transport = "car";

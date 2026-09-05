@@ -1,4 +1,9 @@
 "use client";
+import {
+  ExternalLink,
+  ExternalPhotoIndicator,
+  externalPhotoLinkClass,
+} from "@/components/external-link";
 import { useState } from "react";
 import Image from "next/image";
 import type { Spot } from "@/domain/types";
@@ -17,6 +22,9 @@ export function SpotPublicInfo({ spot }: { spot: Spot }) {
     ["주차", info?.parking],
     ["문의", info?.phone],
   ].filter(([, v]) => v);
+  if (!forecast && !spot.hasAccessibilityInfo && !facts.length && !spot.photos?.length) {
+    return null;
+  }
   return (
     <section className="spot-public-info" aria-label="관광지 방문 정보">
       {forecast && (
@@ -106,11 +114,11 @@ export function SpotPublicInfo({ spot }: { spot: Spot }) {
           <div className="spot-photo-grid">
             {spot.photos.map((photo, i) => (
               <figure key={`${photo.url}-${i}`}>
-                <a
+                <ExternalLink
                   href={photo.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${photo.label} 원본 사진 새 창에서 보기`}
+                  className={externalPhotoLinkClass}
+                  indicatorPlacement="within"
+                  aria-label={`${photo.label} 원본 사진 보기`}
                 >
                   <Image
                     src={photo.url}
@@ -120,7 +128,8 @@ export function SpotPublicInfo({ spot }: { spot: Spot }) {
                     sizes="(max-width: 599px) 90vw, 360px"
                     style={{ width: "100%", height: 180, objectFit: "contain" }}
                   />
-                </a>
+                  <ExternalPhotoIndicator />
+                </ExternalLink>
                 <figcaption>
                   {photo.label} · 한국관광공사
                   {photo.license ? ` · 공공누리 ${photo.license.replace("Type", "")}유형` : ""}

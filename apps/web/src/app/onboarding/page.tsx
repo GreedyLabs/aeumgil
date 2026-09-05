@@ -1,18 +1,18 @@
+import { notFound } from "next/navigation";
 import { OnboardingView } from "@/components/screens/onboarding";
 import { getRepository } from "@/data";
+import { requireUserSession } from "@/server/require-session";
 
 export default async function OnboardingPage() {
+  await requireUserSession("onboarding");
   const repo = getRepository();
-  const [themes, paces, companions] = await Promise.all([
-    repo.listThemes(),
+  const [user, paces, companions] = await Promise.all([
+    repo.getCurrentUser(),
     repo.listPaces(),
     repo.listCompanions(),
   ]);
+  if (!user) notFound();
   return (
-    <OnboardingView
-      themes={themes.filter((theme) => !theme.id.startsWith("gangwon-"))}
-      paces={paces}
-      companions={companions}
-    />
+    <OnboardingView preference={user.preference ?? null} paces={paces} companions={companions} />
   );
 }

@@ -6,14 +6,7 @@ import { requireUserSession } from "@/server/require-session";
 export default async function ProfileEditPage() {
   await requireUserSession("profile");
   const repo = getRepository();
-  const [user, themes] = await Promise.all([repo.getCurrentUser(), repo.listThemes()]);
+  const user = await repo.getCurrentUser();
   if (!user) notFound();
-  return (
-    <ProfileEditView
-      user={user}
-      themes={themes.filter(
-        (theme) => !theme.id.startsWith("gangwon-") || user.interests.includes(theme.id),
-      )}
-    />
-  );
+  return <ProfileEditView user={user} />;
 }

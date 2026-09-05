@@ -6,6 +6,7 @@ import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { ThemeCard } from "./theme-card";
+import { ThemePlanningInfo } from "./theme-planning-info";
 import { SpotRow } from "./home";
 import { UI, Icon } from "./_ui";
 import type { Spot, Theme } from "@/domain/types";
@@ -90,6 +91,7 @@ export function ThemeResultView({
               ))}
             </div>
           </section>
+          <ThemePlanningInfo theme={theme} lang={lang} />
         </div>
         <aside
           className="detail-aside summary-panel mobile-first theme-plan-summary"

@@ -1,5 +1,6 @@
 import { L } from "@/lib/i18n";
 import { GANGWON_REGIONS } from "./place-search";
+import { inferCourseOptions } from "./course-options";
 import { THEME_EXTRA_KEYWORDS, THEME_KEYWORD_TOPICS } from "./theme-keywords";
 import type { KeywordRule, Theme, ThemeMatch } from "./types";
 
@@ -129,6 +130,7 @@ export interface MatchableTheme {
   region?: string;
   mood?: string[];
   keywords?: string[];
+  days?: number;
 }
 
 export function matchingTheme(theme: Theme): MatchableTheme {
@@ -139,6 +141,7 @@ export function matchingTheme(theme: Theme): MatchableTheme {
     tag: `${theme.tag.ko} ${theme.tag.en}`,
     region: theme.region.ko,
     mood: theme.mood.flatMap((m) => [m.ko, m.en]),
+    days: inferCourseOptions(theme.duration.ko).days,
   };
 }
 
@@ -151,7 +154,7 @@ function themeRegions(theme: MatchableTheme): string[] {
   ).map((r) => r.ko);
 }
 
-/** 지역 표기 없는 경우도 119개 테마 전체의 제목·태그·무드·추가 키워드를 사용한다. */
+/** 지역 표기 없는 경우도 전체 테마의 제목·태그·무드·추가 키워드를 사용한다. */
 function themeTopics(theme: MatchableTheme): Set<string> {
   const metadata = [
     theme.title,
@@ -198,8 +201,14 @@ function directThemeKeywords(theme: MatchableTheme): string[] {
  * DB 테마에 붙은 분류 사전 + 명시적 단어 점수로 매칭한다. LLM·날씨·혼잡 API 호출은 없다.
  * 지역은 필터, 제외한 성격은 탈락 조건이다. 긍정 단어가 없으면 성공을 꾸며내지 않는다.
  */
-export function rankCatalogThemes(raw: string, themes: MatchableTheme[], maxAlts = 2): ThemeMatch {
+export function rankCatalogThemes(
+  raw: string,
+  themes: MatchableTheme[],
+  maxAlts = 2,
+  preference: { preferredTopicIds?: readonly string[] } = {},
+): ThemeMatch {
   const query = normalizeIntentQuery(raw).slice(0, INTENT_QUERY_MAX_LENGTH).toLowerCase();
+  const requestedDays = inferCourseOptions(query).days;
   const topicHits = THEME_KEYWORD_TOPICS.map((topic) => ({
     topic,
     hits: topic.keywords.flatMap((keyword) => occurrences(query, keyword)),
@@ -288,11 +297,22 @@ export function rankCatalogThemes(raw: string, themes: MatchableTheme[], maxAlts
         hits.reduce((sum, t) => sum + t.topic.weight, 0) +
         Math.min(3, direct.length) +
         (regions.length ? 30 : 0) +
-        (theme.id.endsWith("-highlights") && !positiveTopics.length ? 2 : 0);
-      return { theme, score, words, topicCount: hits.length };
+        (requestedDays && theme.days === requestedDays ? 6 : 0);
+      const preferredTopics = (preference.preferredTopicIds ?? []).filter((id) =>
+        ownTopics.has(id),
+      );
+      const fallbackPriority = theme.id.endsWith("-highlights") && !positiveTopics.length ? 2 : 0;
+      return { theme, score, words, topicCount: hits.length, preferredTopics, fallbackPriority };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort((a, b) => b.score - a.score || a.theme.id.localeCompare(b.theme.id));
+    // 관심 분야는 명시적 단어 점수가 같은 후보 사이에서만 보조 기준으로 사용한다.
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.preferredTopics.length - a.preferredTopics.length ||
+        b.fallbackPriority - a.fallbackPriority ||
+        a.theme.id.localeCompare(b.theme.id),
+    );
   const best = ranked[0];
   if (!best || (!positiveTopics.length && !regions.length && !best.words.length)) {
     return {
@@ -356,6 +376,18 @@ export function rankCatalogThemes(raw: string, themes: MatchableTheme[], maxAlts
       keywords: best.words.slice(0, 8),
       excludedKeywords,
       regions,
+      ...(best.preferredTopics.length &&
+      ranked.some(
+        (item) =>
+          item.score === best.score && item.preferredTopics.length < best.preferredTopics.length,
+      )
+        ? {
+            preference: L(
+              "입력 조건이 같은 후보에서는 저장한 관심 분야를 참고했어요.",
+              "Your saved interests helped order equally matching candidates.",
+            ),
+          }
+        : {}),
       summary: L(
         `${criteria.map((word) => `‘${word}’`).join(" · ")} 단어를 바탕으로 찾은 테마예요.`,
         `Selected using these words: ${criteria.join(", ")}.`,

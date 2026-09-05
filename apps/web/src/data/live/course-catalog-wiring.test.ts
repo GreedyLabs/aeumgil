@@ -107,7 +107,33 @@ describe("LiveRepository.getCourse — DB 코스 카탈로그 배선", () => {
     expect(course).not.toBeNull();
     expect(course!.title.ko).toBe("DB 템플릿 코스");
     expect(course!.items[0]).toMatchObject({ kind: "spot", refId: "db-template-spot" });
-    expect(mocks.fetchDefaultCourseTemplate).toHaveBeenCalledWith({ __db: true }, "east-sea-sunrise");
+    expect(mocks.fetchDefaultCourseTemplate).toHaveBeenCalledWith(
+      { __db: true },
+      "east-sea-sunrise",
+    );
+  });
+
+  it("도착 시간과 긴 체험을 편집한 다일 코스는 혼잡 재정렬로 바꾸지 않는다", async () => {
+    mocks.fetchDefaultCourseTemplate.mockResolvedValue({
+      ...dbTemplate,
+      preserveStopOrder: true,
+      dayCount: 2,
+      items: [
+        { kind: "spot", day: 1, time: "13:00", refId: "arrival", durationMin: 240 },
+        { kind: "spot", day: 2, time: "10:00", refId: "return", durationMin: 90 },
+      ],
+    });
+    mocks.fetchSpotProfilesForTheme.mockResolvedValue([
+      dbSpot("arrival", "강릉"),
+      dbSpot("return", "강릉"),
+    ]);
+    const course = await new LiveRepository().getCourse(dbTemplate.themeId);
+    expect(mocks.planItinerary).not.toHaveBeenCalled();
+    expect(course?.dayCount).toBe(2);
+    expect(course?.items).toEqual([
+      { kind: "spot", day: 1, time: "13:00", refId: "arrival", durationMin: 240 },
+      { kind: "spot", day: 2, time: "10:00", refId: "return", durationMin: 90 },
+    ]);
   });
 
   it("DB spot_profile 후보가 있으면 composer 후보 풀에서 시드 스팟보다 우선 사용한다", async () => {
@@ -116,7 +142,9 @@ describe("LiveRepository.getCourse — DB 코스 카탈로그 배선", () => {
     const course = await new LiveRepository().getCourse("east-sea-sunrise");
 
     expect(course).not.toBeNull();
-    expect(course!.items.some((item) => item.kind === "spot" && item.refId === "db-only-beach")).toBe(true);
+    expect(
+      course!.items.some((item) => item.kind === "spot" && item.refId === "db-only-beach"),
+    ).toBe(true);
   });
 
   it("DB 후보가 빈 배열이면 존재하지 않는 장소의 코스를 만들지 않는다", async () => {

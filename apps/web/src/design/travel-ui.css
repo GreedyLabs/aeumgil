@@ -45,6 +45,68 @@ body[data-palette="ocean"] {
   border-radius: 12px;
   font-weight: 650;
 }
+.course-tabs {
+  flex-wrap: wrap;
+}
+.explore-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+}
+.explore-toolbar > .search-field {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.explore-toolbar > .places-region {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.theme-load-more {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.theme-load-more > p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.theme-load-more > .btn {
+  width: min(100%, 320px);
+  min-height: 48px;
+}
+.theme-planning-info {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  margin-block: 24px;
+  line-height: 1.7;
+}
+.theme-planning-info h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.theme-planning-info p {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin: 0;
+}
+.theme-planning-info summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-size: 13px;
+  padding-block: 8px;
+}
+.theme-planning-info ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
 .btn-primary {
   background: linear-gradient(125deg, var(--brand), #22747a);
   box-shadow:
@@ -101,20 +163,18 @@ body[data-palette="ocean"] {
   background: #fff;
   box-shadow: 0 8px 28px #082e3940;
 }
-.intent-search textarea {
+.intent-search input {
   width: 100%;
   min-width: 0;
   background: none;
   border: 0;
-  resize: vertical;
   outline: 0;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.65;
   color: var(--ink);
   padding: 5px 0;
-  min-height: 54px;
-  max-height: 160px;
+  min-height: 44px;
 }
 .intent-search > .btn {
   white-space: nowrap;
@@ -165,6 +225,7 @@ body[data-palette="ocean"] {
   padding: 10px 12px;
   white-space: nowrap;
   font-size: 14px;
+  font-weight: 700;
 }
 .browse-tabs button[aria-pressed="true"] {
   background: #fff;
@@ -237,6 +298,94 @@ body[data-palette="ocean"] {
 .personal-course-layout {
   margin-inline: 0;
 }
+.personal-date-range {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-elev);
+}
+.personal-date-range > legend {
+  padding-inline: 6px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.personal-date-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.personal-date-fields > label {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  font-size: 13px;
+}
+.personal-date-fields input {
+  min-width: 0;
+  min-height: 44px;
+}
+.personal-date-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 12px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.personal-date-summary > p {
+  flex: 1 1 220px;
+  margin: 0;
+}
+.personal-day-label {
+  margin: 10px 0;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 650;
+}
+.personal-day-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.personal-itinerary > .section-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.personal-itinerary > .section-heading > h2 {
+  margin: 0;
+}
+.personal-itinerary > .section-heading > .course-day-picker {
+  flex: 0 1 300px;
+}
+.personal-stop-controls > .course-day-picker,
+.personal-stop-controls > label:has(.course-day-picker) {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.personal-stop-controls .course-day-picker input {
+  width: 100%;
+}
+.personal-stop-controls > label:has(.course-day-picker) {
+  display: grid;
+  align-items: stretch;
+  gap: 6px;
+}
+@media (max-width: 599px) {
+  .personal-date-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .personal-stop-controls > .course-day-picker,
+  .personal-stop-controls > label:has(.course-day-picker),
+  .personal-itinerary > .section-heading > .course-day-picker {
+    flex-basis: 100%;
+  }
+}
 .personal-plan-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -290,13 +439,14 @@ body[data-palette="ocean"] {
   align-items: center;
   gap: 12px;
 }
-.match-query-form textarea {
+.match-query-form input {
   font: inherit;
   width: 100%;
   min-width: 0;
   border: 1px solid var(--line-2);
   border-radius: 12px;
-  resize: vertical;
+  min-height: 44px;
+  font-size: 16px;
   padding: 12px;
   background: var(--bg-elev);
 }
@@ -508,10 +658,9 @@ body[data-palette="ocean"] {
   .intent-search > svg {
     display: none;
   }
-  .intent-search textarea {
+  .intent-search input {
     flex: 1 1 100%;
-    font-size: 14px;
-    min-height: 58px;
+    min-height: 44px;
   }
   .intent-search > .btn {
     width: 100%;

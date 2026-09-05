@@ -48,7 +48,7 @@ describe("기존 여행에 장소 담기", () => {
       { courseId: "other" },
       { version: undefined },
       { version: -1 },
-      { day: 6 },
+      { day: 0 },
       { places: [] },
       { places: Array(4).fill(spot) },
       { places: [{ kind: "unknown", refId: "x" }] },

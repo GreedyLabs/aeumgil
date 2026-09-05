@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ThemeQueryInput } from "@/components/theme-query-input";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -58,10 +59,9 @@ export function MatchingView({
         >
           <label htmlFor="match-query">어떤 여행을 하고 싶나요?</label>
           <div>
-            <textarea
+            <ThemeQueryInput
               id="match-query"
               disabled={!ready}
-              rows={2}
               maxLength={INTENT_QUERY_MAX_LENGTH}
               value={text}
               onChange={(event) => setText(event.target.value)}
@@ -87,6 +87,14 @@ export function MatchingView({
         </div>
       )}
 
+      {reason?.preference && (
+        <p className="section-description">
+          {localized(reason.preference, lang)}{" "}
+          <Link className="text-link" href="/onboarding">
+            여행 취향 설정
+          </Link>
+        </p>
+      )}
       {reason?.notice && <p className="match-notice">{localized(reason.notice, lang)}</p>}
       {primary ? (
         <>

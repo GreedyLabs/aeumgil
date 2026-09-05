@@ -69,7 +69,7 @@ function activeTabFor(pathname: string): string {
   if (pathname.startsWith("/map")) return "discover";
   if (/^\/(discover|theme|course|spot|alternatives|festival)/.test(pathname)) return "discover";
   if (pathname.startsWith("/saved") || pathname.startsWith("/my-courses")) return "saved";
-  if (/^\/(profile|reviews|settings|doc|login)/.test(pathname)) return "profile";
+  if (/^\/(profile|reviews|settings|doc|login|onboarding)/.test(pathname)) return "profile";
   return "home";
 }
 
@@ -167,38 +167,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const activeTab = activeTabFor(pathname);
-  const showChrome = !/^\/onboarding/.test(pathname);
 
   const goTab = (id: string) => router.push(urlForTab(id));
 
   return (
     <AppStateContext.Provider value={ctx}>
-      <div
-        className={`app-shell${showChrome ? (sidebarCollapsed ? " app-shell-collapsed" : "") : " app-shell-focus"}`}
-      >
+      <div className={`app-shell${sidebarCollapsed ? " app-shell-collapsed" : ""}`}>
         <a className="skip-link" href="#main-content">
           본문으로 건너뛰기
         </a>
-        {showChrome && (
-          <Sidebar
-            ready={sidebarReady}
-            collapsed={sidebarCollapsed}
-            onToggle={toggleSidebar}
-            active={activeTab}
-            onNav={goTab}
-            lang={lang}
-            isMember={auth.member}
-            user={auth.user}
-            onLogin={() => router.push("/login?reason=profile")}
-          />
-        )}
+        <Sidebar
+          ready={sidebarReady}
+          collapsed={sidebarCollapsed}
+          onToggle={toggleSidebar}
+          active={activeTab}
+          onNav={goTab}
+          lang={lang}
+          isMember={auth.member}
+          user={auth.user}
+          onLogin={() => router.push("/login?reason=profile")}
+        />
         <div className="app-screen">
           <main className="screen-body" key={pathname} id="main-content">
             {children}
           </main>
-          {showChrome && (
-            <TabBar ready={sidebarReady} active={activeTab} onNav={goTab} lang={lang} />
-          )}
+          <TabBar ready={sidebarReady} active={activeTab} onNav={goTab} lang={lang} />
         </div>
         {toast && (
           <div className="toast" role="status" aria-live="polite">

@@ -1,4 +1,5 @@
 "use client";
+import { ExternalLink } from "@/components/external-link";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FestivalDetail } from "@/domain/types";
@@ -72,14 +73,9 @@ export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; 
               ))}
             </dl>
             {detail.homepage && (
-              <a
-                className="btn btn-secondary"
-                href={detail.homepage}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                공식 홈페이지 ↗
-              </a>
+              <ExternalLink className="btn btn-secondary" href={detail.homepage}>
+                공식 홈페이지
+              </ExternalLink>
             )}
             <p className="data-caption">
               한국관광공사 제공. 시간·요금·예약과 개최 여부는 주최 측의 최신 안내를 확인해 주세요.
@@ -161,7 +157,7 @@ export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; 
           </div>
           <div className="commerce-grid">
             {detail.nearbyEats.slice(0, 4).map((eat) => (
-              <div key={eat.id}>
+              <div className="festival-food-card" key={eat.id}>
                 <NearbyPlaceCard
                   imageLabel={eat.name.ko}
                   imageUrl={eat.imageUrl}

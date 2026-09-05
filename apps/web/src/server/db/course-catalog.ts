@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────
 
 import { and, asc, avg, count, desc, eq, sql } from "drizzle-orm";
-import { THEME_COPY, THEME_COVER_PRIORITY } from "@/domain/theme-catalog";
+import { CURATED_THEME_ORDER, THEME_COPY, THEME_COVER_PRIORITY } from "@/domain/theme-catalog";
 import {
   normalizePlaceQuery,
   escapeLike,
@@ -141,6 +141,7 @@ export async function fetchThemes(db: Database): Promise<Theme[]> {
 
   // 테마마다 스팟 전건을 다시 읽던 N+1 쿼리를 1회 집계로 줄인다.
   const spots = await db.select().from(spotProfiles);
+  const priority = new Map(CURATED_THEME_ORDER.map((id, index) => [id, index]));
   return [...unique.values()]
     .map((template) =>
       themeFromTemplate(
@@ -148,7 +149,12 @@ export async function fetchThemes(db: Database): Promise<Theme[]> {
         spots.filter((row) => arr(row.themeIds).includes(template.themeId)),
       ),
     )
-    .filter((theme) => theme.spotCount > 0);
+    .filter((theme) => theme.spotCount > 0)
+    .sort(
+      (a, b) =>
+        (priority.get(a.id) ?? CURATED_THEME_ORDER.length) -
+        (priority.get(b.id) ?? CURATED_THEME_ORDER.length),
+    );
 }
 
 /** 단일 테마 조회. 테마 메타는 기본 코스 템플릿에서 만든다. */
@@ -197,6 +203,7 @@ export async function fetchDefaultCourseTemplate(
     themeId: template.themeId,
     title: L(template.titleKo, template.titleEn ?? undefined),
     dayCount: template.dayCount,
+    preserveStopOrder: CURATED_THEME_ORDER.includes(template.themeId) || undefined,
     altNote: template.altNoteKo
       ? L(template.altNoteKo, template.altNoteEn ?? undefined)
       : undefined,

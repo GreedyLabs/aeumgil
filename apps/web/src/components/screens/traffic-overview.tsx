@@ -1,3 +1,4 @@
+import { ExternalLink } from "@/components/external-link";
 import type { HighwayStatus } from "@/domain/types";
 
 export function TrafficOverview({ roads }: { roads: HighwayStatus[] }) {
@@ -5,14 +6,9 @@ export function TrafficOverview({ roads }: { roads: HighwayStatus[] }) {
     <section className="traffic-overview" aria-label="강원 여행 교통 참고">
       <div className="section-heading">
         <h2>강원으로 출발하기 전</h2>
-        <a
-          className="text-link"
-          href="https://www.roadplus.co.kr/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          고속도로 교통 지도 ↗
-        </a>
+        <ExternalLink className="text-link" href="https://www.roadplus.co.kr/">
+          고속도로 교통 지도
+        </ExternalLink>
       </div>
       <p className="section-description">
         강원과 연결되는 고속도로의 소통을 살펴보세요. 개별 관광지 진입로나 내 코스의 소요시간을

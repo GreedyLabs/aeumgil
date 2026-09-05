@@ -5,7 +5,20 @@ test("홈에서 자연어 검색 근거를 확인하고 여행 조건을 유지�
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const input = page.getByRole("textbox", { name: "여행 목적" });
   await input.fill("강릉에서 부모님과 대중교통으로 1박 2일 바다 여행");
-  await page.getByRole("button", { name: "여행 추천 받기", exact: true }).click();
+  await expect(input).toHaveJSProperty("tagName", "INPUT");
+  const compositionEnter = await input.evaluate((element) =>
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(compositionEnter, "한글 조합 확정 Enter는 제출하지 않는다").toBe(false);
+  await expect(page).toHaveURL(/\/$/);
+  await input.press("Enter");
   await expect(page).toHaveURL(/\/result\?/);
   await expect(page.getByRole("heading", { name: "이런 여행은 어떠세요?" })).toBeVisible();
   await expect(page.getByLabel("찾은 키워드")).toContainText("강릉");
@@ -46,7 +59,7 @@ test("모바일 검색은 제외 조건을 설명하고 무관 입력에서 임�
   );
   await page.locator(".match-query-disclosure summary").click();
   await page.getByLabel("어떤 여행을 하고 싶나요?").fill("서버 계산 오류를 해결해줘");
-  await page.getByRole("button", { name: "다시 찾기" }).click();
+  await page.getByLabel("어떤 여행을 하고 싶나요?").press("Enter");
   await expect(page.getByRole("heading", { name: "조금 더 알려주세요" })).toBeVisible();
   await expect(page.getByRole("link", { name: "이 조건으로 코스 보기" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /여행지를 직접 찾아볼게요/ })).toBeVisible();
@@ -56,6 +69,6 @@ test("모바일 검색은 제외 조건을 설명하고 무관 입력에서 임�
   await page.getByRole("link", { name: "춘천 아이와 박물관", exact: true }).click();
   await expect(page.getByRole("link", { name: "이 조건으로 코스 보기" })).toHaveAttribute(
     "href",
-    /\/course\/gangwon-chuncheon-culture/,
+    /\/course\/journey-chuncheon-family-weekend\?companion=family/,
   );
 });

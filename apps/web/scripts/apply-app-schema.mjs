@@ -532,6 +532,15 @@ try {
     `alter table ${qTable("personal_course")} add column if not exists start_time text not null default '09:30'`,
   );
   await sql.unsafe(
+    `alter table ${qTable("personal_course")} add column if not exists day_start_times jsonb not null default '{}'::jsonb`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("personal_course")} add column if not exists start_date date`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("personal_course")} add column if not exists end_date date`,
+  );
+  await sql.unsafe(
     `create index if not exists personal_course_user_idx on ${qTable("personal_course")} (user_id, updated_at desc)`,
   );
   await sql.unsafe(

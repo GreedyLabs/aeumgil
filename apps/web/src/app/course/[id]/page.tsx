@@ -17,7 +17,9 @@ export default async function CoursePage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const options = parseCourseOptions(Object.fromEntries(Object.entries(sp).map(([key, value]) => [key, str(value)])));
+  const options = parseCourseOptions(
+    Object.fromEntries(Object.entries(sp).map(([key, value]) => [key, str(value)])),
+  );
   const repo = getRepository();
 
   const [theme, course, savedThemeIds] = await Promise.all([
@@ -51,7 +53,7 @@ export default async function CoursePage({
       spots={spots}
       eats={eats}
       stays={stays}
-      options={options}
+      options={course.appliedOptions ?? options}
       initiallySaved={savedThemeIds.includes(theme.id)}
       onSaveTheme={setThemeSavedAction}
     />

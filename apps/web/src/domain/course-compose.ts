@@ -2,8 +2,8 @@
 // 시드/DB 후보 기반 코스 생성 MVP.
 //
 // [학습 메모] LLM 없이도 코스 생성의 핵심은 결정형 엔진으로 먼저 세울 수 있다.
-// 이 함수는 "테마/POI/식당/숙소 후보 풀"을 받아 코스를 조합한다. 지금은 mock 시드가
-// 후보 풀이지만, 나중에 DB 테이블에서 읽어온 데이터로 바뀌어도 함수 계약은 유지된다.
+// 이 함수는 DB의 테마·관광지·식당·숙소 후보를 받아 코스를 조합한다.
+// 동선과 체류시간 계산을 모델 판단과 분리해 같은 조건에서는 같은 코스를 만든다.
 //
 // MVP 범위:
 //   - 기존 큐레이션 코스는 시간 슬롯 템플릿으로 사용한다.
@@ -98,14 +98,12 @@ function spotText(spot: Spot): string {
 function keywordOverlapScore(theme: Theme, spot: Spot): number {
   const src = themeText(theme);
   const target = spotText(spot);
-  const tokens = src.split(/\s+|·|,|\//).map((t) => t.trim()).filter((t) => t.length >= 2);
+  const tokens = src
+    .split(/\s+|·|,|\//)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
   const unique = [...new Set(tokens)];
   return unique.reduce((sum, token) => sum + (target.includes(token) ? 14 : 0), 0);
-}
-
-function regionOfSpot(spotsById: Map<string, Spot>, id: string): string | undefined {
-  const spot = spotsById.get(id);
-  return spot ? localized(spot.region, "ko") : undefined;
 }
 
 function scoreSpot(
@@ -115,7 +113,8 @@ function scoreSpot(
   options: NormalizedComposeOptions,
   routeContext: RouteContext = {},
 ): number {
-  const sameRegion = original && localized(original.region, "ko") === localized(spot.region, "ko") ? 10 : 0;
+  const sameRegion =
+    original && localized(original.region, "ko") === localized(spot.region, "ko") ? 10 : 0;
   const originalBias = original?.id === spot.id ? 4 : 0;
   const crowd = options.avoidBusy ? congestionScore(spot) : 0;
   const distance = original ? distancePenalty(original, spot) : 0;
@@ -133,11 +132,13 @@ function scoreSpot(
   );
 }
 
-function hasCoords(spot: Spot): spot is Spot & { lat: number; lon: number } {
+type Coordinates = { lat?: number; lon?: number };
+
+function hasCoords<T extends Coordinates>(spot: T): spot is T & { lat: number; lon: number } {
   return typeof spot.lat === "number" && typeof spot.lon === "number";
 }
 
-function distanceKm(a: Spot, b: Spot): number | null {
+function distanceKm(a: Coordinates, b: Coordinates): number | null {
   if (!hasCoords(a) || !hasCoords(b)) return null;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const r = 6371;
@@ -233,25 +234,56 @@ function pickSpotForSlot(
     (s) => !used.has(s.id),
   );
   if (candidates.length === 0) return undefined;
-  return candidates.sort((a, b) => scoreSpot(theme, b, original, options, routeContext) - scoreSpot(theme, a, original, options, routeContext))[0];
+  return candidates.sort(
+    (a, b) =>
+      scoreSpot(theme, b, original, options, routeContext) -
+      scoreSpot(theme, a, original, options, routeContext),
+  )[0];
 }
 
-function pickByRegion<T extends Eat | Stay>(items: T[], region: string | undefined, used: Set<string>): T | undefined {
+/** 식사 직전 방문지와 하루 마지막 방문지에서 가까운 장소를 선택한다. */
+function pickByRegion<T extends Eat | Stay>(
+  items: T[],
+  region: string | undefined,
+  used: Set<string>,
+  anchor?: Spot,
+  preferredId?: string,
+  reusePreferred = false,
+): T | undefined {
   if (items.length === 0) return undefined;
+  const distance = (item: T) => (anchor ? distanceKm(anchor, item) : null);
+  const preferred = items.find((item) => item.id === preferredId);
+  // 인근의 원래 식당은 유지하고, 같은 숙소의 연박을 임의의 숙소 이동으로 바꾸지 않는다.
+  if (
+    preferred &&
+    (!used.has(preferred.id) || reusePreferred) &&
+    localized(preferred.region, "ko") === region &&
+    (distance(preferred) === null || distance(preferred)! <= 8)
+  )
+    return preferred;
   const available = items.filter((it) => !used.has(it.id));
   const pool = available.length > 0 ? available : items;
   return [...pool].sort((a, b) => {
     const aRegion = localized(a.region, "ko") === region ? 1 : 0;
     const bRegion = localized(b.region, "ko") === region ? 1 : 0;
-    return bRegion - aRegion || b.rating - a.rating;
+    const aDistance = distance(a);
+    const bDistance = distance(b);
+    // 행정 경계 너머라도 실제로 가까운 후보가 있으면 이동거리를 우선한다.
+    const aNear = aDistance !== null && aDistance <= 8 ? 1 : 0;
+    const bNear = bDistance !== null && bDistance <= 8 ? 1 : 0;
+    return (
+      bNear - aNear ||
+      bRegion - aRegion ||
+      (aDistance ?? Number.MAX_VALUE) - (bDistance ?? Number.MAX_VALUE) ||
+      b.rating - a.rating
+    );
   })[0];
 }
 
 function inferDayCount(theme: Theme): number {
   const duration = localized(theme.duration, "ko");
-  if (duration.includes("2일")) return 2;
-  if (duration.includes("3일")) return 3;
-  return 1;
+  const days = Number(/(?:^|[^\d])(\d+)\s*일/.exec(duration)?.[1]);
+  return Number.isInteger(days) && days >= 1 && days <= 5 ? days : 1;
 }
 
 function spotsPerDayForPace(pace: string | undefined): number {
@@ -269,7 +301,11 @@ function sortItems(items: CourseItem[]): CourseItem[] {
   return [...items].sort((a, b) => a.day - b.day || minutesOf(a.time) - minutesOf(b.time));
 }
 
-function pickScratchSpots(input: ComposeCourseInput, dayCount: number, options: NormalizedComposeOptions): Spot[] {
+function pickScratchSpots(
+  input: ComposeCourseInput,
+  dayCount: number,
+  options: NormalizedComposeOptions,
+): Spot[] {
   const maxSpots = dayCount * options.maxSpotsPerDay;
   const remaining = uniqueById(input.spots);
   const picked: Spot[] = [];
@@ -312,7 +348,8 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
   const base = input.baseCourse as Course;
   const targetDayCount = options.days ?? base.dayCount;
   // 연장 일정은 템플릿에 없는 날짜를 만들지 않고 후보 풀에서 다시 배치한다.
-  if (targetDayCount > base.dayCount) return composeFromScratch(input, { ...options, days: targetDayCount });
+  if (targetDayCount > base.dayCount)
+    return composeFromScratch(input, { ...options, days: targetDayCount });
   const daySpotCounts = new Map<number, number>();
   const templateItems = sortItems(base.items).filter((it) => {
     if (it.day > targetDayCount) return false;
@@ -329,63 +366,71 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
     baseSpotItemsByDay.set(it.day, [...(baseSpotItemsByDay.get(it.day) ?? []), it]);
   }
   const usedSpots = new Set<string>();
+  const reservedSpotIds = new Set(
+    templateItems.filter((it) => it.kind === "spot").map((it) => it.refId),
+  );
   const usedEats = new Set<string>();
   const usedStays = new Set<string>();
   const changedSpotIds: string[] = [];
   let changedCommerce = false;
 
-  const spotRegionByDay = new Map<number, string>();
   const firstPass: CourseItem[] = templateItems.map((it) => {
     if (it.kind !== "spot") return { ...it };
     const original = spotsById.get(it.refId);
     const daySpotItems = baseSpotItemsByDay.get(it.day) ?? [];
-    const slotIndex = daySpotItems.findIndex((slot) => slot.refId === it.refId && slot.time === it.time);
+    const slotIndex = daySpotItems.findIndex(
+      (slot) => slot.refId === it.refId && slot.time === it.time,
+    );
     const prev = toRouteCoord(spotsById.get(daySpotItems[slotIndex - 1]?.refId ?? ""));
     const next = toRouteCoord(spotsById.get(daySpotItems[slotIndex + 1]?.refId ?? ""));
     const picked = pickSpotForSlot(
       input.theme,
       original,
-      input.alternativesBySpot?.[it.refId] ?? [],
+      (input.alternativesBySpot?.[it.refId] ?? []).filter(
+        (spot) => spot.id === it.refId || !reservedSpotIds.has(spot.id),
+      ),
       usedSpots,
       options,
       { prev, next, mode: options.transport, lookup: options.travelTimeLookup },
     );
     if (!picked) return { ...it, refId: "" };
     usedSpots.add(picked.id);
-    if (!spotRegionByDay.has(it.day)) spotRegionByDay.set(it.day, localized(picked.region, "ko"));
     if (picked.id !== it.refId) changedSpotIds.push(it.refId);
     return { ...it, refId: picked.id };
   });
 
   const items = firstPass.map((it) => {
-    if (it.kind === "eat") {
-      const region = spotRegionByDay.get(it.day) ?? regionOfSpot(spotsById, firstPass.find((x) => x.day === it.day && x.kind === "spot")?.refId ?? "");
-      const picked = pickByRegion(input.eats, region, usedEats);
-      if (!picked) return it;
-      usedEats.add(picked.id);
-      if (picked.id !== it.refId) changedCommerce = true;
-      return { ...it, refId: picked.id };
-    }
-    if (it.kind === "stay") {
-      const region = spotRegionByDay.get(it.day);
-      const picked = pickByRegion(input.stays, region, usedStays);
-      if (!picked) return it;
-      usedStays.add(picked.id);
-      if (picked.id !== it.refId) changedCommerce = true;
-      return { ...it, refId: picked.id };
-    }
-    return it;
+    if (it.kind !== "eat" && it.kind !== "stay") return it;
+    const stops = firstPass.filter(
+      (stop) => stop.day === it.day && stop.kind === "spot" && stop.refId,
+    );
+    const anchorItem =
+      it.kind === "stay"
+        ? stops.at(-1)
+        : (stops.filter((stop) => minutesOf(stop.time) <= minutesOf(it.time)).at(-1) ?? stops[0]);
+    const anchor = anchorItem ? spotsById.get(anchorItem.refId) : undefined;
+    const region = anchor ? localized(anchor.region, "ko") : undefined;
+    const picked =
+      it.kind === "eat"
+        ? pickByRegion(input.eats, region, usedEats, anchor, it.refId)
+        : pickByRegion(input.stays, region, usedStays, anchor, it.refId, true);
+    if (!picked) return it;
+    (it.kind === "eat" ? usedEats : usedStays).add(picked.id);
+    if (picked.id !== it.refId) changedCommerce = true;
+    return { ...it, refId: picked.id };
   });
 
   return {
     ...base,
     dayCount: targetDayCount,
     altNote: note(changedSpotIds, changedCommerce) ?? base.altNote,
-    items: sortItems(items.filter((it) => {
-      if (it.kind === "spot") return Boolean(it.refId);
-      if (it.kind === "eat") return input.eats.some((e) => e.id === it.refId);
-      return input.stays.some((st) => st.id === it.refId);
-    })),
+    items: sortItems(
+      items.filter((it) => {
+        if (it.kind === "spot") return Boolean(it.refId);
+        if (it.kind === "eat") return input.eats.some((e) => e.id === it.refId);
+        return input.stays.some((st) => st.id === it.refId);
+      }),
+    ),
   };
 }
 
@@ -393,7 +438,10 @@ function composeFromScratch(input: ComposeCourseInput, options: NormalizedCompos
   const dayCount = options.days ?? input.dayCount ?? inferDayCount(input.theme);
   // 각 날짜에 적어도 한 장소를 배치한다. 부족한 후보로 빈 Day를 만들지 않는다.
   const actualDays = Math.min(dayCount, uniqueById(input.spots).length);
-  const perDay = Math.min(options.maxSpotsPerDay, Math.max(1, Math.ceil(input.spots.length / actualDays)));
+  const perDay = Math.min(
+    options.maxSpotsPerDay,
+    Math.max(1, Math.ceil(input.spots.length / actualDays)),
+  );
   const pickedSpots = pickScratchSpots(input, actualDays, { ...options, maxSpotsPerDay: perDay });
 
   const usedEats = new Set<string>();
@@ -402,20 +450,26 @@ function composeFromScratch(input: ComposeCourseInput, options: NormalizedCompos
 
   const slotsUsed = new Map<number, number>();
   for (let i = 0; i < pickedSpots.length; i++) {
-    const day = Math.floor(i * actualDays / pickedSpots.length) + 1;
+    const day = Math.floor((i * actualDays) / pickedSpots.length) + 1;
     const slot = slotsUsed.get(day) ?? 0;
     slotsUsed.set(day, slot + 1);
     const spot = pickedSpots[i]!;
-    items.push({ kind: "spot", day, time: DEFAULT_TIMES[slot] ?? "16:30", refId: spot.id, durationMin: slot === 0 ? 90 : 60 });
+    items.push({
+      kind: "spot",
+      day,
+      time: DEFAULT_TIMES[slot] ?? "16:30",
+      refId: spot.id,
+      durationMin: slot === 0 ? 90 : 60,
+    });
     if (slot === 0) {
-      const eat = pickByRegion(input.eats, localized(spot.region, "ko"), usedEats);
+      const eat = pickByRegion(input.eats, localized(spot.region, "ko"), usedEats, spot);
       if (eat) {
         usedEats.add(eat.id);
         items.push({ kind: "eat", day, time: "12:30", refId: eat.id });
       }
     }
-    if (day < actualDays && Math.floor((i + 1) * actualDays / pickedSpots.length) + 1 > day) {
-      const stay = pickByRegion(input.stays, localized(spot.region, "ko"), usedStays);
+    if (day < actualDays && Math.floor(((i + 1) * actualDays) / pickedSpots.length) + 1 > day) {
+      const stay = pickByRegion(input.stays, localized(spot.region, "ko"), usedStays, spot);
       if (stay) {
         usedStays.add(stay.id);
         items.push({ kind: "stay", day, time: "18:30", refId: stay.id });
@@ -425,14 +479,23 @@ function composeFromScratch(input: ComposeCourseInput, options: NormalizedCompos
 
   return {
     themeId: input.theme.id,
-    title: L(`${localized(input.theme.title, "ko")} 맞춤 코스`, `${localized(input.theme.title, "en")} custom itinerary`),
+    title: L(
+      `${localized(input.theme.title, "ko")} 맞춤 코스`,
+      `${localized(input.theme.title, "en")} custom itinerary`,
+    ),
     dayCount: Math.max(1, ...items.map((it) => it.day)),
-    altNote: L("관광지·식사·숙박을 테마와 권역에 맞춰 연결했어요.", "Course composer assembled stops, meals, and stays by theme and region."),
+    altNote: L(
+      "관광지·식사·숙박을 테마와 권역에 맞춰 연결했어요.",
+      "Course composer assembled stops, meals, and stays by theme and region.",
+    ),
     items: sortItems(items),
   };
 }
 
-export function composeCourse(input: ComposeCourseInput, options: ComposeCourseOptions = {}): Course | null {
+export function composeCourse(
+  input: ComposeCourseInput,
+  options: ComposeCourseOptions = {},
+): Course | null {
   const normalized: NormalizedComposeOptions = {
     avoidBusy: options.avoidBusy ?? true,
     days: options.days,

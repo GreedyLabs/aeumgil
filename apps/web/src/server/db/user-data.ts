@@ -106,7 +106,7 @@ export async function deleteUserData(db: Database, userId: string): Promise<void
   ]);
 }
 
-/** 온보딩 선호 조회. 없으면 null 을 돌려 mock 기본값을 유지하게 한다. */
+/** 여행 취향 조회. 설정하지 않은 사용자는 null을 반환한다. */
 export async function fetchOnboardingPreference(
   db: Database,
   userId: string,

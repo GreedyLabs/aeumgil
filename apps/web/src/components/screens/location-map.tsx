@@ -1,4 +1,5 @@
 "use client";
+import { ExternalLink } from "@/components/external-link";
 
 /** 공개 관광지 좌표만 사용한다. 이용자의 현재 위치는 요청하거나 전송하지 않는다. */
 export function LocationMap({ lat, lon, name }: { lat: number; lon: number; name: string }) {
@@ -13,14 +14,12 @@ export function LocationMap({ lat, lon, name }: { lat: number; lon: number; name
         loading="lazy"
         referrerPolicy="strict-origin-when-cross-origin"
       />
-      <a
+      <ExternalLink
         className="map-credit"
         href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`}
-        target="_blank"
-        rel="noopener noreferrer"
       >
-        © OpenStreetMap 기여자 · 큰 지도 보기 ↗
-      </a>
+        © OpenStreetMap 기여자 · 큰 지도 보기
+      </ExternalLink>
     </div>
   );
 }

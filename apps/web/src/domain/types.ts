@@ -34,6 +34,9 @@ export interface Theme {
   spotCount: number;
   mood: LocalizedText[];
   blurb: LocalizedText;
+  /** 편집 코스의 방문 조건과 공식 참고 자료. */
+  planningNote?: LocalizedText;
+  sources?: { title: string; url: string }[];
   /** 테마에 속한 실제 관광지의 대표 사진과 장소명. */
   imageUrl?: string;
 
@@ -85,6 +88,8 @@ export interface ThemeMatch {
     regions: string[];
     summary: LocalizedText;
     notice?: LocalizedText;
+    /** 명시 조건이 동등한 후보에서 저장 취향을 참고했을 때만 제공한다. */
+    preference?: LocalizedText;
   };
 }
 
@@ -193,11 +198,16 @@ export interface CourseItem {
   refId: string;
   /** spot/eat 의 권장 체류 시간(분) */
   durationMin?: number;
-  /** 이전 관광지에서의 예상 이동시간(분). 식사·숙박의 상세 이동은 별도 확인. */
+  /** 같은 날 이전 방문 장소(관광지·식당·숙소)에서의 예상 이동시간(분). */
   travelMinutes?: number;
 }
 
 export interface Course {
+  /** 체험 시간과 지역 이동을 편집한 코스는 혼잡 추정만으로 순서를 바꾸지 않는다. */
+  preserveStopOrder?: boolean;
+  /** 저장 취향의 기본값까지 합친 실제 코스 생성 조건. */
+  appliedOptions?: import("./course-compose").ComposeCourseOptions;
+  preferenceNote?: LocalizedText;
   routeLegs?: import("./course-map").CourseRouteLeg[];
   themeId: string;
   title: LocalizedText;
@@ -230,8 +240,9 @@ export interface User {
   nextGrade: LocalizedText;
   /** 다음 등급까지 진행률 (%) */
   levelProgress: number;
-  /** 관심 테마 id 목록 */
+  /** 관심 분야의 안정 코드(topic:sea 등). */
   interests: string[];
+  preference?: OnboardingPreference | null;
   stats: UserStats;
 }
 

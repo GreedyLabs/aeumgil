@@ -8,6 +8,7 @@ import {
 } from "@/domain/personal-course";
 import type { Eat, Stay } from "@/domain/types";
 import type { PlaceSearchQuery } from "@/domain/place-search";
+import { courseDateProblem } from "@/domain/course-dates";
 import {
   courseSpotSearchResult,
   filterCourseCommerce,
@@ -50,6 +51,8 @@ export async function appendPersonalCourseAction(
         error: "다른 곳에서 이 코스를 변경했어요. 새로고침한 뒤 다시 추가해 주세요.",
       };
     const next = appendPersonalPlaces(current.items, parsed.data.places, parsed.data.day);
+    const dateProblem = courseDateProblem(current, next.items);
+    if (dateProblem) return { ok: false, error: dateProblem };
     if (!next.added) return { ok: false, error: "선택한 날짜에 이미 모두 담겨 있는 장소예요." };
     if (next.items.length > 30)
       return {

@@ -20,6 +20,16 @@ const themes: MatchableTheme[] = [
 const match = (q: string) => rankCatalogThemes(q, themes);
 
 describe("카탈로그 전체 키워드 매칭", () => {
+  it("같은 지역·목적이면 명시한 기간과 맞는 코스를 우선한다", () => {
+    const candidates = [
+      { id: "day-sea", title: "강릉 바다 여행", region: "강릉", days: 1 },
+      { id: "long-sea", title: "강릉 바다 여행", region: "강릉", days: 5 },
+      { id: "long-other", title: "양구 바다 여행", region: "양구", days: 5 },
+    ];
+    expect(rankCatalogThemes("강릉 바다 4박5일", candidates).primaryId).toBe("long-sea");
+    expect(rankCatalogThemes("강릉 바다 당일", candidates).primaryId).toBe("day-sea");
+    expect(rankCatalogThemes("5일", candidates).primaryId).toBe("");
+  });
   it.each([
     ["강릉에서 바다를 보고 싶어요", "gangwon-gangneung-sea"],
     ["양구의 미술관에서 전시 구경", "gangwon-yanggu-culture"],

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ExternalLink } from "@/components/external-link";
 
 // 관광지 상세: 원천별 예측·측정을 구분하고 실제 이용 안내를 함께 제공한다.
 import { useState, useTransition } from "react";
@@ -49,12 +50,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
   const fitAvailable = weatherAvailable && airAvailable;
   const openCourse = () =>
     s.themeIds?.[0] ? nav("course", { themeId: s.themeIds[0] }) : nav("discover");
-  const openMap = () =>
-    window.open(
-      `https://map.kakao.com/link/search/${encodeURIComponent(s.name.ko + " " + s.region.ko)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+
   const suitabilityLabel = !fitAvailable
     ? "방문 여건 확인 중"
     : s.suitability >= 80
@@ -424,9 +420,14 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           </div>
         </div>
         <div className="spot-actions" style={{ padding: "14px 0 0", display: "flex", gap: 10 }}>
-          <button className="btn btn-secondary" aria-label="지도에서 장소 찾기" onClick={openMap}>
+          <ExternalLink
+            className="btn btn-secondary"
+            href={`https://map.kakao.com/link/search/${encodeURIComponent(`${s.name.ko} ${s.region.ko}`)}`}
+            lang={lang}
+            aria-label={lang === "ko" ? "카카오맵에서 장소 찾기" : "Find this place on KakaoMap"}
+          >
             <Icon.map />
-          </button>
+          </ExternalLink>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={openCourse}>
             <Icon.plus /> {lang === "ko" ? "테마 코스 보기" : "View theme course"}
           </button>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { ExternalLink, NewTabLink } from "@/components/external-link";
 import { useRouter } from "next/navigation";
 import {
   savePersonalCourseAction,
@@ -8,9 +9,17 @@ import {
   searchCoursePlacesAction,
 } from "@/app/actions/personal-course";
 import { Select } from "@/components/select";
+import { CourseDayInput } from "@/components/course-day-input";
+import {
+  calendarDateAt,
+  courseDateCount,
+  courseDateProblem,
+  courseDayLabel,
+} from "@/domain/course-dates";
 import { useAppState } from "@/components/app-shell";
 import type { PersonalCourseInput, PersonalCourseItem } from "@/domain/personal-course";
-import { orderPersonalItems } from "@/domain/personal-course";
+import { orderPersonalItems, personalDayStartTime } from "@/domain/personal-course";
+import dayTimeStyles from "./personal-day-start.module.css";
 import {
   readCourseDraft,
   preserveOlderDraft,
@@ -25,8 +34,7 @@ import type {
   CourseSearchPlace,
 } from "@/domain/course-place-search";
 import type { Spot } from "@/domain/types";
-import type { CourseMapStop, CourseRouteLeg } from "@/domain/course-map";
-import { estimateDrive } from "@/domain/travel-time";
+import { schedulePersonalCourseDay } from "@/domain/personal-course-schedule";
 import { CourseMap } from "./course-map";
 import { UI, Icon } from "./_ui";
 
@@ -54,7 +62,9 @@ export function PersonalCourseEditor({
   const [draft, setDraft] = useState(initial);
   const [places, setPlaces] = useState(initialPlaces);
   const [dirty, setDirty] = useState(false);
-  const [day, setDay] = useState(1);
+  const [day, setDay] = useState(() =>
+    initial.items.length ? Math.min(...initial.items.map((item) => item.day)) : 1,
+  );
   const [panel, setPanel] = useState<"itinerary" | "search">("itinerary");
   const [draftNotice, setDraftNotice] = useState("");
   const [draftCached, setDraftCached] = useState(false);
@@ -91,6 +101,9 @@ export function PersonalCourseEditor({
       const saved = readCourseDraft(raw, ownerId);
       if (saved && saved.draft.id === initial.id && saved.draft.version === initial.version) {
         setDraft(saved.draft);
+        setDay(
+          saved.draft.items.length ? Math.min(...saved.draft.items.map((item) => item.day)) : 1,
+        );
         setPlaces({ ...initialPlaces, ...saved.places });
         setRecoverySourceKey(saved.recoverySourceKey);
         setRecoverySourceVersion(saved.recoverySourceVersion);
@@ -175,53 +188,44 @@ export function PersonalCourseEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, region, accessible, searchKind]);
   const items = useMemo(() => orderPersonalItems(draft.items), [draft.items]);
-  const mapData = useMemo(() => {
-    const today = items.filter((item) => item.day === day);
-    const stops: CourseMapStop[] = [];
-    const legs: CourseRouteLeg[] = [];
-    const [hours, mins] = draft.startTime.split(":").map(Number);
-    let minutes = (hours ?? 9) * 60 + (mins ?? 30);
-    for (const item of today) {
-      const place = places[item.refId];
-      if (!place || !Number.isFinite(place.lat) || !Number.isFinite(place.lon)) continue;
-      const previous = stops.at(-1);
-      if (previous) {
-        const estimate = estimateDrive(
-          previous,
-          { lat: place.lat!, lon: place.lon! },
-          draft.transport,
-        );
-        if (!estimate) continue;
-        minutes += estimate.driveMinutes;
-        legs.push({
-          day,
-          fromId: previous.id,
-          toId: place.id,
-          minutes: estimate.driveMinutes,
-          distanceKm: estimate.distanceKm,
-          source: "approx",
-        });
-      }
-      const time =
-        minutes < 24 * 60
-          ? `${Math.floor(minutes / 60)
-              .toString()
-              .padStart(2, "0")}:${(minutes % 60).toString().padStart(2, "0")}`
-          : "일정 조정 필요";
-      stops.push({
-        id: place.id,
-        name: place.name.ko,
-        lat: place.lat!,
-        lon: place.lon!,
-        kind: item.kind === "festival" ? "spot" : item.kind,
-        time,
-      });
-      // 마지막 숙박의 체류는 다음 날까지 이어지므로 당일 과밀 경고에서 제외한다.
-      if (item.kind !== "stay" || item !== today.at(-1)) minutes += item.durationMin;
+  const dateProblem = courseDateProblem(draft, items);
+  const selectedDayProblem = courseDateProblem(draft, [{ day }]);
+  const scheduledDays = [...new Set(items.map((item) => item.day))];
+  const dateCount = courseDateCount(draft.startDate, draft.endDate);
+  const selectedStartTime = personalDayStartTime(draft, day);
+  const hasDayStartTime = draft.dayStartTimes?.[String(day)] !== undefined;
+  const changeDayStartTime = (time: string) => {
+    const next = { ...draft.dayStartTimes };
+    if (time && !hasDayStartTime && Object.keys(next).length >= 30) {
+      showToast("날짜별 출발 시간은 최대 30개까지 설정할 수 있어요. 기존 설정을 먼저 비워 주세요.");
+      return;
     }
-    return { stops, legs, tooLong: minutes > 21 * 60 };
-  }, [items, places, day, draft.startTime, draft.transport]);
+    if (time) next[String(day)] = time;
+    else delete next[String(day)];
+    update({ dayStartTimes: next });
+  };
+  const changeStartDate = (startDate: string) => {
+    if (!startDate) {
+      update({ startDate: undefined, endDate: undefined });
+      return;
+    }
+    // 출발일을 옮겨도 장소의 상대 일차와 여행 기간은 유지한다.
+    const duration = dateCount ?? Math.max(1, ...items.map((item) => item.day));
+    const endDate =
+      !draft.startDate && courseDateCount(startDate, draft.endDate)
+        ? draft.endDate
+        : calendarDateAt(startDate, duration);
+    update({ startDate, endDate });
+  };
+  const mapData = useMemo(
+    () => schedulePersonalCourseDay(draft, places, day),
+    [draft, places, day],
+  );
   const add = (spot: CourseSearchPlace) => {
+    if (selectedDayProblem) {
+      showToast(selectedDayProblem);
+      return;
+    }
     if (draft.items.length >= 30) {
       showToast("한 코스에는 최대 30곳을 담을 수 있어요.");
       return;
@@ -233,7 +237,7 @@ export function PersonalCourseEditor({
         { kind: spot.kind, refId: spot.id, day, durationMin: spot.kind === "stay" ? 480 : 60 },
       ],
     });
-    showToast(`Day ${day}에 ${spot.name.ko} 추가했어요.`);
+    showToast(`${courseDayLabel(day, draft.startDate)}에 ${spot.name.ko} 추가했어요.`);
   };
   const patchItem = (index: number, change: Partial<PersonalCourseItem>) => {
     const next = items.map((item, i) => (i === index ? { ...item, ...change } : item));
@@ -363,6 +367,55 @@ export function PersonalCourseEditor({
               onChange={(e) => update({ note: e.target.value })}
             />
           </label>
+          <fieldset className="personal-date-range" disabled={!ready}>
+            <legend>
+              여행 날짜 <span>미정이면 비워 두세요</span>
+            </legend>
+            <div className="personal-date-fields">
+              <label>
+                여행 시작일
+                <input
+                  className="input"
+                  type="date"
+                  min="0001-01-01"
+                  max="9999-12-31"
+                  value={draft.startDate ?? ""}
+                  onChange={(event) => changeStartDate(event.target.value)}
+                />
+              </label>
+              <label>
+                여행 종료일
+                <input
+                  className="input"
+                  type="date"
+                  min={draft.startDate ?? "0001-01-01"}
+                  max="9999-12-31"
+                  value={draft.endDate ?? ""}
+                  onChange={(event) => update({ endDate: event.target.value || undefined })}
+                />
+              </label>
+            </div>
+            <div className="personal-date-summary">
+              <p>
+                {dateCount ? `${dateCount}일 여행 · ` : "날짜 미정 · "}출발일을 바꾸면 장소의 일차와
+                방문 순서는 그대로 유지돼요.
+              </p>
+              {(draft.startDate || draft.endDate) && (
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => update({ startDate: undefined, endDate: undefined })}
+                >
+                  날짜 미정으로
+                </button>
+              )}
+            </div>
+            {dateProblem && (
+              <p role="alert" className="notice">
+                {dateProblem}
+              </p>
+            )}
+          </fieldset>
           <div className="personal-plan-options">
             <label>
               이동수단
@@ -395,7 +448,13 @@ export function PersonalCourseEditor({
             </span>
             <button
               className="btn btn-primary"
-              disabled={saving || !draft.items.length || !draft.title.trim()}
+              disabled={
+                !ready ||
+                saving ||
+                !draft.items.length ||
+                !draft.title.trim() ||
+                Boolean(dateProblem)
+              }
               onClick={save}
             >
               {saving ? "저장 중…" : "내 코스 저장"}
@@ -419,22 +478,65 @@ export function PersonalCourseEditor({
           <section className="personal-itinerary" aria-label="내 코스 일정">
             <div className="section-heading">
               <h2>방문 순서</h2>
-              <Select
-                aria-label="편집할 날짜"
+              <CourseDayInput
+                label="편집할 날짜"
                 value={day}
-                onChange={(e) => setDay(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={value}>
-                    Day {value}
-                  </option>
-                ))}
-              </Select>
+                onChange={setDay}
+                startDate={draft.startDate}
+                endDate={draft.endDate}
+                navigation
+                disabled={!ready}
+              />
             </div>
+            <p className="personal-day-label">{courseDayLabel(day, draft.startDate)}</p>
+            {scheduledDays.length > 1 && (
+              <div className="personal-day-shortcuts" aria-label="장소가 있는 날짜">
+                {scheduledDays.map((value) => (
+                  <button
+                    type="button"
+                    className={`chip${value === day ? " brand" : ""}`}
+                    key={value}
+                    aria-pressed={value === day}
+                    onClick={() => setDay(value)}
+                  >
+                    {courseDayLabel(value, draft.startDate)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <fieldset className={dayTimeStyles.panel} disabled={!ready}>
+              <label>
+                이 날짜 출발 시간
+                <input
+                  className="input"
+                  type="time"
+                  value={selectedStartTime}
+                  onChange={(event) => changeDayStartTime(event.target.value)}
+                  aria-describedby="personal-day-start-help"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={!hasDayStartTime}
+                onClick={() => changeDayStartTime("")}
+              >
+                기본 시간 사용
+              </button>
+              <p id="personal-day-start-help">
+                {hasDayStartTime
+                  ? "이 날짜에만 따로 정한 시간이 있어요. 다른 날짜에는 영향을 주지 않아요."
+                  : `따로 정하지 않아 하루 출발 시간 ${draft.startTime}을 사용해요.`}
+              </p>
+            </fieldset>
             <p className="section-description">
-              {draft.startTime} 출발 ·{" "}
+              {selectedStartTime} 출발 ·{" "}
               {{ car: "자동차", transit: "대중교통", walk: "도보" }[draft.transport]} 이동
               추정이에요. 실제 길찾기·운행 시간은 출발 전 확인해 주세요.
+            </p>
+            <p className={dayTimeStyles.scheduleHint}>
+              방문 예정 시각이 있으면 그때까지 여유를 두고, 이동이 늦어지면 도착도 늦춰요. 출발을
+              앞당길 때는 각 장소의 예정 시각도 바꾸거나 비워 주세요.
             </p>
             <ol className="personal-stop-list">
               {items.map(
@@ -455,31 +557,30 @@ export function PersonalCourseEditor({
                         </button>
                       </div>
                       {item.kind === "festival" && (
-                        <Link
+                        <NewTabLink
                           className="text-link"
-                          target="_blank"
                           href={`/festival/${item.refId.replace(/^festival-/, "")}`}
                         >
-                          행사 일정·상세 확인 ↗
-                        </Link>
+                          행사 일정·상세 확인
+                        </NewTabLink>
                       )}
                       {places[item.refId]?.hasAccessibilityInfo && (
-                        <Link className="text-link" href={`/spot/${item.refId}`} target="_blank">
-                          무장애 시설 안내 확인 ↗
-                        </Link>
+                        <NewTabLink className="text-link" href={`/spot/${item.refId}`}>
+                          무장애 시설 안내 확인
+                        </NewTabLink>
                       )}
                       <div className="personal-stop-controls">
-                        <Select
-                          aria-label={`${places[item.refId]?.name.ko} 날짜`}
-                          value={item.day}
-                          onChange={(e) => patchItem(index, { day: Number(e.target.value) })}
-                        >
-                          {[1, 2, 3, 4, 5].map((value) => (
-                            <option key={value} value={value}>
-                              Day {value}
-                            </option>
-                          ))}
-                        </Select>
+                        <label>
+                          방문 날짜
+                          <CourseDayInput
+                            label={`${places[item.refId]?.name.ko} 날짜`}
+                            value={item.day}
+                            onChange={(next) => patchItem(index, { day: next })}
+                            startDate={draft.startDate}
+                            endDate={draft.endDate}
+                            disabled={!ready}
+                          />
+                        </label>
                         <label>
                           머무는 시간
                           <input
@@ -513,6 +614,29 @@ export function PersonalCourseEditor({
                           </button>
                         </div>
                       </div>
+                      <div className={dayTimeStyles.visitTime}>
+                        <label>
+                          방문 예정 시각(선택)
+                          <input
+                            className="input"
+                            type="time"
+                            aria-label={`${places[item.refId]?.name.ko ?? item.refId} 방문 예정 시각`}
+                            value={item.notBeforeTime ?? ""}
+                            onChange={(event) =>
+                              patchItem(index, { notBeforeTime: event.target.value || undefined })
+                            }
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          aria-label={`${places[item.refId]?.name.ko ?? item.refId} 예정 시각 해제`}
+                          disabled={!item.notBeforeTime}
+                          onClick={() => patchItem(index, { notBeforeTime: undefined })}
+                        >
+                          시각 해제
+                        </button>
+                      </div>
                     </li>
                   ),
               )}
@@ -520,7 +644,7 @@ export function PersonalCourseEditor({
             {!items.some((item) => item.day === day) && (
               <div className="empty-state">
                 <Icon.pin />
-                <h3>Day {day}에 가볼 곳을 담아보세요</h3>
+                <h3>{courseDayLabel(day, draft.startDate)}에 가볼 곳을 담아보세요</h3>
                 <p>장소 추가에서 여행지를 찾아 일정을 채워보세요.</p>
                 <button className="btn btn-primary mobile-only" onClick={() => setPanel("search")}>
                   가볼 곳 추가
@@ -537,18 +661,22 @@ export function PersonalCourseEditor({
           <section className="personal-search card" aria-label="코스에 장소 추가">
             <div className="section-heading">
               <h2>가볼 곳 추가</h2>
-              <Select
-                aria-label="장소를 추가할 날짜"
+              <CourseDayInput
+                label="장소를 추가할 날짜"
                 value={day}
-                onChange={(e) => setDay(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={value}>
-                    Day {value}
-                  </option>
-                ))}
-              </Select>
+                onChange={setDay}
+                startDate={draft.startDate}
+                endDate={draft.endDate}
+                navigation
+                disabled={!ready}
+              />
             </div>
+            <p className="personal-day-label">{courseDayLabel(day, draft.startDate)}에 추가해요</p>
+            {selectedDayProblem && (
+              <p role="alert" className="notice">
+                {selectedDayProblem}
+              </p>
+            )}
             <Select
               aria-label="추가할 장소 종류"
               value={searchKind}
@@ -628,23 +756,21 @@ export function PersonalCourseEditor({
                           {spot.hasAccessibilityInfo ? " · 무장애 안내" : ""}
                         </small>
                         {spot.kind === "spot" ? (
-                          <Link href={`/spot/${spot.id}`} target="_blank" className="text-link">
-                            상세 보기 ↗
-                          </Link>
+                          <NewTabLink href={`/spot/${spot.id}`} className="text-link">
+                            상세 보기
+                          </NewTabLink>
                         ) : (
-                          <a
+                          <ExternalLink
                             href={`https://map.kakao.com/link/search/${encodeURIComponent(`${spot.region.ko} ${spot.name.ko}`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             className="text-link"
                           >
-                            영업·예약 정보 ↗
-                          </a>
+                            카카오맵 · 영업·예약 정보
+                          </ExternalLink>
                         )}
                       </div>
                       <button
                         className="btn btn-secondary btn-sm"
-                        disabled={added || saving}
+                        disabled={!ready || added || saving || Boolean(selectedDayProblem)}
                         aria-label={`${spot.name.ko} 추가`}
                         onClick={() => add(spot)}
                       >
@@ -721,7 +847,9 @@ export function PersonalCourseEditor({
           </span>
           <button
             className="btn btn-primary"
-            disabled={saving || !draft.items.length || !draft.title.trim()}
+            disabled={
+              !ready || saving || !draft.items.length || !draft.title.trim() || Boolean(dateProblem)
+            }
             onClick={save}
           >
             {saving ? "저장 중…" : "내 코스 저장"}

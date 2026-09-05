@@ -1,5 +1,6 @@
 "use client";
 import { Select } from "@/components/select";
+import { ThemeQueryInput } from "@/components/theme-query-input";
 
 import Link from "next/link";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -71,15 +72,13 @@ export function HomeView({
             }}
           >
             <Icon.sparkle />
-            <textarea
-              rows={2}
+            <ThemeQueryInput
               aria-label="여행 목적"
               disabled={!ready}
               value={prompt}
               maxLength={INTENT_QUERY_MAX_LENGTH}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="예) 속초에서 부모님과 바다 보고 시장 구경"
-              enterKeyHint="search"
             />
             <button
               type="submit"

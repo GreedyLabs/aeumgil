@@ -1,7 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { getRepository } from "@/data";
 import { PersonalCourseEditor, type EditorPlace } from "@/components/screens/personal-course";
-import { toPersonalItems, type PersonalCourseInput } from "@/domain/personal-course";
+import {
+  toPersonalItems,
+  toPersonalDayStartTimes,
+  type PersonalCourseInput,
+} from "@/domain/personal-course";
 import { parseCourseOptions } from "@/domain/course-options";
 
 export default async function PersonalCoursePage({
@@ -45,8 +49,9 @@ export default async function PersonalCoursePage({
       title: `${course.title.ko} · 나의 코스`.slice(0, 60),
       note: "",
       items: toPersonalItems(course.items),
-      transport: parseCourseOptions(query).transport ?? "car",
+      transport: course.appliedOptions?.transport ?? parseCourseOptions(query).transport ?? "car",
       startTime: course.items[0]?.time ?? "09:30",
+      dayStartTimes: toPersonalDayStartTimes(course.items),
     };
   } else if (query.festival) {
     const festival = await repo.getFestival(query.festival);

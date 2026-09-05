@@ -1,4 +1,5 @@
 "use client";
+import { ExternalLink, externalLinkIconHtml } from "@/components/external-link";
 import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import type { CourseMapStop, CourseRouteLeg } from "@/domain/course-map";
@@ -28,10 +29,12 @@ export function CourseMap({
           touchZoom: true,
         });
         map.current = instance;
+        instance.attributionControl.setPrefix(
+          `<a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer" aria-label="Leaflet (외부 사이트, 새 탭에서 열림)" title="외부 사이트, 새 탭에서 열림">Leaflet${externalLinkIconHtml}</a>`,
+        );
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 18,
-          attribution:
-            '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> 기여자',
+          attribution: `© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="OpenStreetMap (외부 사이트, 새 탭에서 열림)" title="외부 사이트, 새 탭에서 열림">OpenStreetMap${externalLinkIconHtml}</a> 기여자`,
         }).addTo(instance);
         stops.forEach((stop, i) => {
           const popup = document.createElement("div");
@@ -144,13 +147,11 @@ export function CourseMap({
                     {leg
                       ? `약 ${leg.minutes}분 · ${leg.distanceKm.toFixed(1)}km${leg.source === "approx" ? " (좌표 기반 추정)" : " (자동차 경로 조회)"}`
                       : "구간 이동 정보 확인 필요"}
-                    <a
+                    <ExternalLink
                       href={`https://map.kakao.com/link/from/${encodeURIComponent(stop.name)},${stop.lat},${stop.lon}/to/${encodeURIComponent(next.name)},${next.lat},${next.lon}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
                     >
-                      길찾기 ↗
-                    </a>
+                      길찾기
+                    </ExternalLink>
                   </div>
                 )}
               </li>

@@ -1,0 +1,1417 @@
+[
+  {
+    "id": "journey-wonju-art-weekend",
+    "title": "원주 · 문학과 미술을 잇는 1박 2일",
+    "subtitle": "오후에 만나는 시내 문화, 다음 날 계곡 전망과 미술관",
+    "tag": "문화·자연",
+    "mood": ["문학", "미술관", "부모님", "숲"],
+    "hue": 190,
+    "blurb": "박경리의 문학과 한지 체험에서 시작해 소금산 전망과 뮤지엄산 전시를 나눠 봐요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 30분까지 관광을 마쳐요. 소금산 계단·긴 보행과 전시·명상 프로그램 예약을 확인하세요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 원주 문화와 자연",
+        "url": "https://access.visitkorea.or.kr/cos/detail.do?cotId=2b856e97-4af4-4f03-9a2a-6ee2fcab8c30"
+      }
+    ],
+    "days": [
+      {
+        "title": "문학과 한지의 오후",
+        "note": "점심 후 도착해 실내외 문화 공간에 머물러요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-128230",
+            "name": "박경리문학공원",
+            "region": "원주",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-2470366",
+            "name": "원주한지테마파크",
+            "region": "원주",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "계곡 전망과 미술관",
+        "note": "긴 보행 뒤 전시를 관람하고 일찍 귀가할 여유를 남겨요.",
+        "startTime": "09:00",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2800692",
+            "name": "소금산그랜드밸리",
+            "region": "원주",
+            "durationMin": 150
+          },
+          {
+            "id": "tour-2633832",
+            "name": "뮤지엄산",
+            "region": "원주",
+            "durationMin": 120
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-jeongseon-culture-three-days",
+    "title": "정선 · 강마을과 탄광 예술 2박 3일",
+    "subtitle": "여량에서 정선읍, 화암·고한으로 내려가는 문화 여행",
+    "tag": "문화·체험",
+    "mood": ["정선", "레일바이크", "시장", "동굴", "예술"],
+    "hue": 145,
+    "blurb": "레일바이크와 강마을, 시장과 탄광 예술을 서로 다른 날에 만나요. 산악 지역을 서둘러 왕복하지 않는 일정이에요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 30분 관광 종료예요. 레일바이크 회차·차량 회수, 동굴 관람 시간을 확인하세요. 정선 장날은 2·7일이며 공연은 기본 일정에 포함하지 않아요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "정선군 · 드라마틱 정선 2박 3일",
+        "url": "https://www.jeongseon.go.kr/tour/jeongseontour/travelstory/threeday"
+      },
+      {
+        "title": "정선군 · 정선 여행 3일차",
+        "url": "https://www.jeongseon.go.kr/tour/jeongseontour/travelstory/threeday/third"
+      }
+    ],
+    "days": [
+      {
+        "title": "여량 강마을의 오후",
+        "note": "예약한 레일바이크 회차에 맞춰 출발 시각을 조정하세요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-1936389",
+            "name": "정선레일바이크",
+            "region": "정선",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-125777",
+            "name": "아우라지",
+            "region": "정선",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "정선읍의 전망과 생활",
+        "note": "시장 먹거리와 전통 가옥을 넉넉히 둘러봐요.",
+        "startTime": "09:30",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1842210",
+            "name": "병방치 스카이워크",
+            "region": "정선",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-132003",
+            "name": "정선 아리랑시장·정선 5일장(2, 7일)",
+            "region": "정선",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2414753",
+            "name": "아라리촌",
+            "region": "정선",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "동굴에서 탄광 예술로",
+        "note": "동굴 계단과 미술관 관람 시간을 확보하고 귀가해요.",
+        "startTime": "09:00",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-128661",
+            "name": "화암동굴 (강원고생대 국가지질공원)",
+            "region": "정선",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-2470392",
+            "name": "삼탄아트마인",
+            "region": "정선",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-mountains-to-sea-five-days",
+    "title": "정선·태백·동해 · 산에서 바다로 4박 5일",
+    "subtitle": "강마을과 산업유산을 거쳐 해안에서 마무리하는 긴 휴가",
+    "tag": "문화·자연",
+    "mood": ["문화", "산업유산", "박물관", "바다", "가족", "장기여행"],
+    "hue": 165,
+    "blurb": "정선 북부에서 태백의 산업유산으로 이동하고, 마지막 날 동해의 해안에서 여행을 마무리해요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 관광 종료예요. 공식 5일 상품이 아닌 에움길 연결 제안이에요. 마지막 날 태백에서 동해로 이동할 시간을 따로 남겼고 야시장·야간관측·겨울 산행은 포함하지 않았어요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "정선군 · 드라마틱 정선 2박 3일",
+        "url": "https://www.jeongseon.go.kr/tour/jeongseontour/travelstory/threeday"
+      },
+      {
+        "title": "정선군 · 정선 여행 3일차",
+        "url": "https://www.jeongseon.go.kr/tour/jeongseontour/travelstory/threeday/third"
+      },
+      {
+        "title": "한국관광공사 · 태백 체험·산업유산",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=e70c325c-1492-418d-b72d-3b533ad6a33d"
+      },
+      {
+        "title": "동해시 · 추천 여행 코스",
+        "url": "https://www.dh.go.kr/tour/index.do"
+      }
+    ],
+    "days": [
+      {
+        "title": "정선 강마을의 오후",
+        "note": "레일바이크 회차와 차량 회수를 확인하세요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-1936389",
+            "name": "정선레일바이크",
+            "region": "정선",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-125777",
+            "name": "아우라지",
+            "region": "정선",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "정선읍과 화암동굴",
+        "note": "장날 여부를 따로 확인하고 동굴 관람은 충분히 잡아요.",
+        "startTime": "09:30",
+        "endTime": "18:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1842210",
+            "name": "병방치 스카이워크",
+            "region": "정선",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-132003",
+            "name": "정선 아리랑시장·정선 5일장(2, 7일)",
+            "region": "정선",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-128661",
+            "name": "화암동굴 (강원고생대 국가지질공원)",
+            "region": "정선",
+            "durationMin": 120
+          }
+        ]
+      },
+      {
+        "title": "탄광 예술에서 생활사로",
+        "note": "고한과 철암의 두 공간에서 탄광 이야기를 만나요.",
+        "startTime": "10:00",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2470392",
+            "name": "삼탄아트마인",
+            "region": "정선",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-2524183",
+            "name": "철암탄광역사촌",
+            "region": "태백",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "태백의 지질과 연못",
+        "note": "구문소 지형과 실내 박물관은 다른 활동이며 연못에서 쉬어가요.",
+        "startTime": "09:30",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1337616",
+            "name": "태백 고생대 자연사박물관",
+            "region": "태백",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-127537",
+            "name": "구문소 (강원고생대 국가지질공원)",
+            "region": "태백",
+            "durationMin": 45
+          },
+          {
+            "id": "tour-125740",
+            "name": "황지연못",
+            "region": "태백",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "동해 바다에서 귀가",
+        "note": "태백 숙소에서 해안으로 이동한 뒤 10시 30분에 관광을 시작해요.",
+        "startTime": "10:30",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-129000",
+            "name": "추암 촛대바위",
+            "region": "동해",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-1223212",
+            "name": "동해 논골담길(등대 담화마을)",
+            "region": "동해",
+            "durationMin": 75
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-sokcho-culture-weekend",
+    "title": "속초 · 바다와 실향민 문화 1박 2일",
+    "subtitle": "늦은 오후에 도착해도 괜찮은 도심 해안 여행",
+    "tag": "바다·문화",
+    "mood": ["해변", "부모님", "박물관", "호수"],
+    "hue": 210,
+    "blurb": "영금정과 아바이마을의 이야기를 듣고, 다음 날 해변과 호수 전망·박물관을 돌아봐요.",
+    "planningNote": "첫날 14시 도착, 마지막 날 15시 30분까지 관광해요. 갯배 운항과 영금정 계단·경사를 확인하세요. 일출 시간에 맞춘 상품은 아니에요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 속초 문화·바다 1박 2일",
+        "url": "https://access.visitkorea.or.kr/cos/detail.do?cotId=053d6668-96da-4d26-89ae-0322669bdd13"
+      }
+    ],
+    "days": [
+      {
+        "title": "항구 풍경과 아바이마을",
+        "note": "오후 바다를 본 뒤 마을 골목을 천천히 걸어요.",
+        "startTime": "14:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-125779",
+            "name": "영금정",
+            "region": "속초",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-251738",
+            "name": "아바이마을",
+            "region": "속초",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "해변과 호수, 생활사",
+        "note": "박물관 관람 뒤 귀가 시간을 남겨요.",
+        "startTime": "09:30",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-125707",
+            "name": "속초해수욕장",
+            "region": "속초",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-128804",
+            "name": "속초 엑스포타워",
+            "region": "속초",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-130895",
+            "name": "속초시립박물관·속초실향민문화촌",
+            "region": "속초",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-coast-art-four-days",
+    "title": "강릉·동해·삼척 · 해안 예술 휴가 3박 4일",
+    "subtitle": "북쪽에서 남쪽으로 숙박 거점을 옮기는 바다 여행",
+    "tag": "바다·문화",
+    "mood": ["바다", "미술관", "사진", "가족", "장기여행"],
+    "hue": 200,
+    "blurb": "경포의 전시, 정동진의 풍경, 묵호의 골목, 삼척의 바다를 각각 다른 날에 만나요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 30분 관광 종료 기준이에요. 공식 4일 상품이 아닌 여러 지역의 공식 장소를 연결한 에움길 제안이에요. 레일바이크 회차와 미술관 휴관, 해양 날씨를 확인하세요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 강릉 숲·커피·문화",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=97b855a3-e248-487b-aa32-1c4a2c14474d"
+      },
+      {
+        "title": "한국관광공사 · 강릉 바다·체험 여행",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=142b3510-d68c-44c2-97b3-2a2370d6f4df"
+      },
+      {
+        "title": "동해시 · 추천 여행 코스",
+        "url": "https://www.dh.go.kr/tour/index.do"
+      },
+      {
+        "title": "한국관광공사 · 삼척·동해 2박 3일",
+        "url": "https://access.visitkorea.or.kr/cos/detail.do?cotId=b631feed-b945-4fa2-9ecd-c050af56215b"
+      }
+    ],
+    "days": [
+      {
+        "title": "경포권의 고택과 전시",
+        "note": "장거리 이동 후 전시 두 곳에 집중해요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-125800",
+            "name": "강릉 선교장",
+            "region": "강릉",
+            "durationMin": 75
+          },
+          {
+            "id": "tour-2804197",
+            "name": "아르떼뮤지엄 강릉",
+            "region": "강릉",
+            "durationMin": 120
+          }
+        ]
+      },
+      {
+        "title": "강릉 남쪽의 예술과 해변",
+        "note": "정동진권에서 여유롭게 머물고 다음 날 동해로 이동해요.",
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-127951",
+            "name": "하슬라아트월드",
+            "region": "강릉",
+            "durationMin": 150
+          },
+          {
+            "id": "tour-130878",
+            "name": "정동진시간박물관",
+            "region": "강릉",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-128757",
+            "name": "정동진해변",
+            "region": "강릉",
+            "durationMin": 45
+          }
+        ]
+      },
+      {
+        "title": "묵호와 추암의 해안",
+        "note": "항구 골목을 본 뒤 남쪽 해안으로 내려가요.",
+        "startTime": "09:30",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1223212",
+            "name": "동해 논골담길(등대 담화마을)",
+            "region": "동해",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2711035",
+            "name": "도째비골스카이밸리",
+            "region": "동해",
+            "durationMin": 75
+          },
+          {
+            "id": "tour-129000",
+            "name": "추암 촛대바위",
+            "region": "동해",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "삼척 바다에서 마무리",
+        "note": "바다 체험을 추가하면 귀가 시간을 다시 확인하세요.",
+        "startTime": "09:00",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1945438",
+            "name": "삼척 해양레일바이크",
+            "region": "삼척",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-125711",
+            "name": "장호해변·장호항",
+            "region": "삼척",
+            "durationMin": 60
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-chuncheon-family-weekend",
+    "title": "춘천 · 아이와 오래 머무는 1박 2일",
+    "subtitle": "첫날 체험과 목장, 다음 날은 놀이공원에 집중",
+    "tag": "가족·체험",
+    "mood": ["아이", "놀이공원", "목장", "박물관"],
+    "hue": 98,
+    "blurb": "작은 체험을 여럿 둘러보는 날과 놀이공원에 오래 머무는 날을 나눠요. 같은 한 시간을 모든 장소에 배정하지 않았어요.",
+    "planningNote": "첫날 점심을 마치고 12시 도착, 다음 날 15시 30분 관광 종료 기준이에요. 레고랜드는 5시간 체류, 체험박물관은 프로그램 예약과 휴관일을 확인하세요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "춘천시 · 가족 1박 2일",
+        "url": "https://www.chuncheon.go.kr/tour/destination/recommendation/tour-list-02/type03/"
+      }
+    ],
+    "days": [
+      {
+        "title": "박물관과 목장의 반나절",
+        "note": "체험 예약이 겹치면 한 곳을 빼고 목장에 더 머물러도 좋아요.",
+        "startTime": "12:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-130472",
+            "name": "춘천 애니메이션박물관·토이로봇관",
+            "region": "춘천",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2590796",
+            "name": "해피초원목장",
+            "region": "춘천",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-130908",
+            "name": "춘천막국수체험박물관",
+            "region": "춘천",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "레고랜드에 오래 머물기",
+        "note": "놀이공원 개장 시각에 맞춰 시작하고 내부 점심·휴식을 포함해 5시간 머물러요.",
+        "startTime": "10:00",
+        "endTime": "16:30",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-2815362",
+            "name": "레고랜드 코리아 리조트",
+            "region": "춘천",
+            "durationMin": 300
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-yeongwol-art-weekend",
+    "title": "영월 · 박물관과 지형을 잇는 1박 2일",
+    "subtitle": "남동부 박물관에서 주천의 예술 공간까지",
+    "tag": "문화·지질",
+    "mood": ["미술관", "박물관", "부부", "풍경"],
+    "hue": 28,
+    "blurb": "첫날 두 박물관에 충분히 머물고 다음 날 한반도 지형과 예술 공간으로 이동해요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 16시까지 관광해요. 박물관 휴관·마감과 전망대 보행을 확인하세요. 모든 전시를 꼼꼼히 보면 개인 코스로 하루 더 늘릴 수 있어요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "영월군 · 미술·박물관 1박 2일",
+        "url": "https://www.yw.go.kr/tour/contents.do?key=1010"
+      }
+    ],
+    "days": [
+      {
+        "title": "미술을 만나는 오후",
+        "note": "두 전시의 관람 시간과 이동 여유를 확보했어요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-130309",
+            "name": "조선민화박물관",
+            "region": "영월",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-1398051",
+            "name": "영월아프리카미술박물관",
+            "region": "영월",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "지형과 현대미술",
+        "note": "전망대와 전시를 연결하되 도로 이동은 별도로 확인하세요.",
+        "startTime": "09:00",
+        "endTime": "16:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-779594",
+            "name": "한반도지형(강원고생대 국가지질공원)",
+            "region": "영월",
+            "durationMin": 75
+          },
+          {
+            "id": "tour-2633903",
+            "name": "젊은달 와이파크",
+            "region": "영월",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-1937324",
+            "name": "인도미술박물관",
+            "region": "영월",
+            "durationMin": 75
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-samcheok-donghae-three-days",
+    "title": "삼척·동해 · 바다와 동굴 2박 3일",
+    "subtitle": "삼척 남부에서 동해 항구로 올라가는 해안 여행",
+    "tag": "바다·가족",
+    "mood": ["바다", "레일바이크", "동굴", "사진"],
+    "hue": 198,
+    "blurb": "장호의 바다 체험과 해안 공원, 동굴과 항구 골목을 날로 나눠 북쪽으로 이동해요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 30분 관광 종료예요. 레일바이크 회차·셔틀, 해양 체험의 기상 조건과 동굴 계단을 확인하세요. 장미 개화는 보장하지 않아요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 삼척·동해 2박 3일",
+        "url": "https://access.visitkorea.or.kr/cos/detail.do?cotId=b631feed-b945-4fa2-9ecd-c050af56215b"
+      }
+    ],
+    "days": [
+      {
+        "title": "장호와 해양레일바이크",
+        "note": "장호에서는 해변·항구 산책 기준이며 수상 체험을 추가하면 시간을 늘리세요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-125711",
+            "name": "장호해변·장호항",
+            "region": "삼척",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-1945438",
+            "name": "삼척 해양레일바이크",
+            "region": "삼척",
+            "durationMin": 120
+          }
+        ]
+      },
+      {
+        "title": "공원과 추암의 해안",
+        "note": "추암 해변과 촛대바위는 같은 방문 권역으로 한 번만 잡았어요.",
+        "startTime": "09:30",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2613673",
+            "name": "삼척장미공원",
+            "region": "삼척",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-1385338",
+            "name": "이사부사자공원&그림책 나라",
+            "region": "삼척",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-129000",
+            "name": "추암 촛대바위",
+            "region": "동해",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "동굴과 항구 골목",
+        "note": "천곡 동굴을 둘러본 뒤 논골담길에서 마무리해요.",
+        "startTime": "09:30",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-126666",
+            "name": "천곡황금박쥐동굴",
+            "region": "동해",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-1223212",
+            "name": "동해 논골담길(등대 담화마을)",
+            "region": "동해",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-gangneung-family-three-days",
+    "title": "강릉 · 남쪽 바다에서 경포까지 2박 3일",
+    "subtitle": "정동진 체험, 예술 공간, 경포 산책을 나눈 가족 여행",
+    "tag": "가족·바다",
+    "mood": ["바다", "가족", "미술관", "레일바이크"],
+    "hue": 218,
+    "blurb": "정동진권에서 머문 뒤 경포권으로 올라가요. 남쪽과 북쪽을 하루 안에 반복 이동하지 않는 일정이에요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 관광 종료예요. 레일바이크 예약과 미술관 경사·객차 단차를 확인하세요. 체험센터 프로그램은 운영 여부를 직접 확인해 선택해요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 강릉 바다·체험 여행",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=142b3510-d68c-44c2-97b3-2a2370d6f4df"
+      }
+    ],
+    "days": [
+      {
+        "title": "정동진 체험의 오후",
+        "note": "정동진해변은 레일바이크를 타며 보는 같은 권역이라 별도 필수 장소로 세지 않았어요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-2396259",
+            "name": "정동진 레일바이크",
+            "region": "강릉",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-130878",
+            "name": "정동진시간박물관",
+            "region": "강릉",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "예술에서 호수로",
+        "note": "하슬라 전시와 야외 공간을 충분히 둘러본 뒤 경포로 이동해요.",
+        "startTime": "09:30",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-127951",
+            "name": "하슬라아트월드",
+            "region": "강릉",
+            "durationMin": 150
+          },
+          {
+            "id": "tour-127975",
+            "name": "경포호(철새도래지)",
+            "region": "강릉",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "경포 해변과 생태 체험",
+        "note": "해변 산책과 체험센터를 고른 뒤 여유 있게 귀가해요.",
+        "startTime": "09:30",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-128758",
+            "name": "경포해수욕장",
+            "region": "강릉",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-2465063",
+            "name": "강릉 녹색도시체험센터",
+            "region": "강릉",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-cheorwon-gorge-weekend",
+    "title": "철원 · 협곡과 근현대 풍경 1박 2일",
+    "subtitle": "한탄강 보행은 길게, 다음 날 옛 시가지는 여유롭게",
+    "tag": "걷기·역사",
+    "mood": ["걷기", "협곡", "역사", "사진"],
+    "hue": 140,
+    "blurb": "협곡길 보행과 옛 시가지의 역사를 다른 날에 둘러봐요. 짧은 전망대 방문과 긴 걷기의 체류시간을 구분했어요.",
+    "planningNote": "첫날 12시 30분 도착, 마지막 날 15시 30분 관광 종료예요. 주상절리길은 출발·도착 매표소와 차량 회수·셔틀을 확인하세요. 겨울 물윗길과는 다른 시설이에요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 철원 협곡·역사 1박 2일",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=a9947a6d-e007-47b9-8bf8-c45403b26272"
+      }
+    ],
+    "days": [
+      {
+        "title": "협곡길과 고석정",
+        "note": "점심을 마친 뒤 협곡길을 걸어요. 모노레일은 다음 날에 배치했어요.",
+        "startTime": "12:30",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-2760361",
+            "name": "철원 한탄강 주상절리길(잔도)",
+            "region": "철원",
+            "durationMin": 180
+          },
+          {
+            "id": "tour-125782",
+            "name": "고석정국민관광지",
+            "region": "철원",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "옛 철원의 거리",
+        "note": "서로 가까운 역사 장소를 걷되 모노레일 회차와 대기시간을 확인하세요.",
+        "startTime": "09:30",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-3072021",
+            "name": "철원역사문화공원",
+            "region": "철원",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-3072022",
+            "name": "소이산 모노레일",
+            "region": "철원",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-264485",
+            "name": "철원 노동당사",
+            "region": "철원",
+            "durationMin": 45
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-donghae-harbor-weekend",
+    "title": "동해 · 항구 골목과 계곡 1박 2일",
+    "subtitle": "오후 묵호 골목, 다음 날 해안과 무릉계곡",
+    "tag": "바다·산책",
+    "mood": ["사진", "바다", "골목", "계곡"],
+    "hue": 180,
+    "blurb": "묵호의 골목과 전망 공간을 둘러보고, 추암 해안과 무릉계곡에서 다른 풍경을 만나요.",
+    "planningNote": "첫날 14시 도착, 마지막 날 16시 관광 종료예요. 무릉계곡은 가벼운 왕복 산책 범위이며 용추폭포 전체 산행은 포함하지 않아요. 일출 방문 시각을 보장하는 일정은 아니에요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "동해시 · 추천 여행 코스",
+        "url": "https://www.dh.go.kr/tour/index.do"
+      }
+    ],
+    "days": [
+      {
+        "title": "묵호 골목의 오후",
+        "note": "골목 계단과 전망시설 운영을 살핀 뒤 일찍 숙소로 이동해요.",
+        "startTime": "14:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-1223212",
+            "name": "동해 논골담길(등대 담화마을)",
+            "region": "동해",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2711035",
+            "name": "도째비골스카이밸리",
+            "region": "동해",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "추암에서 무릉계곡으로",
+        "note": "계곡 입구와 원하는 산책 구간을 정하고 돌아올 시간을 확보하세요.",
+        "startTime": "09:30",
+        "endTime": "16:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-129000",
+            "name": "추암 촛대바위",
+            "region": "동해",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-125677",
+            "name": "무릉계곡",
+            "region": "동해",
+            "durationMin": 150
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-gangneung-art-weekend",
+    "title": "강릉 · 숲과 커피, 미술 1박 2일",
+    "subtitle": "오후 숲 산책과 도심, 다음 날 커피와 전시",
+    "tag": "문화·카페",
+    "mood": ["숲", "카페", "커피", "미술관", "연인"],
+    "hue": 35,
+    "blurb": "솔향수목원의 숲과 도심 거리를 먼저 만나고, 다음 날 커피거리와 전시를 여유롭게 둘러봐요.",
+    "planningNote": "첫날 13시 30분 도착, 마지막 날 15시 30분 관광 종료예요. 수목원 야간 개장이나 특정 카페 예약을 전제하지 않아요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 강릉 숲·커피·문화",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=97b855a3-e248-487b-aa32-1c4a2c14474d"
+      }
+    ],
+    "days": [
+      {
+        "title": "숲에서 도심까지",
+        "note": "점심 후 숲을 걷고 월화거리에서 강릉의 저녁을 준비해요.",
+        "startTime": "13:30",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-2414769",
+            "name": "강릉 솔향수목원",
+            "region": "강릉",
+            "durationMin": 120
+          },
+          {
+            "id": "tour-2588752",
+            "name": "강릉 월화거리",
+            "region": "강릉",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "커피와 고택, 전시",
+        "note": "방문할 카페는 개인 코스에서 골라 추가할 수 있어요.",
+        "startTime": "09:00",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2414791",
+            "name": "강릉커피거리",
+            "region": "강릉",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-125800",
+            "name": "강릉 선교장",
+            "region": "강릉",
+            "durationMin": 75
+          },
+          {
+            "id": "tour-2804197",
+            "name": "아르떼뮤지엄 강릉",
+            "region": "강릉",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-taebaek-family-weekend",
+    "title": "태백 · 안전 체험과 탄광 이야기 1박 2일",
+    "subtitle": "긴 체험에 집중하는 오후, 다음 날 지질과 생활사",
+    "tag": "가족·산업유산",
+    "mood": ["아이", "체험", "지질", "박물관"],
+    "hue": 45,
+    "blurb": "태백의 체험 시설과 산업유산을 나누어 봐요. 계절 야시장 대신 연못과 상설 전시를 기준으로 구성했어요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 관광 종료예요. 365세이프타운 프로그램별 연령·예약과 소요시간을 확인하세요. 야시장은 기본 일정에 포함하지 않아요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 태백 체험·산업유산",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=e70c325c-1492-418d-b72d-3b533ad6a33d"
+      }
+    ],
+    "days": [
+      {
+        "title": "안전 체험 뒤 연못 산책",
+        "note": "체험을 충분히 즐긴 뒤 연못을 짧게 둘러봐요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-1762763",
+            "name": "태백 365세이프타운",
+            "region": "태백",
+            "durationMin": 180
+          },
+          {
+            "id": "tour-125740",
+            "name": "황지연못",
+            "region": "태백",
+            "durationMin": 45
+          }
+        ]
+      },
+      {
+        "title": "지질과 탄광 생활사",
+        "note": "구문소 지형 관찰과 박물관 전시는 서로 다른 활동으로 시간을 나눴어요.",
+        "startTime": "09:00",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-127537",
+            "name": "구문소 (강원고생대 국가지질공원)",
+            "region": "태백",
+            "durationMin": 45
+          },
+          {
+            "id": "tour-1337616",
+            "name": "태백 고생대 자연사박물관",
+            "region": "태백",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2524183",
+            "name": "철암탄광역사촌",
+            "region": "태백",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-inje-circuit-forest-weekend",
+    "title": "인제 · 서킷과 자작나무숲 1박 2일",
+    "subtitle": "체험 한 곳에 오래 머무는 활동적인 주말",
+    "tag": "체험·숲",
+    "mood": ["드라이브", "서킷", "자작나무", "숲", "활동"],
+    "hue": 132,
+    "blurb": "서킷 체험에 반나절을 쓰고 다음 날 자작나무숲과 만해마을로 이어가요. 장소 수를 늘리기보다 활동의 길이를 반영했어요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 16시 관광 종료예요. 서킷 회차·면허·참가 조건과 자작나무숲 산불 통제·입산 마감을 확인하세요. 공식 기사에서 함께 소개한 만해마을을 숲과 연결해 재구성했어요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 인제 서킷과 자작나무숲",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=9ce7d269-8aff-4c8c-b3eb-aa1c77378a45"
+      }
+    ],
+    "days": [
+      {
+        "title": "서킷에서 보내는 오후",
+        "note": "사전 예약한 체험 일정이 4시간과 다르면 체류시간을 바꾸세요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-2018223",
+            "name": "인제스피디움 서킷",
+            "region": "인제",
+            "durationMin": 240
+          }
+        ]
+      },
+      {
+        "title": "숲과 문학마을",
+        "note": "자작나무숲은 입구부터 왕복 보행을 포함한 시간이에요.",
+        "startTime": "09:00",
+        "endTime": "16:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-1818945",
+            "name": "원대리 자작나무 숲 (속삭이는 자작나무 숲)",
+            "region": "인제",
+            "durationMin": 180
+          },
+          {
+            "id": "tour-128775",
+            "name": "만해마을",
+            "region": "인제",
+            "durationMin": 75
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-goseong-lakes-weekend",
+    "title": "고성 · 호수와 북쪽 바다 1박 2일",
+    "subtitle": "화진포·송지호에서 시작해 아야진으로 내려오는 주말",
+    "tag": "호수·바다",
+    "mood": ["바다", "호수", "사진", "부모님"],
+    "hue": 190,
+    "blurb": "군 통제 구간을 넣지 않고 북쪽 호수와 남쪽 해변을 서로 다른 날에 둘러봐요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 관광 종료예요. 통일전망대·DMZ 출입이나 계절 꽃 개화를 전제하지 않아요. 호수는 일부 구간 산책이며 전체 둘레길 종주는 아니에요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 고성 호수와 해변",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=b1ca1034-0625-4c05-9631-114ec8023096"
+      }
+    ],
+    "days": [
+      {
+        "title": "북쪽 호수의 오후",
+        "note": "화진포를 둘러본 뒤 남쪽 송지호로 이동해요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-125706",
+            "name": "화진포(강원평화지역 국가지질공원)",
+            "region": "고성",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-925616",
+            "name": "송지호관망타워",
+            "region": "고성",
+            "durationMin": 60
+          }
+        ]
+      },
+      {
+        "title": "정자와 아야진 해변",
+        "note": "해안의 가까운 세 장소를 둘러보고 이른 오후에 귀가해요.",
+        "startTime": "09:30",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-126791",
+            "name": "천학정",
+            "region": "고성",
+            "durationMin": 45
+          },
+          {
+            "id": "tour-125684",
+            "name": "아야진해변",
+            "region": "고성",
+            "durationMin": 75
+          },
+          {
+            "id": "tour-125796",
+            "name": "청간정",
+            "region": "고성",
+            "durationMin": 45
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-yanggu-art-forest-weekend",
+    "title": "양구 · 예술과 생태 1박 2일",
+    "subtitle": "박수근의 그림, 숲, 산양과 백자 이야기",
+    "tag": "예술·생태",
+    "mood": ["박물관", "숲", "가족", "미술관"],
+    "hue": 122,
+    "blurb": "박수근미술관과 광치의 숲에서 하루를 보내고 다음 날 산양·사향노루센터와 백자박물관을 만나요.",
+    "planningNote": "둘째 날 점심 식당은 귀가 동선에 맞춰 별도로 정해주세요. 첫날 13시 도착, 마지막 날 15시 30분 관광 종료예요. 동물 관찰·전시 프로그램 운영을 보장하지 않으며 두타연 통제구역과 야간 천문대는 제외했어요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 양구 문화·생태 여행",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=99a22a4f-96ae-4367-9ba0-394fe8378123"
+      },
+      {
+        "title": "한국관광공사 · 양구백자박물관",
+        "url": "https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=85fc4f38-4983-4f2b-8b5b-313215653ab2"
+      },
+      {
+        "title": "한국관광공사 · 양구 예술과 숲",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=b8325acf-20dc-4d7d-871f-2a048ffa3239"
+      }
+    ],
+    "days": [
+      {
+        "title": "그림과 숲의 오후",
+        "note": "박물관 휴관일과 휴양림 이용 조건을 확인하세요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-130493",
+            "name": "박수근미술관",
+            "region": "양구",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-1089831",
+            "name": "광치자연휴양림",
+            "region": "양구",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "생태와 백자",
+        "note": "생태 시설 개방 여부를 확인하고 전시 관람 뒤 귀가해요. 둘째 날 점심 식당은 귀가 동선에 맞춰 별도로 정해주세요.",
+        "startTime": "09:30",
+        "endTime": "15:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2714534",
+            "name": "양구 산양·사향노루센터",
+            "region": "양구",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-731454",
+            "name": "양구백자박물관",
+            "region": "양구",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-pyeongchang-literature-three-days",
+    "title": "평창 · 문학과 산사에 머무는 2박 3일",
+    "subtitle": "봉평의 전시에서 월정사·오대산 숲으로",
+    "tag": "문학·숲",
+    "mood": ["문학", "숲", "사찰", "부부", "힐링"],
+    "hue": 150,
+    "blurb": "봉평의 문학과 예술을 하루에 보고, 오대산의 사찰과 숲에는 별도의 날을 남겨두어요.",
+    "planningNote": "셋째 날 점심 식당은 사찰 관람 후 별도로 정해주세요. 첫날 13시 도착, 마지막 날 15시까지 관광해요. 월정사와 전나무숲은 한 방문 권역으로 합쳤어요. 선재길 전체 종주·적멸보궁 산행은 제외하고 사찰 진입·셔틀·입산 통제를 확인하세요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 평창 문학·산사 여행",
+        "url": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=9423a351-ec40-4cbb-a92b-984e6e6264da"
+      },
+      {
+        "title": "한국관광공사 · 오대산 숲길",
+        "url": "https://korean.visitkorea.or.kr/detail/cs_detail_cos.do?cotid=cdba9b62-a354-479b-805e-eac301c2987b"
+      }
+    ],
+    "days": [
+      {
+        "title": "봉평의 문학과 예술",
+        "note": "생가와 문학관을 각각 필수 장소로 세지 않고 두 전시에 집중해요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-130415",
+            "name": "이효석 문학관",
+            "region": "평창",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-130319",
+            "name": "평창무이예술관",
+            "region": "평창",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "월정사와 전나무숲",
+        "note": "사찰·숲 산책과 성보박물관 전시는 별도로 시간을 확보해요.",
+        "startTime": "10:00",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-125772",
+            "name": "월정사·월정사 전나무숲",
+            "region": "평창",
+            "durationMin": 180
+          },
+          {
+            "id": "tour-2563078",
+            "name": "월정사 성보박물관(평창)",
+            "region": "평창",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "상원사에서 천천히 마무리",
+        "note": "상원사 주변 관람만 포함해 긴 귀가 이동을 위한 시간을 남겨요. 셋째 날 점심 식당은 사찰 관람 후 별도로 정해주세요.",
+        "startTime": "09:30",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-125771",
+            "name": "상원사(오대산)",
+            "region": "평창",
+            "durationMin": 150
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "journey-wonju-yeongwol-art-four-days",
+    "title": "원주·영월 · 전시와 지형의 휴가 3박 4일",
+    "subtitle": "미술관에서 오래 머물며 지역을 옮기는 느린 여행",
+    "tag": "예술·자연",
+    "mood": ["미술관", "문학", "박물관", "부부", "여유"],
+    "hue": 32,
+    "blurb": "원주와 영월의 문화 여행을 이어 붙여 하루에 많은 전시를 몰아보지 않도록 구성했어요.",
+    "planningNote": "첫날 13시 도착, 마지막 날 15시 관광 종료예요. 공식 4일 상품이 아닌 에움길 연결 코스이며 원주에서 영월로 이동하는 날에는 첫 방문을 늦췄어요. 공식 관광안내를 참고해 에움길이 일차·체류를 재구성했어요. 집에서 첫 장소까지, 숙소에서 다음 날 첫 장소까지, 마지막 귀가 이동은 별도로 여유를 잡아주세요.",
+    "sources": [
+      {
+        "title": "한국관광공사 · 원주 문화와 자연",
+        "url": "https://access.visitkorea.or.kr/cos/detail.do?cotId=2b856e97-4af4-4f03-9a2a-6ee2fcab8c30"
+      },
+      {
+        "title": "영월군 · 미술·박물관 1박 2일",
+        "url": "https://www.yw.go.kr/tour/contents.do?key=1010"
+      }
+    ],
+    "days": [
+      {
+        "title": "원주 문학의 오후",
+        "note": "점심 후 도착하는 일정이에요.",
+        "startTime": "13:00",
+        "endTime": "18:00",
+        "lunch": false,
+        "stops": [
+          {
+            "id": "tour-128230",
+            "name": "박경리문학공원",
+            "region": "원주",
+            "durationMin": 60
+          },
+          {
+            "id": "tour-2470366",
+            "name": "원주한지테마파크",
+            "region": "원주",
+            "durationMin": 90
+          }
+        ]
+      },
+      {
+        "title": "소금산과 뮤지엄산",
+        "note": "걷기와 전시 체류를 넉넉히 잡았어요.",
+        "startTime": "09:30",
+        "endTime": "18:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-2800692",
+            "name": "소금산그랜드밸리",
+            "region": "원주",
+            "durationMin": 150
+          },
+          {
+            "id": "tour-2633832",
+            "name": "뮤지엄산",
+            "region": "원주",
+            "durationMin": 150
+          }
+        ]
+      },
+      {
+        "title": "영월로 이동해 지형과 예술",
+        "note": "이전 숙소에서 영월로 이동한 뒤 11시에 관광을 시작해요.",
+        "startTime": "11:00",
+        "endTime": "17:30",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-779594",
+            "name": "한반도지형(강원고생대 국가지질공원)",
+            "region": "영월",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-2633903",
+            "name": "젊은달 와이파크",
+            "region": "영월",
+            "durationMin": 120
+          }
+        ]
+      },
+      {
+        "title": "영월의 박물관",
+        "note": "전시를 두 곳 본 뒤 여유 있게 귀가해요.",
+        "startTime": "09:00",
+        "endTime": "15:00",
+        "lunch": true,
+        "stops": [
+          {
+            "id": "tour-130309",
+            "name": "조선민화박물관",
+            "region": "영월",
+            "durationMin": 90
+          },
+          {
+            "id": "tour-1937095",
+            "name": "영월동굴생태관",
+            "region": "영월",
+            "durationMin": 90
+          }
+        ]
+      }
+    ]
+  }
+]
