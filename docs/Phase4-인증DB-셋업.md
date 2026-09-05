@@ -1,272 +1,88 @@
-# Phase 4 — Keycloak SSO · 앱 DB(PostgreSQL) 셋업
+# 인증과 DB 설정
 
-이 문서는 에움길을 **Keycloak 기반 SSO**에 붙이고, 앱 DB에는 저장/리뷰/방문/온보딩 선호 같은 서비스 데이터만
-보관하는 기준 절차다.
+에움길은 Keycloak의 OIDC Client이며 Auth.js JWT 세션을 사용한다. Keycloak이 사용자 신원·비밀번호·Google 연결·인증 세션을 관리하고 앱 DB는 여행과 활동 데이터만 보관한다.
 
-> 샌드박스에선 Keycloak·DB 실검증이 제한될 수 있다. 아래 검증은 로컬 실행 기준.
-
-## 0. 구조
+## 인증 관계
 
 ```text
-사용자
-  → 에움길 Next.js 앱(Auth.js = OIDC Client)
-  → Keycloak Realm(eumgil, Identity Provider)
-  → Kakao/Naver/Google 같은 외부 IdP 브로커링
-
-에움길 DB(PostgreSQL)
-  → saved_theme / review / visit / onboarding_preference / user_profile
-  → user_id = Keycloak token 의 sub
+브라우저 → 에움길 Auth.js → Keycloak eumgil realm → Google(선택)
+             ↓                    ↓
+       앱 세션 쿠키            신원·SSO 세션
+             ↓
+    Keycloak sub로 앱 DB 접근
 ```
 
-학습 포인트:
+OAuth Client Secret은 앱이 Keycloak에 자신의 신원을 증명하는 값이다. `AUTH_SECRET`은 별도로 Auth.js 세션을 암호화하는 값이며 서로 바꿔 쓰지 않는다. Google Client Secret은 Keycloak에만 둔다.
 
-- **Identity Provider(IdP)**: 사용자를 인증하고 토큰을 발급하는 주체. 여기서는 Keycloak.
-- **Client/Relying Party**: IdP를 신뢰하고 로그인 결과를 받는 앱. 여기서는 에움길 Next.js 앱.
-- **OIDC `sub` claim**: IdP 안에서 사용자를 안정적으로 식별하는 subject. 앱 DB의 `user_id`로 사용한다.
-- **SSO**: 여러 서비스가 같은 IdP(Keycloak)를 신뢰해 한 계정/세션으로 로그인하는 구조.
+| 항목                   | 운영 설정                                                         |
+| ---------------------- | ----------------------------------------------------------------- |
+| Issuer                 | `https://auth.greedylabs.kr/realms/eumgil`                        |
+| 앱 Client ID           | `eumgil`                                                          |
+| 앱 URL                 | `https://xn--wk0bk16buua.xn--3e0b707e`                            |
+| 앱 Callback            | `/api/auth/callback/keycloak`                                     |
+| Google 브로커 Callback | `https://auth.greedylabs.kr/realms/eumgil/broker/google/endpoint` |
+| 앱 세션                | 암호화 JWT 쿠키, 최대 8시간                                       |
 
-## 1. 코드 구성
+운영 Keycloak은 26.6.3이며 에움길 테마·한국어/영어·Google 버튼을 확인했다. 실제 Google 계정 왕복과 SMTP는 [검증 기록](검증.md)에서 별도로 추적한다. 로컬 import의 기본 `eumgil-web` Client는 운영 Client ID와 다르다.
 
-| 파일 | 역할 |
-| --- | --- |
-| `apps/web/src/server/auth.ts` | Auth.js 설정. Keycloak provider 하나만 사용, 세션은 JWT 전략 |
-| `apps/web/src/types/next-auth.d.ts` | `session.user.id`(Keycloak sub)·`roles` 타입 확장 |
-| `apps/web/src/server/db/schema.ts` | 앱 도메인 테이블(saved_theme/review/visit/onboarding_preference/user_profile). Auth.js adapter 테이블 없음 |
-| `apps/web/src/server/db/user-data.ts` | `(db, keycloakSub)` 기준 저장/리뷰/방문/온보딩 선호/앱 프로필 조회·쓰기 |
-| `apps/web/src/data/live/repository.ts` | `auth()` 세션의 `session.user.id`(Keycloak sub) → 앱 DB 조회 |
-| `apps/web/src/app/api/auth/[...nextauth]/route.ts` | `/api/auth/*` 핸들러 |
+## 로그인·토큰·로그아웃
 
-의존성:
+[auth.ts](../apps/web/src/server/auth.ts)는 Keycloak 토큰의 `sub`와 역할을 세션에 연결한다. provider access/id/refresh 토큰은 서버의 암호화 쿠키에 보관하고 브라우저가 읽는 세션에 노출하지 않는다. access token은 만료 60초 전부터 refresh token으로 갱신하며 실패 상태는 `session.authError`로 전달한다.
 
-- 유지: `next-auth`, `drizzle-orm`, `postgres`, `drizzle-kit`
-- 제거: `@auth/drizzle-adapter` (세션/계정 원장은 Keycloak 책임)
+보호 화면과 쓰기 액션은 서버에서 사용자 `sub`를 요구한다. 개인 코스 조회/수정/삭제는 DB에서도 사용자 조건을 적용한다. 로그인 복귀 URL은 허용된 앱 경로만 사용하며 개인 코스·행사 경로를 포함한다.
 
-## 2. 환경변수
+[logoutAction](../apps/web/src/app/actions/logout.ts)은 다음 순서로 동작한다.
 
-루트 `.env`:
+1. 앱 쿠키를 제거하기 전에 서버에서 ID 토큰을 읽는다.
+2. Auth.js 세션 쿠키를 삭제한다.
+3. `id_token_hint`와 `post_logout_redirect_uri`를 포함한 Keycloak end-session으로 이동한다.
 
-```env
+이 순서로 앱 세션만 지운 뒤 즉시 SSO 재로그인되는 상황과 불필요한 추가 확인을 줄인다. ID 토큰이 없는 비정상 세션은 같은 확인창 없는 종료를 보장하지 않는다. [session-token.ts](../apps/web/src/server/session-token.ts)는 HTTPS 접두사와 분할 쿠키를 처리한다.
 
-DATABASE_URL="postgresql://postgres:eumgil@localhost:5432/eumgil"
-DATABASE_SCHEMA=""
+## 앱 DB 준비
 
-AUTH_SECRET="..." # openssl rand -base64 32
-AUTH_URL="http://localhost:3000"
-
-AUTH_KEYCLOAK_ID="eumgil-web"
-AUTH_KEYCLOAK_SECRET="eumgil-local-dev-secret"
-AUTH_KEYCLOAK_ISSUER="http://localhost:8080/realms/eumgil"
-```
-
-개발 기본값은 `AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/eumgil`,
-`AUTH_KEYCLOAK_ID=eumgil-web`, `AUTH_KEYCLOAK_SECRET=eumgil-local-dev-secret` 이다.
-
-GreedyLabs 공용 Keycloak 을 쓰는 경우:
-
-```env
-AUTH_KEYCLOAK_ID="eumgil"
-AUTH_KEYCLOAK_ISSUER="https://auth.greedylabs.kr/realms/eumgil"
-```
-
-이때 Keycloak client 의 Valid redirect URI / Web origins 는 앱 도메인별로 추가해야 한다.
-
-```text
-http://localhost:3000/api/auth/callback/keycloak
-https://서비스도메인/api/auth/callback/keycloak
-```
-
-로그아웃 후 돌아올 주소는 `AUTH_URL`이다. 운영에서는 `https://xn--wk0bk16buua.xn--3e0b707e`로 설정한다.
-
-## 3. 세션/JWT 정책
-
-에움길은 앱 DB에 세션 테이블을 만들지 않는다. 세션 계층은 다음처럼 나눈다.
-
-```text
-Keycloak
-  - 실제 로그인 세션
-  - 외부 IdP 연결
-  - access/id/refresh token 발급
-
-Auth.js
-  - 앱 내부 HttpOnly JWT cookie session
-  - token.sub → session.user.id
-  - Keycloak roles → session.user.roles
-
-에움길 DB
-  - saved_theme/review/visit/onboarding_preference/user_profile
-  - user_id = session.user.id = Keycloak sub
-```
-
-`apps/web/src/server/auth.ts` 정책:
-
-- `session.strategy = "jwt"`: Auth.js adapter DB 세션을 쓰지 않는다.
-- `session.maxAge = jwt.maxAge = 8시간`: 운영 전 Keycloak realm session timeout 과 함께 조정한다.
-- `jwt` callback: Keycloak `sub`, `access_token`, `id_token`, `refresh_token`, roles 를 서버 쿠키(JWE)에 정리한다.
-- `jwt` callback: access token 만료 60초 전부터 Keycloak token endpoint 에 refresh token grant 로 갱신한다.
-- `session` callback: 브라우저에는 `id`와 `roles`만 노출한다. provider access token 은 client session 으로 내보내지 않는다.
-- 로그아웃: 앱 세션 삭제 전에 `/api/auth/keycloak/logout?format=json` 으로 `id_token_hint` 포함 end-session URL 을 받은 뒤 Auth.js 쿠키를 지우고 Keycloak SSO 세션까지 종료한다.
-
-학습 포인트:
-
-- Auth.js JWT 는 이 앱이 발급·해석하는 **앱 내부 세션 토큰**이다.
-- Keycloak access token 은 Keycloak 이 보호하는 API 호출용 토큰이다.
-- 둘을 같은 JWT 라고 뭉뚱그리면 안 된다. 발급자, 대상, 검증 주체가 다르다.
-
-## 4. 앱 DB 준비
-
-로컬 Docker 예시:
-
-```bash
-docker run --name eumgil-pg -e POSTGRES_PASSWORD=eumgil -e POSTGRES_DB=eumgil \
-  -p 5432:5432 -d postgres:16
-```
-
-스키마 적용:
-
-```bash
-pnpm --filter @eumgil/web verify:db
-pnpm --filter @eumgil/web db:apply
-pnpm --filter @eumgil/web verify:db
-```
-
-`db:push`는 기존 DB 전체를 diff 하면서 `review`/`visit` primary key 제약을 건드릴 수 있다.
-이 프로젝트의 현재 로컬 개발 DB에는 `db:apply`를 기본 경로로 쓴다. 이 스크립트는 앱 도메인 테이블만
-`create/alter if not exists`로 생성·보정하고 기존 데이터를 drop 하지 않는다.
+`.env`에 `DATABASE_URL`을 넣는다. 필요한 경우 `DATABASE_SCHEMA`도 지정한다. 상세 환경변수는 [배포 안내](환경변수-배포.md)를 따른다.
 
 ```bash
 pnpm --filter @eumgil/web db:apply
 pnpm --filter @eumgil/web verify:db
+pnpm --filter @eumgil/web db:collect:gangwon
+pnpm --filter @eumgil/web db:collect:gangwon --apply
+pnpm --filter @eumgil/web db:sync:accessibility --apply
 ```
 
-생성 대상 테이블:
+`db:apply`는 [현재 스키마 적용 스크립트](../apps/web/scripts/apply-app-schema.mjs)를 실행한다. 카탈로그 수집의 `--apply`는 실제 DB를 수정하므로 대상 DB와 검토 결과를 확인하고 실행한다. 앱 부팅 시 자동 수집하지 않는다. 폐기한 프로토타입 시드 명령을 신규 DB 준비에 사용하지 않는다.
 
-- `saved_theme`
-- `review`
-- `visit`
-- `onboarding_preference`
-- `user_profile`
+| 테이블                                    | 역할                                                         |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `spot_profile`                            | 원천 콘텐츠 ID·관광지·좌표·사진·검색 분류·무장애 안내 보유   |
+| `course_template`, `course_template_item` | 추천 테마와 일정 틀                                          |
+| `commerce_profile`                        | 실제 음식점·숙박                                             |
+| `saved_theme`                             | 사용자가 보관한 추천 테마 ID                                 |
+| `personal_course`                         | 소유자·일정 항목·이름·메모·이동수단·하루 출발 시간·수정 버전 |
+| `review`, `visit`                         | 사용자 리뷰·방문 기록                                        |
+| `onboarding_preference`, `user_profile`   | 앱 취향·표시명·소개                                          |
 
-Auth.js의 `user/account/session/verificationToken` 테이블은 만들지 않는다.
+Auth.js adapter용 users/accounts/sessions 테이블은 사용하지 않는다. 신원은 Keycloak, 앱 프로필과 여행 데이터는 PostgreSQL이라는 경계를 유지한다.
 
-## 5. Keycloak 준비
+## 개인 데이터 변경
 
-로컬 Keycloak 은 별도 compose 파일로 제공한다.
+Server Action이 세션과 입력을 검사하고 Repository/DB 계층이 소유자 조건을 적용한다. 개인 코스는 조회한 버전과 현재 버전이 다르면 충돌을 반환한다. 기존 코스에 장소를 추가하는 액션도 저장 시 버전을 재검사한다. 다른 탭의 변경을 마지막 저장으로 무조건 덮어쓰지 않는다.
+
+`transport`는 car/transit/walk, `start_time`은 HH:mm으로 저장한다. 이전 행의 기본값은 car/09:30이며 추천 복사 시 현재 이동 방식과 첫 출발 시각을 가져온다. 편집 초안은 같은 탭의 sessionStorage에 계정별로 격리한다. 서버 버전이 같으면 자동 복원하고, 다르면 기존 DB를 덮어쓰지 않고 새 코스로 복구하는 선택을 제공한다. 로그아웃 후 다른 사용자에게 같은 초안을 연결하지 않으며 DB 저장과 임시 저장을 구분한다. 이전 버전 백업은 최신 편집 초안과 별도 키에 보존하며, 복구본 DB 저장이 성공한 뒤 동일 사용자·원본 버전 조건을 확인해 정리한다.
+
+탈퇴는 앱 데이터 6개 테이블을 삭제한 뒤 Keycloak 계정 삭제를 시도한다. 자동 삭제를 쓰려면 별도 service account Client에 `realm-management/manage-users` 역할을 부여하고 `KEYCLOAK_ADMIN_CLIENT_ID`·`KEYCLOAK_ADMIN_CLIENT_SECRET`을 설정한다. 앱의 일반 로그인 Client Secret과는 다른 권한이다.
+
+관리 Client 미설정 또는 삭제 실패 시 앱 DB는 삭제되지만 Keycloak 계정은 남을 수 있다. 액션 결과의 `keycloakDeleted`와 서버 로그를 확인하고 운영자가 동일 `sub`의 인증 계정을 수동 정리한다. 다른 GreedyLabs 서비스와의 신원 공유 정책도 함께 고려해야 한다.
+
+## Keycloak 테마·로컬 미리보기
+
+테마 소스는 [infra/keycloak/themes/eumgil](../infra/keycloak/themes/eumgil), 배포 방식은 [테마 안내](../infra/keycloak/THEME.md)에 있다. 운영 배포는 별도 Gitops 저장소의 Keycloak Compose를 사용한다. 로컬 Compose의 초기 realm import를 운영 realm 갱신 방법으로 쓰지 않는다.
+
+테마 선택은 realm의 Login theme 설정에서 확인한다. CSS/아이콘을 변경한 경우 실제 응답 자산과 브라우저 캐시를 함께 확인한다. 파비콘 URL 버전을 바꾸는 코드가 포함되어 있다. 에움길 앱의 파비콘과 인증 서버의 파비콘은 서로 다른 배포 자산이다.
 
 ```bash
-pnpm keycloak:up
-pnpm keycloak:logs
-```
-
-Docker Desktop 또는 Docker daemon 이 실행 중이어야 한다.
-
-구성 파일:
-
-| 파일 | 역할 |
-| --- | --- |
-| `docker-compose.keycloak.yml` | 로컬 Keycloak + Keycloak 전용 Postgres |
-| `infra/keycloak/import/eumgil-realm.json` | `eumgil` realm/client/test user import |
-| `infra/keycloak/README.md` | 로컬 Keycloak 실행 메모 |
-
-기본 접속:
-
-- Admin console: `http://localhost:8080`
-- Admin: `admin` / `admin`
-- Realm issuer: `http://localhost:8080/realms/eumgil`
-- Client: `eumgil-web`
-- Client secret: `eumgil-local-dev-secret`
-- Demo user: `demo` / `demo1234`
-- Admin test user: `admin-user` / `admin1234`
-
-Realm import 는 빈 Keycloak DB에서 처음 뜰 때 적용된다. import JSON 변경을 다시 반영하려면:
-
-```bash
-pnpm keycloak:reset
-pnpm keycloak:up
-```
-
-Keycloak 서버가 준비되면:
-
-1. Realm 생성: `eumgil`
-2. Client 생성: `eumgil-web`
-3. Client type: OpenID Connect
-4. Access type: confidential
-5. Valid redirect URI:
-   ```text
-   http://localhost:3000/api/auth/callback/keycloak
-   ```
-6. Web origins:
-   ```text
-   http://localhost:3000
-   ```
-7. Client secret 을 `.env`의 `AUTH_KEYCLOAK_SECRET`에 입력
-
-운영 도메인에서는 아래처럼 바꾼다:
-
-```text
-https://서비스도메인/api/auth/callback/keycloak
-```
-
-## 6. 외부 소셜 Provider 브로커링
-
-에움길 앱은 Kakao/Naver/Google을 직접 붙이지 않는다. Keycloak에 Identity Provider로 등록한다.
-
-- Google: Keycloak 기본 social provider로 우선 검증하기 좋음
-- Kakao: OIDC/OAuth provider로 등록, profile claim mapping 확인 필요
-- Naver: OIDC/OAuth provider로 등록, profile claim mapping 확인 필요
-
-앱 입장에서는 어떤 외부 provider로 로그인했는지와 무관하게 Keycloak이 발급한 `sub`만 안정적으로
-받으면 된다.
-
-## 7. 검증 체크리스트
-
-```bash
-pnpm --filter @eumgil/web typecheck
-pnpm --filter @eumgil/web test
-pnpm --filter @eumgil/web build
 pnpm --filter @eumgil/web verify:keycloak
-pnpm dev
 ```
 
-브라우저:
-
-1. `http://localhost:3000/api/auth/providers`
-   - `keycloak` provider가 보이면 Auth.js 설정 정상.
-2. `/login`
-   - “통합 계정으로 시작하기” 버튼 클릭.
-3. Keycloak 로그인 성공 후 `/profile`로 복귀.
-4. `/course/{themeId}`에서 저장/해제.
-5. DB `saved_theme.user_id`가 Keycloak `sub`로 저장되는지 확인.
-
-추가 API 확인:
-
-```bash
-curl -s http://localhost:3000/api/auth/providers
-curl -s http://localhost:3000/api/auth/session
-```
-
-비로그인 상태에서 session 은 `null`, providers 는 `keycloak` 하나를 반환하면 정상이다.
-
-`verify:keycloak` 이 `fetch failed` 를 내면:
-
-```bash
-docker compose -f docker-compose.keycloak.yml ps
-curl -sS http://localhost:8080/realms/eumgil/.well-known/openid-configuration
-```
-
-컨테이너가 `healthy` 이고 브라우저에서 discovery URL 이 열리면 Keycloak은 정상이다. Codex 샌드박스처럼
-격리된 실행 환경에서는 일반 권한 프로세스가 호스트 `localhost:8080`에 붙지 못해 같은 오류가 날 수 있다.
-
-원격 GreedyLabs Keycloak discovery 검증:
-
-```bash
-AUTH_KEYCLOAK_ISSUER="https://auth.greedylabs.kr/realms/eumgil" \
-  pnpm --filter @eumgil/web verify:keycloak
-```
-
-2026-06-29 기준 `https://auth.greedylabs.kr/realms/eumgil/.well-known/openid-configuration` 은 HTTP 200.
-
-## 8. 다음 작업
-
-- Google → Kakao → Naver 순 Keycloak identity provider 검증은 후순위.
-- 리뷰/방문 수정·삭제 액션 추가.
-- 스팟 북마크 UX 를 테마 저장 모델과 정리.
+이 명령의 discovery/Client 인증 성공은 사용자 로그인 완료를 뜻하지 않는다. 세션 픽스처 기반 앱 E2E, 독립 Keycloak 미리보기, 운영 Google 인증을 구분해서 기록한다.

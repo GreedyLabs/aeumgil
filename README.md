@@ -1,34 +1,46 @@
 # 에움길 (Eumgil)
 
-강원도 특화 테마 관광 추천 서비스 — 관광데이터 공모전 출품작.
+강원특별자치도 여행을 **목적 입력 → 추천 코스 비교 → 내 일정 편집**으로 계획하는 웹 서비스입니다.
 
-여행 목적을 자연어로 입력하면 강원도 특화 테마 코스를 추천하고, 한국관광공사 OpenAPI의
-혼잡도·방문 적합성 데이터와 기상·대기질·교통 공공데이터를 결합해 더 쾌적한 여행 결정을 돕습니다.
+[운영 서비스](https://에움길.한국) · [문서 안내](docs/README.md) · [서비스 기획](docs/제안서.md) · [개발자 컨텍스트](AGENTS.md)
 
-## 기술 스택
+- 자연어 여행 목적과 테마 키워드로 추천을 찾고, 지역·여행지·행사를 탐색합니다.
+- 실제 관광정보·날씨·대기질·집중률 예측·무장애 안내를 판단 근거로 제공합니다.
+- 추천을 복사하거나 빈 일정에서 개인 코스를 만들고 날짜·순서·체류시간을 편집합니다.
+- 지도는 장소 위치와 방문 순서를 보여줍니다. 이동시간은 좌표 기반 추정이며 실시간 길찾기는 제공하지 않습니다.
 
-- **모노레포**: pnpm workspaces
-- **프레임워크**: Next.js 15 (App Router) · React 19
-- **언어**: TypeScript
-- **스타일**: Tailwind CSS v4
+## 개발 시작
 
-## 디렉터리 구조
-
-```
-.
-├── apps/
-│   └── web/          # Next.js 웹 애플리케이션
-├── packages/
-│   └── ui/           # 공용 UI 컴포넌트 (@eumgil/ui)
-└── docs/             # 기획/제안 문서
-```
-
-## 시작하기
+Node.js 22 이상과 `package.json`에 지정된 pnpm 10.23.0을 사용합니다. 카탈로그 수집 명령은 Node.js의 TypeScript 실행 기능을 사용합니다.
 
 ```bash
-pnpm install      # 의존성 설치
-pnpm dev          # 개발 서버 (http://localhost:3000)
-pnpm build        # 프로덕션 빌드
-pnpm typecheck    # 타입 검사
-pnpm lint         # 린트
+pnpm install
+cp .env.example .env
+# .env에 DB·인증·공공 API 값을 입력
+pnpm dev
 ```
+
+DB와 인증은 개발용 연결 대상을 준비합니다. 카탈로그·사용자 데이터는 실제 DB를 사용하며 런타임 샘플 데이터로 대체하지 않습니다. 설정은 [환경변수·배포](docs/환경변수-배포.md), DB 준비는 [인증·DB](docs/Phase4-인증DB-셋업.md)를 참고하세요.
+
+```bash
+pnpm --filter @eumgil/web exec next typegen
+pnpm typecheck
+pnpm --filter @eumgil/web test
+pnpm build
+```
+
+브라우저·API 검사는 [검증 안내](docs/검증.md)를 따릅니다.
+
+## 구조
+
+| 위치                     | 역할                                                |
+| ------------------------ | --------------------------------------------------- |
+| `apps/web`               | Next.js 15 App Router · React 19 · TypeScript 웹 앱 |
+| `packages/ui`            | 공용 UI 패키지                                      |
+| `apps/web/src/domain`    | 도메인 모델·추천·검색·코스 계산                     |
+| `apps/web/src/data/live` | 화면에 DB와 공공 API 데이터를 제공하는 Repository   |
+| `apps/web/src/server`    | DB·Auth.js/Keycloak·API·캐시·선택적 에이전트        |
+| `infra/keycloak`         | 에움길 인증 테마·로컬 미리보기                      |
+| `docs`                   | 현행 기획·아키텍처·운영·검증·별도 AI 학습 자료      |
+
+운영은 GitHub Actions → GHCR 이미지 → 별도 Gitops 저장소의 Dockhand 스택으로 배포합니다. 환경별 비밀값은 Git에 저장하지 않습니다.
