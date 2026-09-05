@@ -1,36 +1,12 @@
-import { MapView, type MapPoi } from "@/components/screens/map";
-import { getRepository } from "@/data";
-import { congestionNow, nowKst } from "@/data/live/congestion-now";
-import { getSpotMapping } from "@/data/live/spot-mapping";
-
-// 지도는 목록성 화면이라 enrich:false(§2.3) — 혼잡 등급은 시각·요일 기반 모델로
-// 서버에서 산출하고, 좌표는 스팟 프로필(없으면 큐레이션 매핑)에서 내려준다.
+import { redirect } from "next/navigation";
+import { placeSearchParams } from "@/domain/place-search";
+/** 기존 지도 북마크는 탐색의 여행지 검색으로 이어진다. */
 export default async function MapPage({
   searchParams,
 }: {
-  searchParams: Promise<{ region?: string }>;
+  searchParams: Promise<{ q?: string; region?: string; category?: string; page?: string }>;
 }) {
-  const { region } = await searchParams;
-  const spots = await getRepository().listSpots({ enrich: false });
-  const at = nowKst();
-
-  const pois: MapPoi[] = spots.flatMap((s) => {
-    const m = getSpotMapping(s.id);
-    const lat = s.lat ?? m?.lat;
-    const lon = s.lon ?? m?.lon;
-    if (lat === undefined || lon === undefined) return []; // 좌표 없는 스팟은 지도 미표시
-    return [
-      {
-        id: s.id,
-        name: s.name,
-        region: s.region,
-        imageUrl: s.imageUrl,
-        lat,
-        lon,
-        congestion: congestionNow(s, at),
-      },
-    ];
-  });
-
-  return <MapView key={region || "all"} pois={pois} initialRegion={region?.slice(0, 30)} />;
+  const params = await searchParams;
+  const query = placeSearchParams({ ...params, page: Number(params.page || 1) });
+  redirect(`/discover?tab=places${query.size ? `&${query}` : ""}`);
 }

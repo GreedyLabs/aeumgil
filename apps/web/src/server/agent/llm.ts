@@ -12,6 +12,7 @@
 // C단계에서 RealLlmProvider(키 필요)를 추가하면 이 파일의 인터페이스만 구현하면 된다.
 // ─────────────────────────────────────────────
 
+import { regionalThemeMatch } from "@/domain/regional-matching";
 import { matchThemeIdsByKeyword } from "@/domain/matching";
 import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
 import { env } from "@/lib/env";
@@ -68,17 +69,33 @@ function lastResult(trace: AgentStep[], tool: string): unknown {
  */
 function chooseTheme(intent: string, themesResult: unknown): string | undefined {
   if (!Array.isArray(themesResult) || themesResult.length === 0) return undefined;
+  const regional = regionalThemeMatch(
+    intent,
+    themesResult.filter(
+      (t): t is { id: string; title: string; subtitle?: string } =>
+        typeof t?.id === "string" && typeof t?.title === "string",
+    ),
+  );
+  if (regional) return regional;
   const ids = new Set(themesResult.map((t) => String((t as { id: unknown }).id)));
   const keywordHit = matchThemeIdsByKeyword(intent, THEME_KEYWORD_RULES).find((id) => ids.has(id));
   if (keywordHit) return keywordHit;
   const q = intent.toLowerCase();
   for (const t of themesResult) {
     const tags: string[] = [
-      ...(typeof (t as { title?: unknown }).title === "string" ? [(t as { title: string }).title] : []),
+      ...(typeof (t as { title?: unknown }).title === "string"
+        ? [(t as { title: string }).title]
+        : []),
       ...(typeof (t as { tag?: unknown }).tag === "string" ? [(t as { tag: string }).tag] : []),
-      ...(Array.isArray((t as { mood?: unknown }).mood) ? ((t as { mood: string[] }).mood) : []),
+      ...(Array.isArray((t as { mood?: unknown }).mood) ? (t as { mood: string[] }).mood : []),
     ];
-    if (tags.some((tag) => q.includes(String(tag).toLowerCase()) || String(tag).toLowerCase().includes(q.slice(0, 2)))) {
+    if (
+      tags.some(
+        (tag) =>
+          q.includes(String(tag).toLowerCase()) ||
+          String(tag).toLowerCase().includes(q.slice(0, 2)),
+      )
+    ) {
       return String((t as { id: unknown }).id);
     }
   }
@@ -167,7 +184,8 @@ function reorderedDay(trace: AgentStep[], day: number): boolean {
 
 function changedReorderCount(trace: AgentStep[]): number {
   return trace.filter(
-    (s) => s.tool === "reorder_by_congestion" && s.ok && (s.result as { changed?: boolean }).changed,
+    (s) =>
+      s.tool === "reorder_by_congestion" && s.ok && (s.result as { changed?: boolean }).changed,
   ).length;
 }
 
@@ -184,7 +202,9 @@ function alternativeKeyword(themeId: string, intent: string): string {
 function poiNames(result: unknown): string[] {
   if (!Array.isArray(result)) return [];
   return result
-    .map((p) => (typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined))
+    .map((p) =>
+      typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined,
+    )
     .filter((name): name is string => Boolean(name))
     .slice(0, 3);
 }
@@ -220,15 +240,21 @@ export function heuristicItineraryProvider(): LlmProvider {
       if (changed > 0 && !called(trace, "search_pois")) {
         return {
           kind: "tool",
-          tool: { name: "search_pois", args: { keyword: alternativeKeyword(themeId, request.intent) } },
+          tool: {
+            name: "search_pois",
+            args: { keyword: alternativeKeyword(themeId, request.intent) },
+          },
         };
       }
 
       // 4) 종료 — 재정렬/대체 후보 결과를 요약해 근거 생성
       const alternatives = poiNames(lastResult(trace, "search_pois"));
-      const altKo = alternatives.length > 0 ? ` 대체 후보로 ${alternatives.join(", ")}도 함께 확인했어요.` : "";
+      const altKo =
+        alternatives.length > 0 ? ` 대체 후보로 ${alternatives.join(", ")}도 함께 확인했어요.` : "";
       const altEn =
-        alternatives.length > 0 ? ` Also checked alternatives such as ${alternatives.join(", ")}.` : "";
+        alternatives.length > 0
+          ? ` Also checked alternatives such as ${alternatives.join(", ")}.`
+          : "";
       const rationale =
         changed > 0
           ? L(
@@ -246,7 +272,10 @@ export function heuristicItineraryProvider(): LlmProvider {
 
 // ── 4) 실 LLM Provider (OpenAI-compatible Chat Completions) ──
 
-type FetchLike = (input: string, init: RequestInit) => Promise<Pick<Response, "ok" | "status" | "text">>;
+type FetchLike = (
+  input: string,
+  init: RequestInit,
+) => Promise<Pick<Response, "ok" | "status" | "text">>;
 
 interface OpenAiChatProviderOptions {
   /** api.openai.com 은 필수. 로컬 OpenAI-호환 서버(llama.cpp 등)는 키 없이 동작하므로 생략 가능. */
@@ -279,9 +308,7 @@ function toolSchema({ name, description, parameters }: LlmDecideInput["tools"][n
 
   for (const [key, p] of Object.entries(parameters)) {
     const schema: Record<string, unknown> =
-      p.type === "string[]"
-        ? { type: "array", items: { type: "string" } }
-        : { type: p.type };
+      p.type === "string[]" ? { type: "array", items: { type: "string" } } : { type: p.type };
     schema.description = p.description;
     if (p.enum) schema.enum = p.enum;
     properties[key] = schema;
@@ -306,7 +333,9 @@ function toolSchema({ name, description, parameters }: LlmDecideInput["tools"][n
 function parseArgs(raw: string | undefined): Record<string, unknown> {
   if (!raw) return {};
   const parsed = JSON.parse(raw) as unknown;
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : {};
 }
 
 /**
@@ -326,7 +355,8 @@ function extractJsonObject(content: string): unknown {
   } catch {
     const start = stripped.indexOf("{");
     const end = stripped.lastIndexOf("}");
-    if (start < 0 || end <= start) throw new Error("LLM final 응답에서 JSON object 를 찾지 못했습니다.");
+    if (start < 0 || end <= start)
+      throw new Error("LLM final 응답에서 JSON object 를 찾지 못했습니다.");
     return JSON.parse(stripped.slice(start, end + 1));
   }
 }
@@ -418,7 +448,7 @@ export function openAiChatProvider(options: OpenAiChatProviderOptions): LlmProvi
                 "반드시 제공된 도구만 호출한다.",
                 "도구가 더 필요하면 tool_calls 를 사용한다.",
                 "충분하면 JSON object 로만 최종 답을 낸다.",
-                "최종 JSON 형식: {\"primaryThemeId\":\"optional\",\"altThemeIds\":[],\"rationale\":{\"ko\":\"...\",\"en\":\"...\"}}",
+                '최종 JSON 형식: {"primaryThemeId":"optional","altThemeIds":[],"rationale":{"ko":"...","en":"..."}}',
                 "테마/스팟/코스 id 는 도구 결과에 있는 값만 사용한다.",
               ].join("\n"),
             },

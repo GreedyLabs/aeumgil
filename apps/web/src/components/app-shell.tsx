@@ -8,8 +8,17 @@
 // Phase 4: auth 는 Auth.js 세션으로 판정하고, 저장/리뷰 등 사용자 데이터는 Repository 로 영속화한다.
 // ─────────────────────────────────────────────
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { signIn, useSession } from "next-auth/react";
+import { logoutAction } from "@/app/actions/logout";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar, TabBar } from "@/design/ui";
 import { urlForTab } from "@/lib/nav";
@@ -49,15 +58,17 @@ export function useAppState(): AppState {
   return ctx;
 }
 
-function userFromSession(user: { name?: string | null; email?: string | null; image?: string | null } | undefined): AuthState["user"] {
+function userFromSession(
+  user: { name?: string | null; email?: string | null; image?: string | null } | undefined,
+): AuthState["user"] {
   return { name: user?.name || "여행자", email: user?.email ?? "", avatar: user?.image ?? "" };
 }
 
 function activeTabFor(pathname: string): string {
   if (pathname === "/" || pathname.startsWith("/result")) return "home";
-  if (pathname.startsWith("/map")) return "map";
-  if (/^\/(discover|theme|course|spot|alternatives)/.test(pathname)) return "discover";
-  if (pathname.startsWith("/saved")) return "saved";
+  if (pathname.startsWith("/map")) return "discover";
+  if (/^\/(discover|theme|course|spot|alternatives|festival)/.test(pathname)) return "discover";
+  if (pathname.startsWith("/saved") || pathname.startsWith("/my-courses")) return "saved";
   if (/^\/(profile|reviews|settings|doc|login)/.test(pathname)) return "profile";
   return "home";
 }
@@ -72,13 +83,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [toast, setToast] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarReady, setSidebarReady] = useState(false);
   useEffect(() => {
-    try { setSidebarCollapsed(localStorage.getItem("eumgil.sidebar.collapsed") === "true"); } catch { /* 저장소 사용 불가 시 기본 폭 유지 */ }
+    try {
+      setSidebarCollapsed(localStorage.getItem("eumgil.sidebar.collapsed") === "true");
+    } catch {
+      /* 저장소 사용 불가 시 기본 폭 유지 */
+    }
+    setSidebarReady(true);
   }, []);
   const toggleSidebar = () => {
     const next = !sidebarCollapsed;
     setSidebarCollapsed(next);
-    try { localStorage.setItem("eumgil.sidebar.collapsed", String(next)); } catch { /* 현재 탭에서는 계속 사용 가능 */ }
+    try {
+      localStorage.setItem("eumgil.sidebar.collapsed", String(next));
+    } catch {
+      /* 현재 탭에서는 계속 사용 가능 */
+    }
   };
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const auth = useMemo<AuthState>(
@@ -107,7 +128,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         return true;
       }
       const returnTo = safeReturnTo(window.location.pathname + window.location.search);
-      router.push(`/login?reason=${encodeURIComponent(reason)}&returnTo=${encodeURIComponent(returnTo)}`);
+      router.push(
+        `/login?reason=${encodeURIComponent(reason)}&returnTo=${encodeURIComponent(returnTo)}`,
+      );
       return false;
     },
     [auth.member, router],
@@ -120,14 +143,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [lang],
   );
 
+  const logoutPending = useRef(false);
   const logout = useCallback(async () => {
-    showToast("로그아웃했어요");
-    const logoutUrl = await fetch("/api/auth/keycloak/logout?format=json")
-      .then((r) => r.json() as Promise<{ url?: string }>)
-      .then((r) => r.url)
-      .catch(() => undefined);
-    await signOut({ redirect: false });
-    window.location.assign(logoutUrl || "/api/auth/keycloak/logout");
+    if (logoutPending.current) return;
+    logoutPending.current = true;
+    try {
+      await logoutAction();
+    } catch {
+      showToast("로그아웃을 완료하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      logoutPending.current = false;
+    }
   }, [showToast]);
 
   const ctx: AppState = {
@@ -147,10 +173,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppStateContext.Provider value={ctx}>
-      <div className={`app-shell${showChrome ? (sidebarCollapsed ? " app-shell-collapsed" : "") : " app-shell-focus"}`}>
-        <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
+      <div
+        className={`app-shell${showChrome ? (sidebarCollapsed ? " app-shell-collapsed" : "") : " app-shell-focus"}`}
+      >
+        <a className="skip-link" href="#main-content">
+          본문으로 건너뛰기
+        </a>
         {showChrome && (
           <Sidebar
+            ready={sidebarReady}
             collapsed={sidebarCollapsed}
             onToggle={toggleSidebar}
             active={activeTab}

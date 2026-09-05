@@ -61,15 +61,30 @@ export function ProfileEditView({ user, themes }: Props) {
 
       <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
         <div style={{ position: "relative" }}>
-          <Avatar className="avatar-lg" src={user.avatarUrl} size={86} />
-
+          <Avatar
+            className="avatar-lg"
+            src={user.avatarUrl}
+            name={localized(user.name, lang)}
+            size={86}
+          />
         </div>
       </div>
 
-      <p style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 12 }}>프로필 사진은 연결한 로그인 계정에서 관리해요.</p>
+      <p style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 12 }}>
+        프로필 사진은 연결한 로그인 계정에서 관리해요.
+      </p>
       <div style={{ padding: "12px 20px 0" }}>
-        <label htmlFor="profile-name" className="field-label">{lang === "ko" ? "닉네임" : "Nickname"}</label>
-        <input id="profile-name" className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} disabled={isPending} />
+        <label htmlFor="profile-name" className="field-label">
+          {lang === "ko" ? "닉네임" : "Nickname"}
+        </label>
+        <input
+          id="profile-name"
+          className="field-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={20}
+          disabled={isPending}
+        />
 
         <label htmlFor="profile-bio" className="field-label" style={{ marginTop: 18 }}>
           {lang === "ko" ? "한 줄 소개" : "Bio"}
@@ -84,7 +99,10 @@ export function ProfileEditView({ user, themes }: Props) {
           disabled={isPending}
           style={{ resize: "none", lineHeight: 1.5 }}
         />
-        <div style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)", marginTop: 4 }} className="mono">
+        <div
+          style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}
+          className="mono"
+        >
           {bio.length}/80
         </div>
       </div>

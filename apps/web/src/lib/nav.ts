@@ -51,7 +51,7 @@ export function urlFor(name: string, params: NavParams = {}): string {
     case "saved":
       return "/saved";
     case "map":
-      return "/map";
+      return "/discover?tab=places";
     case "login":
       return params.reason ? `/login?reason=${enc(params.reason)}` : "/login";
     case "onboarding":
@@ -74,7 +74,7 @@ export function urlFor(name: string, params: NavParams = {}): string {
 const TAB_URL: Record<string, string> = {
   home: "/",
   discover: "/discover",
-  map: "/map",
+  map: "/discover?tab=places",
   saved: "/saved",
   profile: "/profile",
 };

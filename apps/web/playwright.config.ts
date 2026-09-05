@@ -30,16 +30,19 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     locale: "ko-KR",
+    channel: process.env.E2E_BROWSER_CHANNEL,
     trace: "retain-on-failure",
   },
-  webServer: process.env.E2E_BASE_URL ? undefined : {
-    command: "pnpm dev",
-    url: "http://localhost:3000/api/health",
-    reuseExistingServer: true,
-    timeout: 120_000,
-    // E2E 는 화면 흐름 검증이 목적 — LLM 품질은 eval(§6.2)이 담당하므로
-    // Playwright 가 직접 서버를 띄울 땐 결정형 heuristic 프로바이더로 고정한다.
-    // (이미 떠 있는 dev 서버를 재사용하면 그 서버의 설정을 따른다 — 위 timeout 참고)
-    env: { ...process.env, EUMGIL_AGENT_LLM: "heuristic" },
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: "pnpm dev",
+        url: "http://localhost:3000/api/health",
+        reuseExistingServer: true,
+        timeout: 120_000,
+        // E2E 는 화면 흐름 검증이 목적 — LLM 품질은 eval(§6.2)이 담당하므로
+        // Playwright 가 직접 서버를 띄울 땐 결정형 heuristic 프로바이더로 고정한다.
+        // (이미 떠 있는 dev 서버를 재사용하면 그 서버의 설정을 따른다 — 위 timeout 참고)
+        env: { ...process.env, EUMGIL_AGENT_LLM: "heuristic" },
+      },
 });

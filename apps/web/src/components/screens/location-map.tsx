@@ -7,6 +7,7 @@ export function LocationMap({ lat, lon, name }: { lat: number; lon: number; name
   return (
     <div className="location-map">
       <iframe
+        key={`${lat}:${lon}`}
         title={`${name} 위치 지도`}
         src={`https://www.openstreetmap.org/export/embed.html?${params}`}
         loading="lazy"

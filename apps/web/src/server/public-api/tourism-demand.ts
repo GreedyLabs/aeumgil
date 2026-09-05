@@ -61,8 +61,11 @@ export function normalizeDemand(
   return days.length ? { place: name, fetchedAt, days } : undefined;
 }
 
-export async function getCrowdForecast(spotId: string): Promise<Forecast | undefined> {
-  const match = MATCHES[spotId];
+export async function getCrowdForecast(
+  spotId: string,
+  location?: { name: string; district: string },
+): Promise<Forecast | undefined> {
+  const match = MATCHES[spotId] ?? location;
   const serviceKey = env.DATA_GO_KR_SERVICE_KEY;
   if (!match || !serviceKey) return undefined;
   const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10).replaceAll("-", "");

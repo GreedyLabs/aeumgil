@@ -99,7 +99,7 @@ export function normalizeFestivals(raw: RawItem[], from: string, through: string
         dateValid(item.eventstartdate) &&
         dateValid(item.eventenddate) &&
         item.eventstartdate <= item.eventenddate &&
-        item.eventstartdate >= from &&
+        item.eventenddate >= from &&
         item.eventstartdate <= through,
     )
     .sort((a, b) => a.eventstartdate!.localeCompare(b.eventstartdate!))
@@ -113,7 +113,7 @@ export function normalizeFestivals(raw: RawItem[], from: string, through: string
     }));
 }
 
-/** 오늘 이후 시작하는 강원 행사를 조회한다. 진행 중 행사까지 포괄하는 API는 아니다. */
+/** 조회 기간에 겹치는 진행 중·예정 강원 행사를 조회한다. */
 export async function listGangwonFestivals(from: string, through: string): Promise<Festival[]> {
   const data = await callDataGoKr<RawListResponse>(
     `${BASE}/searchFestival2`,
@@ -221,6 +221,7 @@ export interface TourDetail extends TourItem {
   zipcode: string;
   photos?: Spot["photos"];
   visitInfo?: Spot["visitInfo"];
+  festivalInfo?: Record<string, string>;
 }
 
 export function cleanTourText(value: string | undefined): string {
@@ -340,6 +341,7 @@ export async function getItemDetail(contentId: string): Promise<TourDetail | nul
     // 대표사진이 없는 양떼목장 등은 추가 사진 중 재사용 가능한 공공누리 1유형을 사용한다.
     image: base.image || photos.find((p) => p.license === "Type1")?.url || "",
     photos,
+    festivalInfo: base.contentTypeId === "15" ? visit : undefined,
     visitInfo: visit
       ? normalizeVisitInfo(visit, base.addr)
       : { address: base.addr, phone: base.tel || undefined },

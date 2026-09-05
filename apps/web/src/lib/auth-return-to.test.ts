@@ -21,3 +21,10 @@ describe("로그인 후 복귀 주소", () => {
       expect(safeReturnTo(path)).toBe("/profile");
   });
 });
+
+it("개인 코스와 행사 화면도 로그인 뒤 원래 경로로 돌아간다", () => {
+  expect(safeReturnTo("/my-courses/new?festival=734219&spot=tour-1")).toBe(
+    "/my-courses/new?festival=734219&spot=tour-1",
+  );
+  expect(safeReturnTo("/festival/734219")).toBe("/festival/734219");
+});

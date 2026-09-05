@@ -54,6 +54,19 @@ export interface Festival {
   imageUrl?: string;
 }
 
+export interface FestivalDetail {
+  event: Festival;
+  place: Spot;
+  venue?: string;
+  hours?: string;
+  fees?: string;
+  host?: string;
+  phone?: string;
+  homepage?: string;
+  nearbySpots: Spot[];
+  nearbyEats: Eat[];
+}
+
 export interface FestivalListing {
   status: "available" | "unavailable";
   items: Festival[];
@@ -68,6 +81,9 @@ export interface ThemeMatch {
 
 // ── 관광지 / POI ──────────────────────────
 export interface Spot {
+  sourceContentId?: string;
+  address?: string;
+  category?: string;
   id: string;
   name: LocalizedText;
   type: LocalizedText;
@@ -109,6 +125,9 @@ export interface Spot {
   imageUrl?: string;
   /** 출처와 이용 조건을 보존한 원본 사진. */
   photos?: { url: string; label: string; license: string }[];
+  /** 안내 보유 여부이며, 휠체어 등 특정 조건의 이용 가능 판정이 아니다. */
+  hasAccessibilityInfo?: boolean;
+  accessibility?: { items: { key: string; label: string; value: string }[]; fetchedAt: string };
   visitInfo?: {
     hours?: string;
     closed?: string;
@@ -170,6 +189,7 @@ export interface CourseItem {
 }
 
 export interface Course {
+  routeLegs?: import("./course-map").CourseRouteLeg[];
   themeId: string;
   title: LocalizedText;
   dayCount: number;

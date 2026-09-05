@@ -9,7 +9,14 @@
 // - primary key 는 없을 때만 추가한다.
 // ─────────────────────────────────────────────
 
-const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
+const C = {
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  gray: "\x1b[90m",
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  reset: "\x1b[0m",
+};
 const URL = process.env.DATABASE_URL;
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 
@@ -27,7 +34,9 @@ let postgres;
 try {
   ({ default: postgres } = await import("postgres"));
 } catch {
-  console.error(`${C.red}✗ 'postgres' 패키지를 찾을 수 없습니다.${C.reset} 먼저 ${C.cyan}pnpm install${C.reset} 을 실행하세요.`);
+  console.error(
+    `${C.red}✗ 'postgres' 패키지를 찾을 수 없습니다.${C.reset} 먼저 ${C.cyan}pnpm install${C.reset} 을 실행하세요.`,
+  );
   process.exit(1);
 }
 
@@ -55,7 +64,9 @@ async function ensureNoNulls(table, columns) {
   const rows = await sql.unsafe(`select count(*)::int as n from ${qTable(table)} where ${where}`);
   const n = rows[0]?.n ?? 0;
   if (n > 0) {
-    throw new Error(`${table} 테이블에 primary key 컬럼(${columns.join(", ")})이 NULL 인 행 ${n}개가 있어 자동 보정할 수 없습니다.`);
+    throw new Error(
+      `${table} 테이블에 primary key 컬럼(${columns.join(", ")})이 NULL 인 행 ${n}개가 있어 자동 보정할 수 없습니다.`,
+    );
   }
 }
 
@@ -67,10 +78,14 @@ async function addPrimaryKey(table, columns) {
 }
 
 async function setNotNullIfClean(table, column) {
-  const rows = await sql.unsafe(`select count(*)::int as n from ${qTable(table)} where ${quoteIdent(column)} is null`);
+  const rows = await sql.unsafe(
+    `select count(*)::int as n from ${qTable(table)} where ${quoteIdent(column)} is null`,
+  );
   const n = rows[0]?.n ?? 0;
   if (n === 0) {
-    await sql.unsafe(`alter table ${qTable(table)} alter column ${quoteIdent(column)} set not null`);
+    await sql.unsafe(
+      `alter table ${qTable(table)} alter column ${quoteIdent(column)} set not null`,
+    );
   } else {
     console.log(`${C.yellow}– ${table}.${column} NULL ${n}개 → not null 설정은 건너뜀${C.reset}`);
   }
@@ -87,7 +102,9 @@ async function ensureSavedTheme() {
   `);
   await sql.unsafe(`alter table ${qTable("saved_theme")} add column if not exists user_id text`);
   await sql.unsafe(`alter table ${qTable("saved_theme")} add column if not exists theme_id text`);
-  await sql.unsafe(`alter table ${qTable("saved_theme")} add column if not exists saved_at timestamp default now()`);
+  await sql.unsafe(
+    `alter table ${qTable("saved_theme")} add column if not exists saved_at timestamp default now()`,
+  );
   await setNotNullIfClean("saved_theme", "user_id");
   await setNotNullIfClean("saved_theme", "theme_id");
   await sql.unsafe(`update ${qTable("saved_theme")} set saved_at = now() where saved_at is null`);
@@ -112,12 +129,19 @@ async function ensureReview() {
   await sql.unsafe(`alter table ${qTable("review")} add column if not exists spot_id text`);
   await sql.unsafe(`alter table ${qTable("review")} add column if not exists rating integer`);
   await sql.unsafe(`alter table ${qTable("review")} add column if not exists text text`);
-  await sql.unsafe(`alter table ${qTable("review")} add column if not exists helpful integer default 0`);
-  await sql.unsafe(`alter table ${qTable("review")} add column if not exists created_at timestamp default now()`);
-  await sql.unsafe(`update ${qTable("review")} set id = md5(random()::text || clock_timestamp()::text) where id is null`);
+  await sql.unsafe(
+    `alter table ${qTable("review")} add column if not exists helpful integer default 0`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("review")} add column if not exists created_at timestamp default now()`,
+  );
+  await sql.unsafe(
+    `update ${qTable("review")} set id = md5(random()::text || clock_timestamp()::text) where id is null`,
+  );
   await sql.unsafe(`update ${qTable("review")} set helpful = 0 where helpful is null`);
   await sql.unsafe(`update ${qTable("review")} set created_at = now() where created_at is null`);
-  for (const col of ["id", "user_id", "spot_id", "rating", "text", "helpful", "created_at"]) await setNotNullIfClean("review", col);
+  for (const col of ["id", "user_id", "spot_id", "rating", "text", "helpful", "created_at"])
+    await setNotNullIfClean("review", col);
   await addPrimaryKey("review", ["id"]);
 }
 
@@ -134,11 +158,16 @@ async function ensureVisit() {
   await sql.unsafe(`alter table ${qTable("visit")} add column if not exists id text`);
   await sql.unsafe(`alter table ${qTable("visit")} add column if not exists user_id text`);
   await sql.unsafe(`alter table ${qTable("visit")} add column if not exists spot_id text`);
-  await sql.unsafe(`alter table ${qTable("visit")} add column if not exists visited_at timestamp default now()`);
+  await sql.unsafe(
+    `alter table ${qTable("visit")} add column if not exists visited_at timestamp default now()`,
+  );
   await sql.unsafe(`alter table ${qTable("visit")} add column if not exists congestion_then text`);
-  await sql.unsafe(`update ${qTable("visit")} set id = md5(random()::text || clock_timestamp()::text) where id is null`);
+  await sql.unsafe(
+    `update ${qTable("visit")} set id = md5(random()::text || clock_timestamp()::text) where id is null`,
+  );
   await sql.unsafe(`update ${qTable("visit")} set visited_at = now() where visited_at is null`);
-  for (const col of ["id", "user_id", "spot_id", "visited_at"]) await setNotNullIfClean("visit", col);
+  for (const col of ["id", "user_id", "spot_id", "visited_at"])
+    await setNotNullIfClean("visit", col);
   await addPrimaryKey("visit", ["id"]);
 }
 
@@ -152,14 +181,29 @@ async function ensureOnboardingPreference() {
       updated_at timestamp not null default now()
     )
   `);
-  await sql.unsafe(`alter table ${qTable("onboarding_preference")} add column if not exists user_id text`);
-  await sql.unsafe(`alter table ${qTable("onboarding_preference")} add column if not exists interest_theme_ids jsonb`);
-  await sql.unsafe(`alter table ${qTable("onboarding_preference")} add column if not exists pace_id text`);
-  await sql.unsafe(`alter table ${qTable("onboarding_preference")} add column if not exists companion_id text`);
-  await sql.unsafe(`alter table ${qTable("onboarding_preference")} add column if not exists updated_at timestamp default now()`);
-  await sql.unsafe(`update ${qTable("onboarding_preference")} set interest_theme_ids = '[]'::jsonb where interest_theme_ids is null`);
-  await sql.unsafe(`update ${qTable("onboarding_preference")} set updated_at = now() where updated_at is null`);
-  for (const col of ["user_id", "interest_theme_ids", "pace_id", "companion_id", "updated_at"]) await setNotNullIfClean("onboarding_preference", col);
+  await sql.unsafe(
+    `alter table ${qTable("onboarding_preference")} add column if not exists user_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("onboarding_preference")} add column if not exists interest_theme_ids jsonb`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("onboarding_preference")} add column if not exists pace_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("onboarding_preference")} add column if not exists companion_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("onboarding_preference")} add column if not exists updated_at timestamp default now()`,
+  );
+  await sql.unsafe(
+    `update ${qTable("onboarding_preference")} set interest_theme_ids = '[]'::jsonb where interest_theme_ids is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("onboarding_preference")} set updated_at = now() where updated_at is null`,
+  );
+  for (const col of ["user_id", "interest_theme_ids", "pace_id", "companion_id", "updated_at"])
+    await setNotNullIfClean("onboarding_preference", col);
   await addPrimaryKey("onboarding_preference", ["user_id"]);
 }
 
@@ -173,12 +217,21 @@ async function ensureUserProfile() {
     )
   `);
   await sql.unsafe(`alter table ${qTable("user_profile")} add column if not exists user_id text`);
-  await sql.unsafe(`alter table ${qTable("user_profile")} add column if not exists display_name text`);
-  await sql.unsafe(`alter table ${qTable("user_profile")} add column if not exists bio text default ''`);
-  await sql.unsafe(`alter table ${qTable("user_profile")} add column if not exists updated_at timestamp default now()`);
+  await sql.unsafe(
+    `alter table ${qTable("user_profile")} add column if not exists display_name text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("user_profile")} add column if not exists bio text default ''`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("user_profile")} add column if not exists updated_at timestamp default now()`,
+  );
   await sql.unsafe(`update ${qTable("user_profile")} set bio = '' where bio is null`);
-  await sql.unsafe(`update ${qTable("user_profile")} set updated_at = now() where updated_at is null`);
-  for (const col of ["user_id", "display_name", "bio", "updated_at"]) await setNotNullIfClean("user_profile", col);
+  await sql.unsafe(
+    `update ${qTable("user_profile")} set updated_at = now() where updated_at is null`,
+  );
+  for (const col of ["user_id", "display_name", "bio", "updated_at"])
+    await setNotNullIfClean("user_profile", col);
   await addPrimaryKey("user_profile", ["user_id"]);
 }
 
@@ -237,19 +290,54 @@ async function ensureSpotProfile() {
     ["description_en", "text"],
     ["updated_at", "timestamp"],
   ];
-  for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("spot_profile")} add column if not exists ${quoteIdent(name)} ${type}`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set theme_ids = '[]'::jsonb where theme_ids is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set tags_ko = '[]'::jsonb where tags_ko is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set tags_en = '[]'::jsonb where tags_en is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set baseline_congestion = 'moderate' where baseline_congestion is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set suitability = 70 where suitability is null`);
+  for (const [name, type] of columns)
+    await sql.unsafe(
+      `alter table ${qTable("spot_profile")} add column if not exists ${quoteIdent(name)} ${type}`,
+    );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set theme_ids = '[]'::jsonb where theme_ids is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set tags_ko = '[]'::jsonb where tags_ko is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set tags_en = '[]'::jsonb where tags_en is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set baseline_congestion = 'moderate' where baseline_congestion is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set suitability = 70 where suitability is null`,
+  );
   await sql.unsafe(`update ${qTable("spot_profile")} set rating = 0 where rating is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set review_count = 0 where review_count is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set default_duration_min = 60 where default_duration_min is null`);
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set review_count = 0 where review_count is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set default_duration_min = 60 where default_duration_min is null`,
+  );
   await sql.unsafe(`update ${qTable("spot_profile")} set env = 'inland' where env is null`);
   await sql.unsafe(`update ${qTable("spot_profile")} set source = 'seed' where source is null`);
-  await sql.unsafe(`update ${qTable("spot_profile")} set updated_at = now() where updated_at is null`);
-  for (const col of ["spot_id", "name_ko", "type_ko", "region_ko", "theme_ids", "tags_ko", "tags_en", "baseline_congestion", "suitability", "rating", "review_count", "default_duration_min", "env", "source", "updated_at"]) {
+  await sql.unsafe(
+    `update ${qTable("spot_profile")} set updated_at = now() where updated_at is null`,
+  );
+  for (const col of [
+    "spot_id",
+    "name_ko",
+    "type_ko",
+    "region_ko",
+    "theme_ids",
+    "tags_ko",
+    "tags_en",
+    "baseline_congestion",
+    "suitability",
+    "rating",
+    "review_count",
+    "default_duration_min",
+    "env",
+    "source",
+    "updated_at",
+  ]) {
     await setNotNullIfClean("spot_profile", col);
   }
   await addPrimaryKey("spot_profile", ["spot_id"]);
@@ -300,12 +388,29 @@ async function ensureCommerceProfile() {
     ["source_content_id", "text"],
     ["updated_at", "timestamp"],
   ];
-  for (const [name, type] of columns) await sql.unsafe(`alter table ${qTable("commerce_profile")} add column if not exists ${quoteIdent(name)} ${type}`);
+  for (const [name, type] of columns)
+    await sql.unsafe(
+      `alter table ${qTable("commerce_profile")} add column if not exists ${quoteIdent(name)} ${type}`,
+    );
   await sql.unsafe(`update ${qTable("commerce_profile")} set price_ko = '' where price_ko is null`);
   await sql.unsafe(`update ${qTable("commerce_profile")} set rating = 0 where rating is null`);
-  await sql.unsafe(`update ${qTable("commerce_profile")} set source = 'tourapi' where source is null`);
-  await sql.unsafe(`update ${qTable("commerce_profile")} set updated_at = now() where updated_at is null`);
-  for (const col of ["id", "kind", "name_ko", "type_ko", "region_ko", "price_ko", "rating", "source", "updated_at"]) {
+  await sql.unsafe(
+    `update ${qTable("commerce_profile")} set source = 'tourapi' where source is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("commerce_profile")} set updated_at = now() where updated_at is null`,
+  );
+  for (const col of [
+    "id",
+    "kind",
+    "name_ko",
+    "type_ko",
+    "region_ko",
+    "price_ko",
+    "rating",
+    "source",
+    "updated_at",
+  ]) {
     await setNotNullIfClean("commerce_profile", col);
   }
   await addPrimaryKey("commerce_profile", ["id"]);
@@ -326,17 +431,38 @@ async function ensureCourseTemplate() {
     )
   `);
   await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists id text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists theme_id text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists title_ko text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists title_en text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists day_count integer`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists alt_note_ko text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists alt_note_en text`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists is_default boolean default true`);
-  await sql.unsafe(`alter table ${qTable("course_template")} add column if not exists updated_at timestamp default now()`);
-  await sql.unsafe(`update ${qTable("course_template")} set is_default = true where is_default is null`);
-  await sql.unsafe(`update ${qTable("course_template")} set updated_at = now() where updated_at is null`);
-  for (const col of ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"]) await setNotNullIfClean("course_template", col);
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists theme_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists title_ko text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists title_en text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists day_count integer`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists alt_note_ko text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists alt_note_en text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists is_default boolean default true`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template")} add column if not exists updated_at timestamp default now()`,
+  );
+  await sql.unsafe(
+    `update ${qTable("course_template")} set is_default = true where is_default is null`,
+  );
+  await sql.unsafe(
+    `update ${qTable("course_template")} set updated_at = now() where updated_at is null`,
+  );
+  for (const col of ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"])
+    await setNotNullIfClean("course_template", col);
   await addPrimaryKey("course_template", ["id"]);
 }
 
@@ -353,22 +479,40 @@ async function ensureCourseTemplateItem() {
       primary key (template_id, seq)
     )
   `);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists template_id text`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists seq integer`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists kind text`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists day integer`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists time text`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists ref_id text`);
-  await sql.unsafe(`alter table ${qTable("course_template_item")} add column if not exists duration_min integer`);
-  for (const col of ["template_id", "seq", "kind", "day", "time", "ref_id"]) await setNotNullIfClean("course_template_item", col);
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists template_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists seq integer`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists kind text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists day integer`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists time text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists ref_id text`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("course_template_item")} add column if not exists duration_min integer`,
+  );
+  for (const col of ["template_id", "seq", "kind", "day", "time", "ref_id"])
+    await setNotNullIfClean("course_template_item", col);
   await addPrimaryKey("course_template_item", ["template_id", "seq"]);
 }
 
-console.log(`\n앱 DB 스키마 적용 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`);
+console.log(
+  `\n앱 DB 스키마 적용 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`,
+);
 
 try {
   if (SCHEMA !== "public") {
-    const exists = await sql`select 1 from information_schema.schemata where schema_name = ${SCHEMA} limit 1`;
+    const exists =
+      await sql`select 1 from information_schema.schemata where schema_name = ${SCHEMA} limit 1`;
     if (exists.length === 0) await sql.unsafe(`create schema ${schemaSql}`);
   }
   await ensureSavedTheme();
@@ -377,13 +521,29 @@ try {
   await ensureOnboardingPreference();
   await ensureUserProfile();
   await ensureSpotProfile();
+  await sql.unsafe(`create table if not exists ${qTable("personal_course")} (
+    id text primary key, user_id text not null, title text not null, note text not null default '',
+    items jsonb not null, version integer not null default 0, updated_at timestamptz not null default now()
+  )`);
+  await sql.unsafe(
+    `create index if not exists personal_course_user_idx on ${qTable("personal_course")} (user_id, updated_at desc)`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("spot_profile")} add column if not exists has_accessibility_info boolean not null default false`,
+  );
+  await sql.unsafe(`alter table ${qTable("spot_profile")} add column if not exists address text`);
+  await sql.unsafe(
+    `alter table ${qTable("spot_profile")} add column if not exists category text not null default 'other'`,
+  );
   await ensureCommerceProfile();
   await ensureCourseTemplate();
   await ensureCourseTemplateItem();
   console.log(`${C.green}✓ 앱 도메인 테이블 준비 완료${C.reset}`);
 } catch (e) {
   console.error(`${C.red}✗ 적용 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);
-  console.error(`${C.gray}기존 데이터에 NULL/중복 primary key 후보가 있으면 수동 정리가 필요합니다.${C.reset}`);
+  console.error(
+    `${C.gray}기존 데이터에 NULL/중복 primary key 후보가 있으면 수동 정리가 필요합니다.${C.reset}`,
+  );
   process.exitCode = 1;
 } finally {
   await sql.end({ timeout: 5 });

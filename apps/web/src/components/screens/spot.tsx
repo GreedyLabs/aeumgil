@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 // 관광지 상세: 원천별 예측·측정을 구분하고 실제 이용 안내를 함께 제공한다.
 import { useState, useTransition } from "react";
@@ -158,6 +159,12 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             {localized(s.region, lang)}
           </span>
         </div>
+        <Link
+          className="btn btn-secondary btn-sm spot-customize"
+          href={`/my-courses/new?spot=${encodeURIComponent(s.id)}`}
+        >
+          <Icon.plus /> 이 장소로 내 코스 만들기
+        </Link>
         <h1 style={{ fontSize: 34, margin: "0 0 12px", lineHeight: 1.1 }}>
           {localized(s.name, lang)}
         </h1>

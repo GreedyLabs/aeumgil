@@ -1,7 +1,12 @@
 "use client";
+import Link from "next/link";
+import { Select } from "@/components/select";
+import { CourseMap } from "./course-map";
+import { courseMapStops } from "@/domain/course-map";
+import { GANGWON_REGIONS } from "@/domain/place-search";
 
 // CourseView — Phase 1b. 코스 타임라인(혼잡도 포함). 데이터는 서버에서 주입.
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { localized, type Lang } from "@/lib/i18n";
 import { shareCurrentPage } from "@/lib/share";
 import { useAppNav } from "@/lib/nav";
@@ -40,7 +45,7 @@ const transportChoices = [
   { id: "transit", ko: "대중교통", en: "Transit" },
   { id: "walk", ko: "도보", en: "Walk" },
 ] satisfies { id: TravelMode; ko: string; en: string }[];
-const regionChoices = ["강릉", "속초", "평창", "양양"];
+const regionChoices = GANGWON_REGIONS.map((r) => r.ko);
 
 export function CourseView({
   theme,
@@ -80,6 +85,20 @@ export function CourseView({
   }, [course.dayCount, day]);
 
   const items = course.items.filter((it) => it.day === day);
+  const mapStops = useMemo(
+    () =>
+      courseMapStops(
+        course.items.filter((it) => it.day === day),
+        spots,
+        eats,
+        stays,
+      ),
+    [course.items, day, spots, eats, stays],
+  );
+  const mapLegs = useMemo(
+    () => course.routeLegs?.filter((l) => l.day === day) ?? [],
+    [course.routeLegs, day],
+  );
   const busy = items.some((it) => it.kind === "spot" && spots[it.refId]?.congestion === "busy");
   const tuned =
     Boolean(options.days) ||
@@ -135,6 +154,9 @@ export function CourseView({
     nav("course", { themeId: theme.id });
   };
 
+  const copyQuery = new URLSearchParams({ from: theme.id });
+  for (const [key, value] of Object.entries(options))
+    if (value !== undefined) copyQuery.set(key, String(value));
   return (
     <div className="screen-enter course-page">
       <TopBar
@@ -224,6 +246,16 @@ export function CourseView({
             </button>
           </div>
           {isTuning && <p role="status">선택한 조건으로 코스를 조정하고 있어요…</p>}
+          <div className="course-customize">
+            <div>
+              <strong>내 취향대로 바꾸고 싶다면</strong>
+              <p>이 일정을 복사해 장소와 방문 순서를 직접 편집하세요.</p>
+            </div>
+            <Link className="btn btn-primary" href={`/my-courses/new?${copyQuery}`}>
+              <Icon.plus /> 내 코스로 편집
+            </Link>
+          </div>
+          <CourseMap stops={mapStops} legs={mapLegs} day={day} />
           <div className="course-timeline">
             {items.map((it, i) => (
               <CourseTimelineItem
@@ -426,16 +458,19 @@ function CourseTunePanel({
       </TuneGroup>
 
       <TuneGroup label={lang === "ko" ? "시작 권역" : "Start"}>
-        {regionChoices.map((r) => (
-          <button
-            key={r}
-            aria-pressed={startRegion === r}
-            className={"chip" + (startRegion === r ? " active" : "")}
-            onClick={() => onRegion(r)}
-          >
-            {r}
-          </button>
-        ))}
+        <Select
+          className="input"
+          aria-label="시작 권역"
+          value={startRegion}
+          onChange={(e) => onRegion(e.target.value)}
+        >
+          <option value="">코스 기본 권역</option>
+          {regionChoices.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </Select>
       </TuneGroup>
 
       <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={onApply}>

@@ -97,6 +97,9 @@ export const userProfiles = table("user_profile", {
  * spot_id 는 큐레이션/외부 contentId/내부 slug 중 하나로 정규화된 앱 식별자이며, FK 는 걸지 않는다.
  */
 export const spotProfiles = table("spot_profile", {
+  hasAccessibilityInfo: boolean("has_accessibility_info").notNull().default(false),
+  address: text("address"),
+  category: text("category").notNull().default("other"),
   spotId: text("spot_id").primaryKey(),
   nameKo: text("name_ko").notNull(),
   nameEn: text("name_en"),
@@ -189,7 +192,18 @@ export const courseTemplateItems = table(
   (t) => [primaryKey({ columns: [t.templateId, t.seq] })],
 );
 
+export const personalCourses = table("personal_course", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  note: text("note").notNull().default(""),
+  items: jsonb("items").$type<import("@/domain/personal-course").PersonalCourseItem[]>().notNull(),
+  version: integer("version").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
+  personalCourses,
   savedThemes,
   reviews,
   visits,

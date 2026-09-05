@@ -10,11 +10,20 @@
 //   ✓ 있음 / – 없음(db:push 필요). 'postgres' 패키지는 pnpm install 후 사용 가능.
 // ─────────────────────────────────────────────
 
-const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
+const C = {
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  gray: "\x1b[90m",
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  reset: "\x1b[0m",
+};
 const URL = process.env.DATABASE_URL;
 
 if (!URL) {
-  console.error(`${C.red}✗ DATABASE_URL 이 비어 있습니다.${C.reset} 루트 .env 에 연결 문자열을 넣어주세요.`);
+  console.error(
+    `${C.red}✗ DATABASE_URL 이 비어 있습니다.${C.reset} 루트 .env 에 연결 문자열을 넣어주세요.`,
+  );
   console.error(`  형식: ${C.gray}postgresql://USER:PASSWORD@HOST:5432/DBNAME${C.reset}`);
   console.error(`  (클라우드 DB는 보통 끝에 ?sslmode=require 가 붙습니다.)`);
   process.exit(1);
@@ -24,11 +33,14 @@ let postgres;
 try {
   ({ default: postgres } = await import("postgres"));
 } catch {
-  console.error(`${C.red}✗ 'postgres' 패키지를 찾을 수 없습니다.${C.reset} 먼저 ${C.cyan}pnpm install${C.reset} 을 실행하세요.`);
+  console.error(
+    `${C.red}✗ 'postgres' 패키지를 찾을 수 없습니다.${C.reset} 먼저 ${C.cyan}pnpm install${C.reset} 을 실행하세요.`,
+  );
   process.exit(1);
 }
 
 const EXPECTED = {
+  personal_course: ["id", "user_id", "title", "note", "items", "version", "updated_at"],
   saved_theme: ["user_id", "theme_id", "saved_at"],
   review: ["id", "user_id", "spot_id", "rating", "text", "helpful", "created_at"],
   visit: ["id", "user_id", "spot_id", "visited_at", "congestion_then"],
@@ -42,6 +54,9 @@ const EXPECTED = {
     "type_en",
     "region_ko",
     "region_en",
+    "has_accessibility_info",
+    "address",
+    "category",
     "theme_ids",
     "tags_ko",
     "tags_en",
@@ -61,21 +76,51 @@ const EXPECTED = {
     "updated_at",
   ],
   commerce_profile: [
-    "id", "kind", "name_ko", "name_en", "type_ko", "type_en", "region_ko", "region_en",
-    "price_ko", "price_en", "rating", "addr", "tel", "lat", "lon", "image_url",
-    "source", "source_content_id", "updated_at",
+    "id",
+    "kind",
+    "name_ko",
+    "name_en",
+    "type_ko",
+    "type_en",
+    "region_ko",
+    "region_en",
+    "price_ko",
+    "price_en",
+    "rating",
+    "addr",
+    "tel",
+    "lat",
+    "lon",
+    "image_url",
+    "source",
+    "source_content_id",
+    "updated_at",
   ],
-  course_template: ["id", "theme_id", "title_ko", "title_en", "day_count", "alt_note_ko", "alt_note_en", "is_default", "updated_at"],
+  course_template: [
+    "id",
+    "theme_id",
+    "title_ko",
+    "title_en",
+    "day_count",
+    "alt_note_ko",
+    "alt_note_en",
+    "is_default",
+    "updated_at",
+  ],
   course_template_item: ["template_id", "seq", "kind", "day", "time", "ref_id", "duration_min"],
 };
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 const masked = URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");
-console.log(`\nDB 연결 검증 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`);
+console.log(
+  `\nDB 연결 검증 → ${masked}\n대상 스키마: ${C.cyan}${SCHEMA}${C.reset}\n──────────────────────────────`,
+);
 
 const sql = postgres(URL, { prepare: false, idle_timeout: 5, connect_timeout: 8, max: 1 });
 try {
   const [info] = await sql`select version() as version`;
-  console.log(`${C.green}✓ 연결 성공${C.reset}  ${C.gray}${String(info.version).split(",")[0]}${C.reset}`);
+  console.log(
+    `${C.green}✓ 연결 성공${C.reset}  ${C.gray}${String(info.version).split(",")[0]}${C.reset}`,
+  );
 
   const rows = await sql`
     select table_name, column_name
@@ -115,7 +160,9 @@ try {
   );
   if (missing.length > 0) process.exitCode = 1;
 } catch (e) {
-  console.error(`${C.red}✗ 연결/쿼리 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);
+  console.error(
+    `${C.red}✗ 연결/쿼리 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`,
+  );
   console.error(`  ${C.gray}호스트/포트/계정/SSL 설정과 DB 기동 여부를 확인하세요.${C.reset}`);
   process.exitCode = 1;
 } finally {

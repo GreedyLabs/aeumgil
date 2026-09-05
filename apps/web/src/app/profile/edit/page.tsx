@@ -8,5 +8,12 @@ export default async function ProfileEditPage() {
   const repo = getRepository();
   const [user, themes] = await Promise.all([repo.getCurrentUser(), repo.listThemes()]);
   if (!user) notFound();
-  return <ProfileEditView user={user} themes={themes} />;
+  return (
+    <ProfileEditView
+      user={user}
+      themes={themes.filter(
+        (theme) => !theme.id.startsWith("gangwon-") || user.interests.includes(theme.id),
+      )}
+    />
+  );
 }

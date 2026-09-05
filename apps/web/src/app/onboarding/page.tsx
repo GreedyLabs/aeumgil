@@ -8,5 +8,11 @@ export default async function OnboardingPage() {
     repo.listPaces(),
     repo.listCompanions(),
   ]);
-  return <OnboardingView themes={themes} paces={paces} companions={companions} />;
+  return (
+    <OnboardingView
+      themes={themes.filter((theme) => !theme.id.startsWith("gangwon-"))}
+      paces={paces}
+      companions={companions}
+    />
+  );
 }

@@ -22,14 +22,14 @@ export const TEST_USER = {
 
 const COOKIE_NAME = "authjs.session-token"; // http(localhost) — __Secure- 접두 없음
 
-export async function sessionCookie() {
+export async function sessionCookie(userId: string = TEST_USER.id) {
   const secret = process.env.AUTH_SECRET || "eumgil-dev-only-auth-secret-change-before-production";
   const value = await encode({
     salt: COOKIE_NAME,
     secret,
     maxAge: 60 * 60,
     token: {
-      sub: TEST_USER.id,
+      sub: userId,
       name: TEST_USER.name,
       email: TEST_USER.email,
       roles: [],

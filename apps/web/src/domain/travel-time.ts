@@ -23,6 +23,7 @@ export interface RouteContext {
 }
 
 export interface TravelEstimate {
+  path?: { lat: number; lon: number }[];
   distanceKm: number;
   driveMinutes: number;
   mode: TravelMode;
@@ -35,7 +36,12 @@ export interface TravelTimeLookup {
 
 function hasCoord(v: unknown): v is Coord {
   const c = v as Partial<Coord>;
-  return typeof c?.lat === "number" && Number.isFinite(c.lat) && typeof c.lon === "number" && Number.isFinite(c.lon);
+  return (
+    typeof c?.lat === "number" &&
+    Number.isFinite(c.lat) &&
+    typeof c.lon === "number" &&
+    Number.isFinite(c.lon)
+  );
 }
 
 export function haversineKm(a: Coord, b: Coord): number {
@@ -81,7 +87,12 @@ function estimateApproxDrive(a: Coord, b: Coord, mode: TravelMode = "car"): Trav
   const straight = haversineKm(a, b);
   const distanceKm = straight * regionFactor(a, b);
   const minutes = (distanceKm / averageSpeedKmh(distanceKm, a, b, mode)) * 60;
-  return { distanceKm, driveMinutes: Math.round(minutes + modeOverhead(distanceKm, mode)), mode, source: "approx" };
+  return {
+    distanceKm,
+    driveMinutes: Math.round(minutes + modeOverhead(distanceKm, mode)),
+    mode,
+    source: "approx",
+  };
 }
 
 export const approxTravelTimeLookup: TravelTimeLookup = {
@@ -112,7 +123,11 @@ export function estimateRouteMinutes(
   return total;
 }
 
-export function extraRouteMinutes(original: Coord, candidate: Coord, context: RouteContext): number | null {
+export function extraRouteMinutes(
+  original: Coord,
+  candidate: Coord,
+  context: RouteContext,
+): number | null {
   const mode = context.mode ?? "car";
   const lookup = context.lookup ?? approxTravelTimeLookup;
   const before = [context.prev, original, context.next].filter(hasCoord);
@@ -130,7 +145,11 @@ export function extraRouteMinutes(original: Coord, candidate: Coord, context: Ro
   return Math.max(0, afterMinutes - beforeMinutes);
 }
 
-export function routePenaltyPoints(original: Coord, candidate: Coord, context: RouteContext): number {
+export function routePenaltyPoints(
+  original: Coord,
+  candidate: Coord,
+  context: RouteContext,
+): number {
   const extra = extraRouteMinutes(original, candidate, context);
   if (extra === null) return 0;
   if (extra <= 8) return 0;

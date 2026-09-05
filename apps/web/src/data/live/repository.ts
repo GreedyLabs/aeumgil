@@ -1,4 +1,14 @@
+import { fetchFestivalDetail } from "@/server/tourism/festival";
+import { GANGWON_REGIONS } from "@/domain/place-search";
 import { getHighways } from "@/server/public-api/highway";
+import { personalCourseInput, type PersonalCourseInput } from "@/domain/personal-course";
+import {
+  fetchPersonalCourse,
+  fetchPersonalCourses,
+  savePersonalCourse,
+  removePersonalCourse,
+} from "@/server/db/personal-courses";
+import { getAccessibility } from "@/server/public-api/accessibility";
 import { getUvForRegion } from "@/server/public-api/living-weather";
 import { getRegionalVisitors } from "@/server/public-api/visitors";
 // ─────────────────────────────────────────────
@@ -40,6 +50,7 @@ import {
   fetchDefaultCourseTemplate,
   fetchSpotProfile,
   fetchSpotProfiles,
+  searchSpotProfiles,
   fetchSpotProfilesForTheme,
   fetchTheme,
   fetchThemes,
@@ -62,6 +73,9 @@ import {
   normalizeIntentQuery,
 } from "@/domain/matching";
 import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
+import { courseMapStops } from "@/domain/course-map";
+import { routingPortFromEnv, approximateDirectionsPort } from "@/server/routing/travel-time";
+import { regionalThemeMatch } from "@/domain/regional-matching";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
@@ -286,8 +300,8 @@ export class LiveRepository implements Repository {
     const region = m
       ? REGIONS[m.region]
       : Object.values(REGIONS).find((r) => spot.region.ko.includes(r.ko));
-    const contentId = m?.tourContentId;
-    const [wxResult, airResult, tourResult, demandResult, uvResult, highwaysResult] =
+    const contentId = spot.sourceContentId ?? m?.tourContentId;
+    const [wxResult, airResult, tourResult, demandResult, uvResult, accessibilityResult] =
       await Promise.allSettled([
         lat !== undefined && lon !== undefined && env.DATA_GO_KR_SERVICE_KEY
           ? cached(weatherCacheKey(lat, lon), TTL_MS, () => getWeatherByCoords(lat, lon))
@@ -298,10 +312,20 @@ export class LiveRepository implements Repository {
         contentId && env.DATA_GO_KR_SERVICE_KEY
           ? cached(`tour:v3:${contentId}`, DAY_MS, () => getItemDetail(contentId))
           : Promise.resolve(null),
-        getCrowdForecast(spot.id),
+        getCrowdForecast(
+          spot.id,
+          region
+            ? {
+                name: spot.name.ko,
+                district: `51${GANGWON_REGIONS.find((r) => r.key === region.key)?.code ?? ""}`,
+              }
+            : undefined,
+        ),
 
         region ? getUvForRegion(region.key) : Promise.resolve(undefined),
-        getHighways(),
+        spot.hasAccessibilityInfo && contentId && env.DATA_GO_KR_SERVICE_KEY
+          ? getAccessibility(contentId)
+          : Promise.resolve(undefined),
       ]);
     const weather = wxResult.status === "fulfilled" ? wxResult.value : undefined;
     const air = airResult.status === "fulfilled" ? airResult.value : undefined;
@@ -356,9 +380,10 @@ export class LiveRepository implements Repository {
       description: detail?.overview ? L(detail.overview) : spot.description,
       imageUrl: detail?.image || spot.imageUrl,
       uv,
-      highways: highwaysResult.status === "fulfilled" ? highwaysResult.value : [],
       photos: detail?.photos,
       visitInfo: detail?.visitInfo,
+      accessibility:
+        accessibilityResult.status === "fulfilled" ? accessibilityResult.value : undefined,
       crowdForecast: demandResult.status === "fulfilled" ? demandResult.value : undefined,
       conditions: {
         weather: weather ? "available" : "unavailable",
@@ -395,9 +420,13 @@ export class LiveRepository implements Repository {
     return options.enrich === false ? base : this.enrich(base);
   }
 
+  async searchSpots(query: import("@/domain/place-search").PlaceSearchQuery = {}) {
+    return searchSpotProfiles(requireDb(), query);
+  }
+
   async listSpots(options: SpotQueryOptions = {}): Promise<Spot[]> {
     const base = await fetchSpotProfiles(requireDb());
-    if (options.enrich === false) return base;
+    if (options.enrich !== true) return base;
     return Promise.all(base.map((s) => this.enrich(s)));
   }
 
@@ -437,7 +466,52 @@ export class LiveRepository implements Repository {
     const base = await this.composeSeedCourse(themeId, options);
     if (!base) return base;
     const spots = await fetchSpotProfilesForTheme(requireDb(), themeId);
-    const finalize = (course: Course) => scheduleCourse(course, spots, options?.transport ?? "car");
+    const finalize = async (course: Course): Promise<Course> => {
+      const mode = options?.transport ?? "car";
+      const scheduled = scheduleCourse(course, spots, mode);
+      const spotMap = Object.fromEntries(spots.map((s) => [s.id, s]));
+      const eatRows = await Promise.all(
+        [...new Set(course.items.filter((i) => i.kind === "eat").map((i) => i.refId))].map((id) =>
+          this.getEat(id).catch(() => null),
+        ),
+      );
+      const stayRows = await Promise.all(
+        [...new Set(course.items.filter((i) => i.kind === "stay").map((i) => i.refId))].map((id) =>
+          this.getStay(id).catch(() => null),
+        ),
+      );
+      const eats = Object.fromEntries(eatRows.flatMap((p) => (p ? [[p.id, p]] : [])));
+      const stays = Object.fromEntries(stayRows.flatMap((p) => (p ? [[p.id, p]] : [])));
+      const port = routingPortFromEnv();
+      const routeLegs: import("@/domain/course-map").CourseRouteLeg[] = [];
+      for (let day = 1; day <= scheduled.dayCount; day++) {
+        const points = courseMapStops(
+          scheduled.items.filter((i) => i.day === day),
+          spotMap,
+          eats,
+          stays,
+        );
+        await Promise.all(
+          points.slice(0, -1).map(async (from, index) => {
+            const to = points[index + 1]!;
+            const result =
+              (await port.estimate(from, to, mode).catch(() => null)) ??
+              (await approximateDirectionsPort.estimate(from, to, mode));
+            if (result)
+              routeLegs.push({
+                day,
+                fromId: from.id,
+                toId: to.id,
+                minutes: result.driveMinutes,
+                distanceKm: result.distanceKm,
+                source: result.source ?? "approx",
+                path: result.path,
+              });
+          }),
+        );
+      }
+      return { ...scheduled, routeLegs };
+    };
 
     try {
       const ctx = await this.buildAgentContext(options);
@@ -482,7 +556,7 @@ export class LiveRepository implements Repository {
   ): Promise<Course | null> {
     const db = requireDb();
     // eat/stay 는 보조 데이터 — 수집 전/조회 실패여도 코스 생성(스팟 중심)은 계속돼야 한다.
-    const [theme, baseCourse, spots, eats, stays] = await Promise.all([
+    const [theme, baseCourse, allThemeSpots, eats, stays] = await Promise.all([
       fetchTheme(db, themeId),
       fetchDefaultCourseTemplate(db, themeId),
       fetchSpotProfilesForTheme(db, themeId),
@@ -491,6 +565,12 @@ export class LiveRepository implements Repository {
     ]);
     if (!theme) return null;
 
+    const templateIds = new Set(
+      baseCourse?.items.filter((it) => it.kind === "spot").map((it) => it.refId),
+    );
+    const spots = [...allThemeSpots]
+      .sort((a, b) => Number(templateIds.has(b.id)) - Number(templateIds.has(a.id)))
+      .slice(0, 36);
     const spotIds = [
       ...new Set(
         (baseCourse?.items ?? []).filter((it) => it.kind === "spot").map((it) => it.refId),
@@ -498,7 +578,7 @@ export class LiveRepository implements Repository {
     ];
     const altEntries: [string, Spot[]][] = await Promise.all(
       spotIds.map(async (id) => {
-        const dbAlternatives = spots.filter((spot) => spot.id !== id);
+        const dbAlternatives = spots.filter((spot) => spot.id !== id).slice(0, 8);
         return [id, dbAlternatives];
       }),
     );
@@ -597,6 +677,49 @@ export class LiveRepository implements Repository {
       log.warn(`sessionUser → null (${e instanceof Error ? e.message : String(e)})`);
       return null;
     }
+  }
+
+  async getFestival(id: string) {
+    return fetchFestivalDetail(id);
+  }
+  async getTravelTraffic() {
+    try {
+      return await getHighways();
+    } catch {
+      return [];
+    }
+  }
+  async listPersonalCourses() {
+    const uid = (await this.sessionUser())?.id;
+    return uid ? fetchPersonalCourses(requireDb(), uid) : [];
+  }
+  async getPersonalCourse(id: string) {
+    const uid = (await this.sessionUser())?.id;
+    return uid ? fetchPersonalCourse(requireDb(), uid, id) : null;
+  }
+  async savePersonalCourse(input: PersonalCourseInput) {
+    const uid = (await this.sessionUser())?.id;
+    if (!uid) throw new Error("로그인이 필요해요.");
+    const value = personalCourseInput.parse(input);
+    const places = await Promise.all(
+      value.items.map((item) =>
+        item.kind === "festival"
+          ? this.getFestival(item.refId).then((event) => event?.place ?? null)
+          : item.kind === "spot"
+            ? this.getSpot(item.refId, { enrich: false })
+            : item.kind === "eat"
+              ? this.getEat(item.refId)
+              : this.getStay(item.refId),
+      ),
+    );
+    if (places.some((place) => !place))
+      throw new Error("더 이상 제공되지 않는 장소가 있어요. 해당 장소를 제거해 주세요.");
+    return savePersonalCourse(requireDb(), uid, value);
+  }
+  async deletePersonalCourse(id: string) {
+    const uid = (await this.sessionUser())?.id;
+    if (!uid) throw new Error("로그인이 필요해요.");
+    await removePersonalCourse(requireDb(), uid, id);
   }
 
   async getCurrentUser(): Promise<User | null> {
@@ -758,7 +881,11 @@ export class LiveRepository implements Repository {
       })
       .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
-    const ranked: string[] = [];
+    const regional = regionalThemeMatch(
+      q,
+      themes.map((t) => ({ id: t.id, title: t.title.ko, subtitle: t.subtitle.ko })),
+    );
+    const ranked: string[] = regional ? [regional] : [];
     for (const id of [...keywordHits, ...scored.map((item) => item.id)]) {
       if (!ranked.includes(id)) ranked.push(id);
     }
@@ -781,14 +908,17 @@ export class LiveRepository implements Repository {
     const spots: SpotMeta[] = [];
     for (const s of baseSpots) {
       const m = getSpotMapping(s.id);
-      if (!m) continue;
+      const region = m?.region ?? Object.values(REGIONS).find((r) => r.ko === s.region.ko)?.key;
+      const lat = s.lat ?? m?.lat,
+        lon = s.lon ?? m?.lon;
+      if (!region || lat === undefined || lon === undefined) continue;
       spots.push({
         id: s.id,
-        baseline: s.congestion,
-        env: m.env,
-        lat: m.lat,
-        lon: m.lon,
-        region: m.region,
+        baseline: s.baselineCongestion ?? s.congestion,
+        env: s.environment ?? m?.env ?? "inland",
+        lat,
+        lon,
+        region,
       });
     }
 

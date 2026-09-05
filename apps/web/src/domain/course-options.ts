@@ -1,14 +1,20 @@
 // 자연어와 URL에서 받은 여행 조건을 동일한 허용 목록으로 정규화한다.
+import { GANGWON_REGIONS } from "./place-search";
 import type { ComposeCourseOptions } from "./course-compose";
 
-export function parseCourseOptions(values: Record<string, string | undefined>): ComposeCourseOptions {
+export function parseCourseOptions(
+  values: Record<string, string | undefined>,
+): ComposeCourseOptions {
   const result: ComposeCourseOptions = {};
   const days = Number(values.days);
   if (Number.isInteger(days) && days >= 1 && days <= 3) result.days = days;
   if (["calm", "balanced", "active"].includes(values.pace ?? "")) result.pace = values.pace;
-  if (["solo", "couple", "family"].includes(values.companion ?? "")) result.companion = values.companion;
-  if (["강릉", "속초", "평창", "양양", "정선", "인제", "춘천", "원주"].includes(values.startRegion ?? "")) result.startRegion = values.startRegion;
-  if (values.transport === "car" || values.transport === "transit" || values.transport === "walk") result.transport = values.transport;
+  if (["solo", "couple", "family"].includes(values.companion ?? ""))
+    result.companion = values.companion;
+  if (GANGWON_REGIONS.map((r) => r.ko).includes(values.startRegion ?? ""))
+    result.startRegion = values.startRegion;
+  if (values.transport === "car" || values.transport === "transit" || values.transport === "walk")
+    result.transport = values.transport;
   return result;
 }
 
@@ -28,7 +34,7 @@ export function inferCourseOptions(query: string): ComposeCourseOptions {
   else if (/연인|커플|둘이/.test(query)) result.companion = "couple";
   if (/여유롭게|느긋하게|천천히/.test(query)) result.pace = "calm";
   else if (/활동적으로|알차게/.test(query)) result.pace = "active";
-  const region = /(강릉|속초|평창|양양|정선|인제|춘천|원주)에서\s*출발/.exec(query)?.[1];
+  const region = GANGWON_REGIONS.find((r) => new RegExp(`${r.ko}에서\\s*출발`).test(query))?.ko;
   if (region) result.startRegion = region;
   return result;
 }

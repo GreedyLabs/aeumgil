@@ -116,3 +116,27 @@ describe("server routing travel-time", () => {
     expect(called).toBe(false);
   });
 });
+
+it("도로 vertexes의 경도·위도를 검증해 지도 경로로 변환한다", async () => {
+  const port = kakaoDirectionsPort({
+    apiKey: "test",
+    fetcher: (async () =>
+      new Response(
+        JSON.stringify({
+          routes: [
+            {
+              result_code: 0,
+              summary: { distance: 2000, duration: 300 },
+              sections: [{ roads: [{ vertexes: [128, 37.5, 128.01, 37.51, 0, 999] }] }],
+            },
+          ],
+        }),
+        { headers: { "content-type": "application/json" } },
+      )) as typeof fetch,
+  });
+  const estimate = await port.estimate({ lat: 37.5, lon: 128 }, { lat: 37.51, lon: 128.01 }, "car");
+  expect(estimate?.path).toEqual([
+    { lat: 37.5, lon: 128 },
+    { lat: 37.51, lon: 128.01 },
+  ]);
+});

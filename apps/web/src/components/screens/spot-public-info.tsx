@@ -59,40 +59,27 @@ export function SpotPublicInfo({ spot }: { spot: Spot }) {
           </p>
         </div>
       )}
-      {!!spot.highways?.length && (
-        <details className="card public-info-card photo-disclosure">
-          <summary>
-            강원 연결 고속도로 <span>실시간 소통</span>
-          </summary>
+      {spot.hasAccessibilityInfo && (
+        <div className="card public-info-card" aria-label="무장애 여행 안내">
+          <div className="section-label">한국관광공사 · 무장애 여행정보</div>
+          <h2>함께 가기 전 확인할 편의시설</h2>
+          {spot.accessibility?.items.length ? (
+            <dl className="visit-facts">
+              {spot.accessibility.items.map((item) => (
+                <div key={item.key}>
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p>상세 안내를 현재 확인할 수 없어요. 시설에 직접 문의해 주세요.</p>
+          )}
           <p className="data-caption">
-            고속도로 전 구간 관측값입니다. 현재 코스의 실제 경로·소요시간과는 다릅니다.
+            안내가 있다고 모든 구간을 이용할 수 있는 것은 아니에요. 경사·계단·대여 조건을 살펴보고
+            필요한 지원을 방문 전에 시설에 확인하세요. 표시되지 않은 항목은 정보가 없는 상태입니다.
           </p>
-          {spot.highways.map((road) => (
-            <div className="road-condition" key={road.route}>
-              <h3>{road.route}</h3>
-              <p>
-                40km/h 미만 관측 구간 <strong>{road.slowSegments}곳</strong>
-              </p>
-              {!!road.slow.length && (
-                <ul>
-                  {road.slow.map((x, i) => (
-                    <li key={`${x.name}-${i}`}>
-                      {x.name} · 최저 {x.speed}km/h
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="data-caption">
-                {new Date(road.observedAt).toLocaleTimeString("ko-KR", {
-                  timeZone: "Asia/Seoul",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}{" "}
-                관측 · 한국도로공사
-              </p>
-            </div>
-          ))}
-        </details>
+        </div>
       )}
       {facts.length > 0 && (
         <div className="card public-info-card">

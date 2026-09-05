@@ -1,7 +1,9 @@
 "use client";
+import { Select } from "@/components/select";
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { localized } from "@/lib/i18n";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
@@ -12,14 +14,21 @@ export function DiscoverView({
   themes,
   festivals,
   visitors,
+  places,
+  activeTab = "themes",
 }: {
   themes: Theme[];
   festivals?: ReactNode;
   visitors?: ReactNode;
+  places?: ReactNode;
+  activeTab?: string;
 }) {
   const { lang } = useAppState();
-  const [mode, setMode] = useState<"themes" | "festivals" | "visitors">("themes");
+  const router = useRouter();
+  const mode = activeTab;
+  const setMode = (tab: string) => router.push(`/discover?tab=${tab}`, { scroll: false });
   const [query, setQuery] = useState("");
+  const [visible, setVisible] = useState(18);
   const [region, setRegion] = useState("");
   const regions = [...new Set(themes.flatMap((theme) => theme.region.ko.split(" · ")))];
   const filtered = themes.filter((theme) => {
@@ -28,7 +37,11 @@ export function DiscoverView({
       .join(" ")
       .toLowerCase();
     return (
-      text.includes(query.trim().toLowerCase()) &&
+      query
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .every((term) => text.replace(/\s+/g, "").includes(term)) &&
       (!region || theme.region.ko.split(" · ").includes(region))
     );
   });
@@ -38,7 +51,7 @@ export function DiscoverView({
       <UI.TopBar
         title="탐색"
         right={
-          <Link className="icon-btn" aria-label="혼잡도 지도 보기" href="/map">
+          <Link className="icon-btn" aria-label="여행지 찾기" href="/discover?tab=places">
             <Icon.map />
           </Link>
         }
@@ -47,13 +60,16 @@ export function DiscoverView({
         <div>
           <span className="eyebrow">취향 따라 떠나는 강원</span>
           <h1>어떤 여행을 찾고 있나요?</h1>
-          <p>바다부터 숲, 골목의 맛까지. 마음이 가는 테마로 시작하세요.</p>
+          <p>코스부터 고르거나, 가고 싶은 장소부터 찾아보세요. 동선은 코스에서 함께 확인해요.</p>
         </div>
         <Link href="/" className="btn btn-secondary">
           <Icon.sparkle /> 나에게 맞는 여행 찾기
         </Link>
       </header>
       <div className="browse-tabs" aria-label="탐색 종류">
+        <button aria-pressed={mode === "places"} onClick={() => setMode("places")}>
+          여행지 찾기
+        </button>
         <button aria-pressed={mode === "themes"} onClick={() => setMode("themes")}>
           테마 코스
         </button>
@@ -64,7 +80,9 @@ export function DiscoverView({
           지역 방문 통계
         </button>
       </div>
-      {mode === "visitors" ? (
+      {mode === "places" ? (
+        places
+      ) : mode === "visitors" ? (
         visitors
       ) : mode === "festivals" ? (
         festivals
@@ -78,21 +96,30 @@ export function DiscoverView({
                 type="search"
                 placeholder="바다, 숲, 시장…"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setVisible(18);
+                }}
               />
             </div>
-            <div className="filter-list" aria-label="여행 지역">
-              {["", ...regions].map((r) => (
-                <button
-                  key={r}
-                  className={`chip${region === r ? " active" : ""}`}
-                  aria-pressed={region === r}
-                  onClick={() => setRegion(r)}
-                >
-                  {r || "강원 전체"}
-                </button>
-              ))}
-            </div>
+            <label className="places-region">
+              <span>지역</span>
+              <Select
+                aria-label="테마 지역"
+                value={region}
+                onChange={(e) => {
+                  setRegion(e.target.value);
+                  setVisible(18);
+                }}
+              >
+                <option value="">강원 전체</option>
+                {regions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </Select>
+            </label>
           </section>
           <div className="results-heading">
             <h2>
@@ -100,9 +127,14 @@ export function DiscoverView({
             </h2>
             <span>준비된 코스에 여행 조건을 더해보세요</span>
           </div>
+          {filtered.length > visible && (
+            <p className="section-description">
+              먼저 {visible}개 코스를 보여드려요. 지역이나 검색어로 좁혀보세요.
+            </p>
+          )}
           {filtered.length ? (
             <div className="theme-grid">
-              {filtered.map((theme) => (
+              {filtered.slice(0, visible).map((theme) => (
                 <ThemeCard key={theme.id} theme={theme} lang={lang} />
               ))}
             </div>
@@ -121,6 +153,11 @@ export function DiscoverView({
                 검색 초기화
               </button>
             </div>
+          )}
+          {filtered.length > visible && (
+            <button className="btn btn-secondary" onClick={() => setVisible((v) => v + 18)}>
+              코스 더 보기 ({visible} / {filtered.length})
+            </button>
           )}
         </>
       )}

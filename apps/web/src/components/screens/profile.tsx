@@ -91,7 +91,11 @@ export function ProfileView({
           <div className="profile-overview">
             <section className="summary-panel">
               <div className="profile-head">
-                <Avatar className="avatar-lg" src={user.avatarUrl} />
+                <Avatar
+                  className="avatar-lg"
+                  src={user.avatarUrl}
+                  name={localized(user.name, lang)}
+                />
                 <div>
                   <strong>{localized(user.name, lang)}</strong>
                   <span className="grade-badge">
@@ -144,7 +148,7 @@ export function ProfileView({
           </div>
           <section className="section-block">
             <div className="section-heading">
-              <h2 className="section-title">저장한 여행</h2>
+              <h2 className="section-title">저장한 추천 테마</h2>
               <Link href="/saved" className="text-link">
                 전체 보기 <Icon.chevR />
               </Link>
@@ -159,7 +163,7 @@ export function ProfileView({
               <div className="empty-state compact">
                 <Icon.bookmark />
                 <div>
-                  <h2>마음에 드는 여행을 저장해 보세요</h2>
+                  <h2>마음에 드는 추천 테마를 저장해 보세요</h2>
                   <p>코스 상세에서 저장하면 이곳에서 다시 볼 수 있어요.</p>
                 </div>
                 <Link href="/discover" className="btn btn-secondary">

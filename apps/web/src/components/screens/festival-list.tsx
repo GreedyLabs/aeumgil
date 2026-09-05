@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import type { FestivalListing } from "@/domain/types";
 import { UI, Icon } from "./_ui";
@@ -13,7 +14,8 @@ export function FestivalList({ listing }: { listing: FestivalListing }) {
         <span>앞으로 30일 · 한국관광공사</span>
       </div>
       <p className="section-description">
-        오늘부터 30일 안에 시작하는 행사예요. 일정은 주최 측 사정에 따라 달라질 수 있어요.
+        현재 진행 중이거나 앞으로 30일 안에 시작하는 행사예요. 일정은 주최 측 사정에 따라 달라질 수
+        있어요.
       </p>
       {listing.items.length ? (
         <div className="commerce-grid">
@@ -26,14 +28,9 @@ export function FestivalList({ listing }: { listing: FestivalListing }) {
                 </span>
                 <h3>{event.name.ko}</h3>
                 <p>{event.address}</p>
-                <a
-                  className="text-link"
-                  href={`https://map.kakao.com/link/search/${encodeURIComponent(event.address || event.name.ko)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  행사장 위치 보기 <Icon.chevR />
-                </a>
+                <Link className="text-link" href={`/festival/${event.id}`}>
+                  행사 자세히 보기 <Icon.chevR />
+                </Link>
               </div>
             </article>
           ))}

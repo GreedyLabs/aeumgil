@@ -47,7 +47,12 @@ interface KakaoDirectionsPortOptions {
 
 function isCoord(v: unknown): v is Coord {
   const c = v as Partial<Coord>;
-  return typeof c?.lat === "number" && Number.isFinite(c.lat) && typeof c.lon === "number" && Number.isFinite(c.lon);
+  return (
+    typeof c?.lat === "number" &&
+    Number.isFinite(c.lat) &&
+    typeof c.lon === "number" &&
+    Number.isFinite(c.lon)
+  );
 }
 
 function coordKey(c: Coord): string {
@@ -59,7 +64,7 @@ function pairKey(a: Coord, b: Coord, mode: TravelMode): string {
 }
 
 function routeCacheKey(a: Coord, b: Coord, mode: TravelMode): string {
-  return `route:${mode}:${a.lon.toFixed(5)},${a.lat.toFixed(5)}:${b.lon.toFixed(5)},${b.lat.toFixed(5)}`;
+  return `route:v2:${mode}:${a.lon.toFixed(5)},${a.lat.toFixed(5)}:${b.lon.toFixed(5)},${b.lat.toFixed(5)}`;
 }
 
 export const approximateDirectionsPort: DirectionsPort = {
@@ -68,7 +73,10 @@ export const approximateDirectionsPort: DirectionsPort = {
   },
 };
 
-export function kakaoDirectionsPort({ apiKey, fetcher = fetch }: KakaoDirectionsPortOptions): DirectionsPort {
+export function kakaoDirectionsPort({
+  apiKey,
+  fetcher = fetch,
+}: KakaoDirectionsPortOptions): DirectionsPort {
   return {
     async estimate(a, b, mode) {
       // Kakao Mobility Directions 는 자동차 경로 API다. 대중교통/도보는 현재 근사 포트로 유지한다.
@@ -81,7 +89,7 @@ export function kakaoDirectionsPort({ apiKey, fetcher = fetch }: KakaoDirections
         url.searchParams.set("car_fuel", "GASOLINE");
         url.searchParams.set("car_hipass", "false");
         url.searchParams.set("alternatives", "false");
-        url.searchParams.set("road_details", "false");
+        url.searchParams.set("road_details", "true");
 
         const started = Date.now();
         const res = await fetcher(url, {
@@ -92,7 +100,11 @@ export function kakaoDirectionsPort({ apiKey, fetcher = fetch }: KakaoDirections
           throw new Error(`Kakao directions HTTP ${res.status}`);
         }
         const json = (await res.json()) as {
-          routes?: { result_code?: number; summary?: { distance?: number; duration?: number } }[];
+          routes?: {
+            sections?: { roads?: { vertexes?: number[] }[] }[];
+            result_code?: number;
+            summary?: { distance?: number; duration?: number };
+          }[];
         };
         const route = json.routes?.[0];
         if (!route?.summary || (route.result_code ?? 0) !== 0) {
@@ -103,12 +115,32 @@ export function kakaoDirectionsPort({ apiKey, fetcher = fetch }: KakaoDirections
         if (typeof distanceM !== "number" || typeof durationSec !== "number") {
           throw new Error("Kakao directions summary missing distance/duration");
         }
-        if (log.on) log.log(`kakao ${coordKey(a)} → ${coordKey(b)} ${Math.round(Date.now() - started)}ms`);
+        const path: { lat: number; lon: number }[] = [];
+        for (const section of route.sections ?? [])
+          for (const road of section.roads ?? []) {
+            const points = road.vertexes ?? [];
+            for (let i = 0; i + 1 < points.length && path.length < 12000; i += 2) {
+              const lon = points[i]!,
+                lat = points[i + 1]!;
+              if (
+                Number.isFinite(lat) &&
+                Number.isFinite(lon) &&
+                lat >= 33 &&
+                lat <= 39 &&
+                lon >= 124 &&
+                lon <= 132
+              )
+                path.push({ lat, lon });
+            }
+          }
+        if (log.on)
+          log.log(`kakao ${coordKey(a)} → ${coordKey(b)} ${Math.round(Date.now() - started)}ms`);
         return {
           distanceKm: Math.round((distanceM / 1000) * 10) / 10,
           driveMinutes: Math.max(1, Math.round(durationSec / 60)),
           mode,
           source: "api",
+          ...(path.length > 1 ? { path } : {}),
         };
       });
     },
@@ -152,7 +184,8 @@ export async function buildTravelTimeLookup(
   // 근사 포트는 조회 시 폴백 계산과 동일하므로 사전 매트릭스를 만들 필요가 없다.
   if (port !== approximateDirectionsPort) {
     const candidates: [Coord, Coord][] =
-      options.apiPairs ?? points.flatMap((from) => points.map((to) => [from, to] as [Coord, Coord]));
+      options.apiPairs ??
+      points.flatMap((from) => points.map((to) => [from, to] as [Coord, Coord]));
 
     // 상한은 호출 목록을 먼저 만들어 사전 슬라이스로 적용한다.
     // (병렬 콜백 안에서 카운터를 증가시키는 방식은 상한이 정확히 걸리지 않는다 — §3.3)
@@ -178,12 +211,16 @@ export async function buildTravelTimeLookup(
         }
       }),
     );
-    if (log.on) log.log(`lookup built: ${attempts.length} api pair(s) attempted, ${matrix.size} resolved`);
+    if (log.on)
+      log.log(`lookup built: ${attempts.length} api pair(s) attempted, ${matrix.size} resolved`);
   }
 
   return {
     estimate(a, b, requestedMode = mode) {
-      return matrix.get(pairKey(a, b, requestedMode)) ?? approxTravelTimeLookup.estimate(a, b, requestedMode);
+      return (
+        matrix.get(pairKey(a, b, requestedMode)) ??
+        approxTravelTimeLookup.estimate(a, b, requestedMode)
+      );
     },
   };
 }

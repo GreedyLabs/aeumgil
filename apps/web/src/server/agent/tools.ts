@@ -48,6 +48,8 @@ export function buildTools(ctx: ToolContext): ToolSpec[] {
         return ctx.themes.map((t) => ({
           id: t.id,
           title: localized(t.title, "ko"),
+          subtitle: localized(t.subtitle, "ko"),
+          region: localized(t.region, "ko"),
           tag: localized(t.tag, "ko"),
           mood: t.mood.map((m) => localized(m, "ko")),
         }));
@@ -99,7 +101,13 @@ export function buildTools(ctx: ToolContext): ToolSpec[] {
       async run(args) {
         const meta = findSpot(ctx, str(args, "spotId"));
         const w = await ctx.weather(meta);
-        return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: localized(w.desc, "ko") };
+        return {
+          tempC: w.tempC,
+          pop: w.pop,
+          windMs: w.windMs,
+          pty: w.pty,
+          desc: localized(w.desc, "ko"),
+        };
       },
     },
     {
@@ -133,8 +141,7 @@ export function buildTools(ctx: ToolContext): ToolSpec[] {
     },
     {
       name: "score_suitability",
-      description:
-        "혼잡+날씨+대기질을 합쳐 특정 스팟의 방문 적합성(0~100)과 사유를 계산한다.",
+      description: "혼잡+날씨+대기질을 합쳐 특정 스팟의 방문 적합성(0~100)과 사유를 계산한다.",
       parameters: {
         spotId: { type: "string", required: true, description: "스팟 id", enum: spotIds },
       },
@@ -142,7 +149,13 @@ export function buildTools(ctx: ToolContext): ToolSpec[] {
       async run(args) {
         const meta = findSpot(ctx, str(args, "spotId"));
         const [w, a] = await Promise.all([ctx.weather(meta), ctx.air(meta.region)]);
-        const c = estimateCongestion({ baseline: meta.baseline, kind: meta.env, at: ctx.now(), pop: w.pop, pty: w.pty });
+        const c = estimateCongestion({
+          baseline: meta.baseline,
+          kind: meta.env,
+          at: ctx.now(),
+          pop: w.pop,
+          pty: w.pty,
+        });
         const { suitability, reason } = scoreSuitability({
           congestion: c.level,
           pop: w.pop,
@@ -180,7 +193,13 @@ export function buildTools(ctx: ToolContext): ToolSpec[] {
             return { refId: it.refId, time: it.time, hourly };
           });
         const res = reorderSpotsByCongestion(scheduled);
-        return { day, changed: res.changed, saved: res.saved, order: res.order, movedRefIds: res.movedRefIds };
+        return {
+          day,
+          changed: res.changed,
+          saved: res.saved,
+          order: res.order,
+          movedRefIds: res.movedRefIds,
+        };
       },
     },
   ];

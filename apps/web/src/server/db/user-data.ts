@@ -11,7 +11,15 @@
 
 import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import type { Database } from "./index";
-import { onboardingPreferences, reviews, savedThemes, userProfiles, visits } from "./schema";
+import {
+  onboardingPreferences,
+  personalCourses,
+  reviews,
+  savedThemes,
+  spotProfiles,
+  userProfiles,
+  visits,
+} from "./schema";
 import { L } from "@/lib/i18n";
 import type { Congestion, OnboardingPreference, Review, UserStats, Visit } from "@/domain/types";
 
@@ -21,22 +29,23 @@ export interface UserProfileData {
   updatedAt?: string;
 }
 
-/** 저장/리뷰/방문 카운트 + 방문 권역 수(prefix 근사)로 UserStats 산출. */
+/** 저장한 추천·개인 코스와 방문한 실제 권역으로 통계를 산출한다. */
 export async function computeStats(db: Database, userId: string): Promise<UserStats> {
-  const [[saved], [rev], [vis]] = await Promise.all([
+  const [[saved], [personal], [rev], [vis]] = await Promise.all([
     db.select({ n: count() }).from(savedThemes).where(eq(savedThemes.userId, userId)),
+    db.select({ n: count() }).from(personalCourses).where(eq(personalCourses.userId, userId)),
     db.select({ n: count() }).from(reviews).where(eq(reviews.userId, userId)),
     db.select({ n: count() }).from(visits).where(eq(visits.userId, userId)),
   ]);
-  // 권역 수: spotId 앞 토큰(예: "sokcho-market"→"sokcho")의 distinct 근사.
   const regionRows = await db
-    .select({ region: sql<string>`split_part(${visits.spotId}, '-', 1)` })
+    .select({ region: spotProfiles.regionKo })
     .from(visits)
+    .innerJoin(spotProfiles, eq(visits.spotId, spotProfiles.spotId))
     .where(eq(visits.userId, userId))
-    .groupBy(sql`split_part(${visits.spotId}, '-', 1)`);
+    .groupBy(spotProfiles.regionKo);
 
   return {
-    saved: saved?.n ?? 0,
+    saved: (saved?.n ?? 0) + (personal?.n ?? 0),
     reviews: rev?.n ?? 0,
     visits: vis?.n ?? 0,
     regions: regionRows.length,
@@ -74,7 +83,9 @@ export async function setSavedTheme(
   if (saved) {
     await db.insert(savedThemes).values({ userId, themeId }).onConflictDoNothing();
   } else {
-    await db.delete(savedThemes).where(and(eq(savedThemes.userId, userId), eq(savedThemes.themeId, themeId)));
+    await db
+      .delete(savedThemes)
+      .where(and(eq(savedThemes.userId, userId), eq(savedThemes.themeId, themeId)));
   }
 }
 
@@ -86,6 +97,7 @@ export async function setSavedTheme(
  */
 export async function deleteUserData(db: Database, userId: string): Promise<void> {
   await Promise.all([
+    db.delete(personalCourses).where(eq(personalCourses.userId, userId)),
     db.delete(savedThemes).where(eq(savedThemes.userId, userId)),
     db.delete(reviews).where(eq(reviews.userId, userId)),
     db.delete(visits).where(eq(visits.userId, userId)),
@@ -95,7 +107,10 @@ export async function deleteUserData(db: Database, userId: string): Promise<void
 }
 
 /** 온보딩 선호 조회. 없으면 null 을 돌려 mock 기본값을 유지하게 한다. */
-export async function fetchOnboardingPreference(db: Database, userId: string): Promise<OnboardingPreference | null> {
+export async function fetchOnboardingPreference(
+  db: Database,
+  userId: string,
+): Promise<OnboardingPreference | null> {
   const [row] = await db
     .select()
     .from(onboardingPreferences)
@@ -136,7 +151,10 @@ export async function setOnboardingPreference(
 }
 
 /** 앱 프로필 조회. Keycloak 신원 위에 표시명/소개만 덮어쓰는 용도. */
-export async function fetchUserProfile(db: Database, userId: string): Promise<UserProfileData | null> {
+export async function fetchUserProfile(
+  db: Database,
+  userId: string,
+): Promise<UserProfileData | null> {
   const [row] = await db
     .select()
     .from(userProfiles)
@@ -229,7 +247,13 @@ export async function createReview(
       .where(and(eq(reviews.userId, userId), eq(reviews.id, existing.id)));
     await db
       .delete(reviews)
-      .where(and(eq(reviews.userId, userId), eq(reviews.spotId, input.spotId), ne(reviews.id, existing.id)));
+      .where(
+        and(
+          eq(reviews.userId, userId),
+          eq(reviews.spotId, input.spotId),
+          ne(reviews.id, existing.id),
+        ),
+      );
     return;
   }
 

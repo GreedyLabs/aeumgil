@@ -1,3 +1,4 @@
+import type { PersonalCourse, PersonalCourseInput } from "./personal-course";
 // ─────────────────────────────────────────────
 // Repository 인터페이스
 //
@@ -12,8 +13,10 @@ import type {
   Course,
   Eat,
   FestivalListing,
+  FestivalDetail,
   RegionalVisitors,
   Grade,
+  HighwayStatus,
   Pace,
   Review,
   SamplePrompt,
@@ -24,10 +27,11 @@ import type {
   User,
   Visit,
 } from "./types";
+import type { PlaceSearchQuery, PlaceSearchResult } from "./place-search";
 import type { ComposeCourseOptions } from "./course-compose";
 
 export interface SpotQueryOptions {
-  /** 목록/카드처럼 실시간 날씨·대기질이 필요 없는 조회에서는 false. 기본 true. */
+  /** 목록/카드처럼 실시간 날씨·대기질이 필요 없는 조회에서는 false. 단일 상세는 기본 true, 목록은 기본 false. */
   enrich?: boolean;
 }
 
@@ -38,16 +42,19 @@ export interface SavedThemeRef {
 }
 
 export interface Repository {
+  getTravelTraffic(): Promise<HighwayStatus[]>;
   getRegionalVisitors(): Promise<RegionalVisitors | null>;
   // ── 테마 ──
   listThemes(): Promise<Theme[]>;
   getTheme(id: string): Promise<Theme | null>;
   getSamplePrompts(): Promise<SamplePrompt[]>;
   listFestivals(): Promise<FestivalListing>;
+  getFestival(id: string): Promise<FestivalDetail | null>;
   /** 자연어 입력 → 대표/보조 테마 */
   matchThemes(query: string): Promise<ThemeMatch>;
 
   // ── 관광지 ──
+  searchSpots(query?: PlaceSearchQuery): Promise<PlaceSearchResult>;
   listSpots(options?: SpotQueryOptions): Promise<Spot[]>;
   getSpot(id: string, options?: SpotQueryOptions): Promise<Spot | null>;
   /** 혼잡 분산용 대체 관광지 */
@@ -59,6 +66,11 @@ export interface Repository {
   getStay(id: string): Promise<Stay | null>;
   listEats(): Promise<Eat[]>;
   listStays(): Promise<Stay[]>;
+
+  listPersonalCourses(): Promise<PersonalCourse[]>;
+  getPersonalCourse(id: string): Promise<PersonalCourse | null>;
+  savePersonalCourse(input: PersonalCourseInput): Promise<PersonalCourse>;
+  deletePersonalCourse(id: string): Promise<void>;
 
   // ── 사용자 ──
   /** 현재 로그인 사용자. 미로그인 시 null. */

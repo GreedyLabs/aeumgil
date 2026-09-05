@@ -1,13 +1,20 @@
 // ─────────────────────────────────────────────
 // E2E 테스트 사용자 데이터 정리 — 매 실행 전(global-setup) 호출해
 // 저장/리뷰/방문 등 쓰기 시나리오를 결정적 초기 상태에서 시작한다.
-// 대상 테이블은 server/db/user-data.ts deleteUserData 와 동일한 5개.
+// 대상 테이블은 server/db/user-data.ts deleteUserData 와 동일한 6개.
 // ─────────────────────────────────────────────
 
 import postgres from "postgres";
 import { TEST_USER } from "./session";
 
-const USER_TABLES = ["saved_theme", "review", "visit", "onboarding_preference", "user_profile"] as const;
+const USER_TABLES = [
+  "personal_course",
+  "saved_theme",
+  "review",
+  "visit",
+  "onboarding_preference",
+  "user_profile",
+] as const;
 
 export async function cleanupTestUser(): Promise<void> {
   const url = process.env.DATABASE_URL;

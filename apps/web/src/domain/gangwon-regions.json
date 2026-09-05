@@ -1,0 +1,182 @@
+[
+  {
+    "key": "chuncheon",
+    "ko": "춘천",
+    "en": "Chuncheon",
+    "code": "110",
+    "lat": 37.8813,
+    "lon": 127.7298,
+    "station": "온의동",
+    "anchors": "남이섬|소양강|공지천|김유정|청평사|강촌"
+  },
+  {
+    "key": "wonju",
+    "ko": "원주",
+    "en": "Wonju",
+    "code": "130",
+    "lat": 37.3422,
+    "lon": 127.9202,
+    "station": "반곡동",
+    "anchors": "뮤지엄산|뮤지엄 산|소금산|간현|한지|박경리"
+  },
+  {
+    "key": "gangneung",
+    "ko": "강릉",
+    "en": "Gangneung",
+    "code": "150",
+    "lat": 37.7519,
+    "lon": 128.8761,
+    "station": "옥천동",
+    "anchors": "경포|오죽헌|안목|선교장|주문진|정동진"
+  },
+  {
+    "key": "donghae",
+    "ko": "동해",
+    "en": "Donghae",
+    "code": "170",
+    "lat": 37.5247,
+    "lon": 129.1143,
+    "station": "천곡동",
+    "anchors": "무릉|추암|묵호|천곡|망상"
+  },
+  {
+    "key": "taebaek",
+    "ko": "태백",
+    "en": "Taebaek",
+    "code": "190",
+    "lat": 37.1641,
+    "lon": 128.9856,
+    "station": "황지동",
+    "anchors": "황지|검룡소|철암|365|용연동굴"
+  },
+  {
+    "key": "sokcho",
+    "ko": "속초",
+    "en": "Sokcho",
+    "code": "210",
+    "lat": 38.207,
+    "lon": 128.5918,
+    "station": "중앙동",
+    "anchors": "영금정|아바이|속초해수욕장|설악|청초호|관광수산시장"
+  },
+  {
+    "key": "samcheok",
+    "ko": "삼척",
+    "en": "Samcheok",
+    "code": "230",
+    "lat": 37.4499,
+    "lon": 129.165,
+    "station": "남양동1",
+    "anchors": "장호|초곡|해신당|죽서루|대금굴|환선굴|이사부"
+  },
+  {
+    "key": "hongcheon",
+    "ko": "홍천",
+    "en": "Hongcheon",
+    "code": "720",
+    "lat": 37.6972,
+    "lon": 127.8886,
+    "station": "홍천읍",
+    "anchors": "수타사|무궁화|가리산|팔봉산"
+  },
+  {
+    "key": "hoengseong",
+    "ko": "횡성",
+    "en": "Hoengseong",
+    "code": "730",
+    "lat": 37.4918,
+    "lon": 127.985,
+    "station": "횡성읍",
+    "anchors": "횡성호|풍수원|청태산|안흥"
+  },
+  {
+    "key": "yeongwol",
+    "ko": "영월",
+    "en": "Yeongwol",
+    "code": "750",
+    "lat": 37.1837,
+    "lon": 128.4615,
+    "station": "영월읍",
+    "anchors": "청령포|장릉|한반도지형|별마로|젊은달|고씨굴"
+  },
+  {
+    "key": "pyeongchang",
+    "ko": "평창",
+    "en": "Pyeongchang",
+    "code": "760",
+    "lat": 37.3705,
+    "lon": 128.3902,
+    "station": "평창읍",
+    "anchors": "대관령|월정사|선재길|이효석|오대산"
+  },
+  {
+    "key": "jeongseon",
+    "ko": "정선",
+    "en": "Jeongseon",
+    "code": "770",
+    "lat": 37.3805,
+    "lon": 128.6608,
+    "station": "정선읍",
+    "anchors": "아리랑|아우라지|병방치|삼탄아트|화암|가리왕산"
+  },
+  {
+    "key": "cheorwon",
+    "ko": "철원",
+    "en": "Cheorwon",
+    "code": "780",
+    "lat": 38.1466,
+    "lon": 127.3134,
+    "station": "갈말읍",
+    "anchors": "고석정|주상절리|노동당사|직탕|은하수교|백마고지"
+  },
+  {
+    "key": "hwacheon",
+    "ko": "화천",
+    "en": "Hwacheon",
+    "code": "790",
+    "lat": 38.1062,
+    "lon": 127.708,
+    "station": "화천읍",
+    "anchors": "파로호|평화의댐|산소길|붕어섬|토속어류"
+  },
+  {
+    "key": "yanggu",
+    "ko": "양구",
+    "en": "Yanggu",
+    "code": "800",
+    "lat": 38.1094,
+    "lon": 127.9894,
+    "station": "양구읍",
+    "anchors": "박수근|한반도섬|선사박물관|백자박물관|수목원"
+  },
+  {
+    "key": "inje",
+    "ko": "인제",
+    "en": "Inje",
+    "code": "810",
+    "lat": 38.0697,
+    "lon": 128.1707,
+    "station": "인제읍",
+    "anchors": "자작나무숲|백담사|내린천|박인환|산촌민속"
+  },
+  {
+    "key": "goseong",
+    "ko": "고성",
+    "en": "Goseong",
+    "code": "820",
+    "lat": 38.3806,
+    "lon": 128.4678,
+    "station": "간성읍",
+    "anchors": "왕곡마을|화진포|송지호|아야진|청간정|통일전망대"
+  },
+  {
+    "key": "yangyang",
+    "ko": "양양",
+    "en": "Yangyang",
+    "code": "830",
+    "lat": 38.0754,
+    "lon": 128.6189,
+    "station": "양양읍",
+    "anchors": "낙산사|죽도|하조대|오산리|남애|휴휴암"
+  }
+]

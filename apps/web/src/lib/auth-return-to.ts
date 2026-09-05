@@ -2,7 +2,7 @@
 export function safeReturnTo(value?: string): string {
   if (
     !value ||
-    !/^\/(profile|saved|course|spot|reviews|onboarding|settings|discover|map)(\/|\?|$)/.test(
+    !/^\/(profile|saved|course|spot|reviews|onboarding|settings|discover|map|my-courses|festival)(\/|\?|$)/.test(
       value,
     ) ||
     value.includes("\\")
@@ -11,7 +11,7 @@ export function safeReturnTo(value?: string): string {
   const url = new URL(value, "https://eumgil.invalid");
   if (
     url.origin !== "https://eumgil.invalid" ||
-    !/^\/(profile|saved|course|spot|reviews|onboarding|settings|discover|map)(\/|$)/.test(
+    !/^\/(profile|saved|course|spot|reviews|onboarding|settings|discover|map|my-courses|festival)(\/|$)/.test(
       url.pathname,
     )
   )

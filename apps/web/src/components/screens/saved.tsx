@@ -1,90 +1,104 @@
 "use client";
-
-// SavedView — Phase 1b. 저장된 테마·추천 장소. (저장 목록은 Phase 4 에서 DB 연동)
+import Link from "next/link";
 import { localized } from "@/lib/i18n";
-import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
-import { SpotRow } from "./home";
 import { UI, Icon } from "./_ui";
-import type { Congestion, Course, Spot, Theme } from "@/domain/types";
+import type { Theme } from "@/domain/types";
+import type { PersonalCourse } from "@/domain/personal-course";
 
-const { TopBar, Signal, ThemeHueBg } = UI;
-
-interface SavedTheme {
-  theme: Theme;
-  course: Course | null;
-  /** 저장 일자 (ISO "YYYY-MM-DD") */
-  savedAt: string;
-  /** 대표 스팟의 현재 혼잡 (코스 미생성 시 null → Signal 미표시) */
-  congestion: Congestion | null;
-}
-
-interface Props {
-  saved: SavedTheme[];
-  recentSpots: Spot[];
-}
-
-export function SavedView({ saved, recentSpots }: Props) {
+export function SavedView({
+  saved,
+  personal,
+}: {
+  saved: { theme: Theme; savedAt: string }[];
+  personal: PersonalCourse[];
+}) {
   const { lang } = useAppState();
-  const { nav } = useAppNav();
-
   return (
     <div className="screen-enter saved-page">
-      <TopBar
-        title={lang === "ko" ? "내 여행" : "My trips"}
-        right={
-          <button className="icon-btn" aria-label="새 여행 찾기" onClick={() => nav("discover")}>
-            <Icon.plus />
-          </button>
-        }
-      />
-      <div style={{ padding: "4px 20px 12px" }}>
-        <div className="section-label">{lang === "ko" ? "저장된 테마" : "Saved themes"}</div>
-        <h1 className="section-title">저장한 여행 <span style={{color:"var(--brand)"}}>{saved.length}</span></h1>
-      </div>
-
-      <div className="desk-2" style={{ padding: "0 20px", display: "grid", gap: 14 }}>
-        {saved.map(({ theme: th, course: cs, savedAt, congestion }) => (
-          <button key={th.id} onClick={() => nav("theme", { themeId: th.id })} className="card" style={{ padding: 0, textAlign: "left" }}>
-            <ThemeHueBg hue={th.hue} h={130} themeId={th.id} src={th.imageUrl} label={th.imageLabel && localized(th.imageLabel, lang)}>
-              <div style={{ position: "absolute", top: 12, right: 12 }}>
-                <Icon.bookmarkFill style={{ color: "#fff" }} />
-              </div>
-              <div style={{ position: "absolute", bottom: 12, left: 14, color: "#fff" }}>
-                <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.85 }}>{localized(th.tag, lang)}</div>
-                <div className="serif" style={{ fontSize: 20, marginTop: 2 }}>
-                  {localized(th.title, lang)}
-                </div>
-              </div>
-            </ThemeHueBg>
-            <div style={{ padding: "12px 16px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                {cs ? <>{localized(cs.title, lang)} · </> : null}
-                <span style={{ fontFamily: "SF Mono, monospace" }}>{savedAt.replaceAll("-", ".")}</span>
-              </div>
-              {congestion ? <Signal level={congestion} lang={lang} /> : null}
-            </div>
-          </button>
-        ))}
-
-        <div style={{ padding: 24, textAlign: "center", background: "var(--bg-elev)", border: "1px dashed var(--line-2)", borderRadius: "var(--r-lg)" }}>
-          <div style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 10 }}>
-            {lang === "ko" ? "더 많은 테마를 탐색해보세요" : "Discover more themes"}
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => nav("home")}>
-            <Icon.sparkle /> {lang === "ko" ? "추천 받기" : "Get matched"}
-          </button>
+      <UI.TopBar title="내 여행" />
+      <header className="page-heading">
+        <div>
+          <span className="eyebrow">가고 싶은 곳을 나의 여행으로</span>
+          <h1>내 여행</h1>
+          <p>직접 만든 코스와 나중에 떠나고 싶은 추천 테마를 모았어요.</p>
         </div>
-      </div>
-
-      <div style={{ padding: "26px 20px 12px" }}>
-        <div className="section-label">{lang === "ko" ? "추천 장소" : "Recently viewed"}</div>
-      </div>
-      <div className="desk-2" style={{ padding: "0 20px 24px", display: "grid", gap: 8 }}>
-        {recentSpots.map((s) => (
-          <SpotRow key={s.id} spot={s} lang={lang} onClick={() => nav("spot", { spotId: s.id })} />
-        ))}
-      </div>
+        <Link className="btn btn-primary" href="/my-courses/new">
+          <Icon.plus /> 새 코스 만들기
+        </Link>
+      </header>
+      <section className="saved-section" aria-label="직접 만든 코스">
+        <div className="section-heading">
+          <h2>
+            내가 만든 코스 <span>{personal.length}</span>
+          </h2>
+        </div>
+        <div className="personal-course-cards">
+          {personal.map((course) => (
+            <Link
+              key={course.id}
+              href={`/my-courses/${course.id}`}
+              className="card personal-course-card"
+            >
+              <span className="eyebrow">나만의 여행 · 비공개</span>
+              <h3>{course.title}</h3>
+              {course.note && <p>{course.note}</p>}
+              <span className="data-caption">
+                {new Set(course.items.map((item) => item.day)).size}일 일정 · {course.items.length}
+                곳 · {course.updatedAt.slice(0, 10)} 수정
+              </span>
+              <span className="text-link">
+                코스 편집 <Icon.chevR />
+              </span>
+            </Link>
+          ))}
+        </div>
+        {!personal.length && (
+          <div className="empty-state">
+            <Icon.route />
+            <h3>내가 원하는 순서로 떠나보세요</h3>
+            <p>여행지를 직접 담거나 추천 코스를 복사해 내 취향대로 바꿀 수 있어요.</p>
+            <Link className="btn btn-secondary" href="/my-courses/new">
+              첫 코스 만들기
+            </Link>
+          </div>
+        )}
+      </section>
+      <section className="saved-section" aria-label="저장한 추천 테마">
+        <div className="section-heading">
+          <h2>
+            저장한 추천 테마 <span>{saved.length}</span>
+          </h2>
+          <Link className="text-link" href="/discover">
+            더 찾아보기 <Icon.chevR />
+          </Link>
+        </div>
+        <div className="personal-course-cards">
+          {saved.map(({ theme, savedAt }) => (
+            <Link href={`/theme/${theme.id}`} key={theme.id} className="card saved-theme-card">
+              <UI.ThemeHueBg
+                hue={theme.hue}
+                h={170}
+                src={theme.imageUrl}
+                label={theme.imageLabel && localized(theme.imageLabel, lang)}
+              >
+                <h3>{localized(theme.title, lang)}</h3>
+              </UI.ThemeHueBg>
+              <div className="saved-theme-caption">
+                <span>
+                  {theme.spotCount}곳 · {localized(theme.duration, lang)}
+                </span>
+                <small>{savedAt} 저장</small>
+              </div>
+            </Link>
+          ))}
+        </div>
+        {!saved.length && (
+          <p className="section-description">
+            마음에 드는 추천 코스의 저장 버튼을 눌러 모아보세요.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

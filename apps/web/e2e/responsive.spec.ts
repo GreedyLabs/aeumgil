@@ -14,7 +14,7 @@ for (const width of [320, 390, 768, 1280, 1440, 1920]) {
       "/profile",
       "/login",
     ]) {
-      await page.goto(route);
+      await page.goto(route, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".screen-body")).toBeVisible();
       const overflow = await page.evaluate(() => {
         const body = document.querySelector(".screen-body")!;
@@ -77,18 +77,20 @@ test("데스크톱은 본문 폭을 활용하고 문서 하나로 스크롤한�
   await expect(
     page
       .getByRole("navigation", { name: "주 메뉴" })
-      .getByRole("button", { name: "지도", exact: true }),
+      .getByRole("button", { name: "탐색", exact: true }),
   ).toBeVisible();
 });
 
 test("지도 장소를 선택하면 실제 좌표와 상세 링크가 바뀐다", async ({ page }) => {
-  await page.goto("/map");
-  await page.getByRole("button", { name: /월정사 선재길/ }).click();
-  await expect(page.getByRole("link", { name: "장소 상세" })).toHaveAttribute(
+  await page.goto("/map?q=선재길");
+  await expect(page).toHaveURL(/\/discover\?tab=places/);
+  await expect(page.locator(".places-map")).toHaveCount(1);
+  await page.getByRole("button", { name: /선재길 지도 보기/ }).click();
+  await expect(page.getByRole("link", { name: "사진·이용 안내 보기" })).toHaveAttribute(
     "href",
     "/spot/woljeongsa-trail",
   );
-  await expect(page.locator('iframe[title="월정사 선재길 위치 지도"]')).toHaveAttribute(
+  await expect(page.locator('iframe[title*="선재길 위치 지도"]')).toHaveAttribute(
     "src",
     /openstreetmap.org\/export\/embed.html/,
   );
@@ -149,10 +151,7 @@ test("공공 예측·이용안내·사진과 지역 통계가 모바일에서 �
   await page.getByRole("button", { name: "지역 방문 통계", exact: true }).click();
   await expect(page.getByRole("heading", { name: "지역별 방문 규모" })).toBeVisible();
   await page.getByRole("link", { name: "강릉 지도에서 보기 →", exact: true }).click();
-  await expect(page.getByRole("button", { name: "강릉", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(page.getByRole("combobox", { name: "여행지 지역" })).toHaveValue("강릉");
   await expect(page.getByRole("button", { name: /월정사 선재길/ })).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/spot/anmok-beach");

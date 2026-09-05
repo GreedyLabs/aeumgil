@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "./icons";
+import { Avatar } from "@/components/screens/avatar";
 
 // ─────────────────────────────────────────────
 // Shared primitives
@@ -62,7 +63,6 @@ function TabBar({ active, onNav, lang = 'ko' }) {
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
-    { id: 'map', ko: '지도', en: 'Map', icon: Icon.map },
     { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
@@ -103,18 +103,19 @@ function ThemeHueBg({ hue, children, h, themeId, src, label }) {
 // ──────────────────────────────
 // Desktop sidebar nav (≥900px) — replaces bottom TabBar
 // ──────────────────────────────
-function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin, collapsed, onToggle }) {
+function Sidebar({ ready = true, active, onNav, lang = 'ko', isMember, user, onLogin, collapsed, onToggle }) {
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
-    { id: 'map', ko: '지도', en: 'Map', icon: Icon.map },
     { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
   return (
     <aside className={'desktop-nav' + (collapsed ? ' is-collapsed' : '')}>
-      <Link href="/" className="dnav-brand" aria-label="에움길 홈"><span className="brand-symbol" aria-hidden="true"><Icon.route /></span><span className="dnav-brand-text">에움길<small>조금 돌아가도, 더 좋은 여행</small></span></Link>
-      <button className="dnav-toggle" onClick={onToggle} aria-expanded={!collapsed} aria-controls="desktop-menu" aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'} title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}><Icon.chevR /><span>사이드바 접기</span></button>
+      <div className="dnav-header">
+        <button className="dnav-toggle" disabled={!ready} onClick={onToggle} aria-expanded={!collapsed} aria-controls="desktop-menu" aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'} title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path d={collapsed ? 'm13 9 3 3-3 3' : 'm16 9-3 3 3 3'}/></svg></button>
+        <Link href="/" className="dnav-brand" aria-label="에움길 홈"><span className="dnav-brand-text">에움길</span></Link>
+      </div>
       <div className="dnav-label">나의 강원 여행</div>
       <nav className="dnav-items" id="desktop-menu" aria-label="주 메뉴">
         {items.map(it => {
@@ -130,7 +131,7 @@ function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin, collapse
       <div className="dnav-foot">
         {isMember && user ? (
           <button className="dnav-user" aria-label={`${user.name} · 내 정보`} title={collapsed ? user.name : undefined} onClick={() => onNav('profile')}>
-            {user.avatar ? <span className="avatar-md" style={{ backgroundImage: `url(${JSON.stringify(user.avatar)})`, backgroundSize: "cover" }} aria-hidden="true"/> : <span className="avatar-md" aria-hidden="true" />}
+            <Avatar src={user.avatar || ""} name={user.name} className="avatar-md" size={36} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
               <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>나의 여행 기록</div>

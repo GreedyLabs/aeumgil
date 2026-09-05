@@ -1,9 +1,11 @@
 "use client";
+import { Select } from "@/components/select";
 
 import Link from "next/link";
+import { GANGWON_REGIONS } from "@/domain/place-search";
 import { ThemeCard } from "./theme-card";
-import { useState, type FormEvent, type ReactNode } from "react";
-import { localized } from "@/lib/i18n";
+import { useState, type FormEvent } from "react";
+import { localized, type Lang } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { INTENT_QUERY_MAX_LENGTH } from "@/domain/matching";
@@ -11,21 +13,19 @@ import type { SamplePrompt, Spot, Theme } from "@/domain/types";
 import { UI, Icon } from "./_ui";
 
 const { Placeholder, Signal } = UI;
-type Lang = "ko" | "en";
 
 export function HomeView({
   themes,
   prompts,
   bestSpots,
-  conditions,
 }: {
   themes: Theme[];
   prompts: SamplePrompt[];
   bestSpots: Spot[];
-  conditions?: ReactNode;
 }) {
   const { lang } = useAppState();
   const { nav } = useAppNav();
+  const [region, setRegion] = useState("");
   const [prompt, setPrompt] = useState("");
   const submit = (text: string) => {
     const query = text.trim();
@@ -39,8 +39,8 @@ export function HomeView({
           에움길
         </Link>
         <span>강원에서 찾는 나만의 여유</span>
-        <Link href="/map" className="text-link">
-          <Icon.map /> 지도로 둘러보기
+        <Link href="/discover?tab=places" className="text-link">
+          <Icon.search /> 여행지 찾기
         </Link>
       </header>
       <section className="home-hero">
@@ -101,19 +101,18 @@ export function HomeView({
           </div>
         )}
       </section>
-      {conditions}
       <section className="page-section">
         <div className="section-heading">
           <div>
-            <div className="section-label">취향 따라 떠나는</div>
-            <h2 className="section-title">강원도 테마 여행</h2>
+            <div className="section-label">어디부터 시작할지 고민된다면</div>
+            <h2 className="section-title">먼저 만나볼 세 가지 여행</h2>
           </div>
           <button className="btn btn-sm btn-ghost" onClick={() => nav("discover")}>
             전체 보기 <Icon.chevR />
           </button>
         </div>
         <div className="theme-grid">
-          {themes.map((theme) => (
+          {themes.slice(0, 3).map((theme) => (
             <ThemeCard key={theme.id} theme={theme} lang={lang} />
           ))}
         </div>
@@ -121,21 +120,31 @@ export function HomeView({
           <p className="empty-message">추천 테마를 준비하고 있어요. 잠시 후 다시 방문해 주세요.</p>
         )}
       </section>
-      <section className="page-section">
-        <div className="section-label">예상 혼잡도를 살펴보고</div>
-        <h2 className="section-title">여유로운 곳부터</h2>
-        <p className="section-description">
-          시간대·요일·계절에 따른 추정이에요. 실제 현장 상황은 다를 수 있어요.
-        </p>
-        <div className="spot-grid">
-          {bestSpots.map((spot) => (
-            <SpotRow
-              key={spot.id}
-              spot={spot}
-              lang={lang}
-              onClick={() => nav("spot", { spotId: spot.id })}
-            />
-          ))}
+      <section className="page-section home-region-entry">
+        <div>
+          <h2 className="section-title">가고 싶은 지역이 있나요?</h2>
+          <p className="section-description">지역을 고르면 명소와 위치를 함께 살펴볼 수 있어요.</p>
+        </div>
+        <div className="home-region-controls">
+          <Select
+            className="input"
+            aria-label="가보고 싶은 지역"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="">강원 전체</option>
+            {GANGWON_REGIONS.map((r) => (
+              <option key={r.key} value={r.ko}>
+                {r.ko}
+              </option>
+            ))}
+          </Select>
+          <Link
+            className="btn btn-secondary"
+            href={`/discover?tab=places${region ? `&region=${encodeURIComponent(region)}` : ""}`}
+          >
+            여행지 탐색 <Icon.chevR />
+          </Link>
         </div>
       </section>
       <footer className="page-section home-footer">

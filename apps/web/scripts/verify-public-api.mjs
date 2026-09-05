@@ -17,6 +17,23 @@ const common = { MobileOS: "ETC", MobileApp: "eumgil", _type: "json", numOfRows:
 const array = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 const checks = [
   {
+    name: "무장애 여행정보",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B551011/KorWithService2/detailWithTour2",
+    params: { ...common, contentId: "130493", numOfRows: 1 },
+    inspect: (body) => {
+      const item = array(body.items?.item)[0];
+      if (item?.contentid !== "130493" || !item.exit || !item.restroom)
+        throw new Error("무장애 상세·시설 안내 누락");
+      return {
+        contentId: item.contentid,
+        facilities: Object.entries(item).filter(
+          ([key, value]) => key !== "contentid" && typeof value === "string" && value.trim(),
+        ).length,
+      };
+    },
+  },
+  {
     name: "국문 관광정보",
     env: "DATA_GO_KR_SERVICE_KEY",
     endpoint: "B551011/KorService2/areaBasedList2",

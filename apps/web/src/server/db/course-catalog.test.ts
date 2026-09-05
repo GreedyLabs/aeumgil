@@ -2,7 +2,11 @@
 
 import { describe, expect, it } from "vitest";
 import type { Database } from "./index";
-import { fetchDefaultCourseTemplate, fetchSpotProfile, fetchSpotProfilesForTheme } from "./course-catalog";
+import {
+  fetchDefaultCourseTemplate,
+  fetchSpotProfile,
+  fetchSpotProfilesForTheme,
+} from "./course-catalog";
 
 function fakeDbSequence(resultSets: unknown[][]): Database {
   let i = 0;
@@ -32,9 +36,33 @@ describe("fetchDefaultCourseTemplate", () => {
         },
       ],
       [
-        { templateId: "tpl-east-sea", seq: 1, kind: "spot", day: 1, time: "10:00", refId: "sacheon-beach", durationMin: 60 },
-        { templateId: "tpl-east-sea", seq: 2, kind: "eat", day: 1, time: "12:30", refId: "e3", durationMin: null },
-        { templateId: "tpl-east-sea", seq: 3, kind: "stay", day: 1, time: "18:00", refId: "s2", durationMin: null },
+        {
+          templateId: "tpl-east-sea",
+          seq: 1,
+          kind: "spot",
+          day: 1,
+          time: "10:00",
+          refId: "sacheon-beach",
+          durationMin: 60,
+        },
+        {
+          templateId: "tpl-east-sea",
+          seq: 2,
+          kind: "eat",
+          day: 1,
+          time: "12:30",
+          refId: "e3",
+          durationMin: null,
+        },
+        {
+          templateId: "tpl-east-sea",
+          seq: 3,
+          kind: "stay",
+          day: 1,
+          time: "18:00",
+          refId: "s2",
+          durationMin: null,
+        },
       ],
     ]);
 
@@ -61,10 +89,36 @@ describe("fetchDefaultCourseTemplate", () => {
 
   it("알 수 없는 kind 항목은 버린다", async () => {
     const db = fakeDbSequence([
-      [{ id: "tpl", themeId: "t1", titleKo: "템플릿", titleEn: null, dayCount: 1, altNoteKo: null, altNoteEn: null }],
       [
-        { templateId: "tpl", seq: 1, kind: "spot", day: 1, time: "10:00", refId: "s1", durationMin: 60 },
-        { templateId: "tpl", seq: 2, kind: "unknown", day: 1, time: "11:00", refId: "x", durationMin: null },
+        {
+          id: "tpl",
+          themeId: "t1",
+          titleKo: "템플릿",
+          titleEn: null,
+          dayCount: 1,
+          altNoteKo: null,
+          altNoteEn: null,
+        },
+      ],
+      [
+        {
+          templateId: "tpl",
+          seq: 1,
+          kind: "spot",
+          day: 1,
+          time: "10:00",
+          refId: "s1",
+          durationMin: 60,
+        },
+        {
+          templateId: "tpl",
+          seq: 2,
+          kind: "unknown",
+          day: 1,
+          time: "11:00",
+          refId: "x",
+          durationMin: null,
+        },
       ],
     ]);
 
@@ -119,7 +173,7 @@ describe("spot_profile 어댑터", () => {
   ];
 
   it("테마에 해당하는 spot_profile 만 도메인 Spot 으로 정규화한다", async () => {
-    const db = fakeDbSequence([rows]);
+    const db = fakeDbSequence([[rows[0]]]);
     const spots = await fetchSpotProfilesForTheme(db, "east-sea-sunrise");
 
     expect(spots).toHaveLength(1);
@@ -138,8 +192,8 @@ describe("spot_profile 어댑터", () => {
     expect(spots[0]!.tags.map((tag) => tag.ko)).toContain("한적");
   });
 
-  it("후보가 없으면 빈 배열을 반환해 호출자가 시드로 폴백할 수 있게 한다", async () => {
-    const db = fakeDbSequence([rows]);
+  it("DB 검색 결과가 없으면 빈 배열을 반환한다", async () => {
+    const db = fakeDbSequence([[]]);
     await expect(fetchSpotProfilesForTheme(db, "no-theme")).resolves.toEqual([]);
   });
 
