@@ -4,19 +4,20 @@
 
 ## 개발 재개 현황 (2026-09-05)
 
-- API 부분 실패 분리·현재 시각 예보 선택·공유 캐시·오류 응답 검증, 자연어 조건 전달·일정 충돌 보정, 모바일/태블릿/데스크톱 UI 정비 완료. LLM은 사용자 요청에 따라 heuristic 유지.
-- **7종 API 실호출 확인**: 관광정보(강원 4,761건), 단기예보, 에어코리아(40곳), 관광지 일별 집중률(30일), 지역별 방문자수(2026-08-01 공개 표본), 생활기상 자외선(V5), 도로공사 실시간 소통. 일별 예측/지역 통계/시간대별 자체 혼잡 추정/실제 고속도로 관측은 화면에서 구분한다. 집중률·교통을 현재 코스의 정확한 경로·현장 혼잡도로 오인시키지 않는다.
-- **API 최신 명세**: TourAPI `lDongRegnCd=51`, `lDongSignguCd` 3자리로 전환. 예전 `areaCode=32` 기록은 과거 명세다. detailCommon2 + detailImage2 + detailIntro2로 개요·사진·이용 안내 보강. contentId 8곳 실검증·DB 반영, 특히 사천=585526 / 속초시장=1260275로 잘못된 POI 연결 수정. 주문진 일반 카페 명칭은 실제 POI 미확정으로 비워 둔다.
-- **캐시**: 메모리+파일 영속, 동일 요청 합치기, 정상 빈 응답·오류 재호출 제한. 날씨/대기질 10분, 교통 5분, 자외선/행사 1시간, 집중률 6시간, 관광상세/방문통계 24시간. Docker `/app/cache` named volume 사용.
-- **환경변수 정리**: 공공데이터 키 4개 → `DATA_GO_KR_SERVICE_KEY`, 도로공사 별도 `EX_ROAD_SERVICE_KEY`. URL은 `AUTH_URL`만 사용. `.env.example` 필수 8개로 축소. 비공개 `.env.dockhand.local`에 실제 배포 DB·인증 값과 새 API 키를 매칭해 준비했다. Git/이미지 컨텍스트 제외. [환경변수·배포](docs/환경변수-배포.md).
-- **운영 도메인**: 사용자 지정 `https://에움길.한국` (`https://xn--wk0bk16buua.xn--3e0b707e`). Gitops compose·예시·Keycloak 테마 공개 URL 기본값 수정. 원격 Keycloak 콜백의 잘못된 Punycode 수정, 새 콜백 HTTP 200·테마, 로그아웃 새 도메인 HTTP 302·DNS/HTTPS 확인. 로컬 AUTH_URL은 localhost 유지.
-- **DB**: macOS 앱 로컬 네트워크 권한 해소 후 실 eumgil_dev 조회·저장/리뷰 왕복. 누락 개요 컬럼 추가. 관광지 9·식당 75·숙소 78·테마 6·템플릿 항목 32건. 원격 앱은 shared-db 네트워크 postgres:5432/eumgil_dev 사용, 기존 deep health HTTP 200.
-- **UI**: 고정 100vh·880px 내부 스크롤 제거, 232px(중간 폭 200px) 사이드바+문서 스크롤. 76px 접기 상태 저장, 로그인도 공통 chrome 유지. 상세의 일별 예측·사진·이용 안내·교통, 탐색의 지역 통계와 지도 권역 연결. 자료 없는 사진은 다른 장소로 대체하지 않는다.
-- **인증 테마**: Keycloak 26.6.3 keycloak.v2 상속. Gitops b1bf387 main 푸시·Dockhand 배포 완료. 공식 이미지 + Dockhand external volume.subpath 읽기 전용 마운트로 빌드 없이 전달. 원격 realm 테마 선택·한국어/영어 활성화·기본 한국어 저장 후 커스텀 CSS·풍경·Google 버튼 실제 확인. 소셜 계정 전체 왕복·SMTP는 별도 검증 필요. [테마 문서](infra/keycloak/THEME.md).
-- **파비콘**: 앱 icon.svg/favicon.ico/apple-icon.png, Keycloak favicon.ico 추가·로컬 HTTP 200. Gitops 복사본 준비, 추가 아이콘과 새 도메인 compose는 아직 푸시·재배포 전이다.
-- **검증**: 유닛 174개 통과·실 LLM 1개 skip, TypeScript 통과, 운영 Docker 이미지 빌드·기동·Auth.js providers·DB deep health·신규 API 상세 화면 HTTP 200. UID 1001 캐시 쓰기·재시작 후 18개 캐시 로드, 동일 상세 2회 조회 시 재호출을 유발하는 캐시 갱신 0건 확인. 앱 E2E 21개 중 첫 실행 19개 통과 후 실패 2개 수정·재검증 통과, 후속 화면 4개 통과. 이전 6폭(320~1920px) 검사 및 인증/저장/리뷰 포함. 실제 운영 인증과 E2E 테스트용 Auth.js 쿠키는 구분한다. Keycloak 독립 컨테이너 E2E 5개 통과.
-- **배포 준비**: Gitops eumgil compose는 GHCR 이미지 pull + shared-db + 캐시 볼륨 + healthcheck. Build images OFF. 새 통합 키를 읽는 이미지와 새 env/compose를 함께 반영해야 한다. 원격 앱 재배포는 아직 수행하지 않았다.
-- 상세: [화면·기획 점검](docs/화면-기획-점검-2026-09-05.md), [개발 재개 검증](docs/개발-재개-검증-2026-09-05.md). 아래 과거 단계 기록과 다르면 이 현황이 우선한다.
+- **운영 배포**: `https://에움길.한국` (`https://xn--wk0bk16buua.xn--3e0b707e`). GitHub dev → Actions 검증·GHCR latest → Dockhand 스택 7. 1차 이미지 `464c3f3` 배포·deep health 정상 확인. 이번 카탈로그·개인 코스·UI 후속 변경은 최종 검증 후 같은 경로로 배포한다.
+- **실데이터 카탈로그**: TourAPI 강원 원본 4,761건에서 현재 관광지 1,975곳(사진 1,744), 음식점 1,551곳·숙소 954곳, 18개 시군, 테마 119개(지역 추천 113+기존 큐레이션 6). 신규 코스는 공식 관광정보와 지역 명소를 바탕으로 가까운 3곳을 연결한 에움길 추천이며 공식 기관의 승인 코스가 아니다. 출처·선정 기준은 [카탈로그·UI 고도화](docs/관광카탈로그-탐색-고도화-2026-09-05.md).
+- **목 데이터 정리**: `design/data.ts` 삭제, 과거 prototype seeder 중단. JSON 문자열로 중복 저장됐던 theme_ids/tags 배열 복구, 가상 주문진 카페 및 존재하지 않는 템플릿 참조·샘플 평점 제거. 사용자 기록 유지. 빈 코스·끊어진 템플릿 참조 각각 0건 확인. LLM은 사용자 요청에 따라 heuristic 유지.
+- **8종 공공 API**: 관광정보·지역 방문자수·일별 집중률 예측·무장애 정보·단기예보·생활기상 자외선·에어코리아·도로공사. data.go.kr 7종은 `DATA_GO_KR_SERVICE_KEY` 하나, 도로공사는 `EX_ROAD_SERVICE_KEY`. 최신 관광 지역 코드 `lDongRegnCd=51` 및 3자리 시군구 사용. [신청 가이드](docs/공공API-신청가이드.md).
+- **무장애**: `KorWithService2` 강원 1,517건 실제 수집, 관광지 661곳과 contentId 연결. 검색에서 안내 보유 여부 필터, 상세에서 출입구·계단·휠체어·화장실 등 조건 원문 노출. 안내 보유를 휠체어 이용 가능 판정으로 바꾸지 않는다. `db:sync:accessibility --apply`로 목록 갱신, 상세는 24시간 캐시.
+- **탐색·홈**: 홈은 목적 입력·대표 추천 3개·지역 탐색에 집중. 탐색에 여행지 검색과 위치 지도 통합. `/map`은 검색 조건을 보존해 탐색으로 이동. 카드 선택은 지도 갱신, 상세 링크만 상세 진입. DB 검색 24개 페이지·다중 키워드·18개 지역·종류·무장애 필터. 카드마다 외부 API를 호출하지 않는다.
+- **행사 상세**: `/festival/[id]`에서 기간·시간·요금·주최·사진·지도와 10km 내 여행지/음식점을 제공. 행사+주변 장소로 개인 코스를 시작할 수 있고 긴 소개는 펼쳐 읽는다.
+- **개인 코스**: `/my-courses/new`, `/my-courses/[id]`에서 추천 복사 또는 빈 일정 시작 → 장소 추가/제거/방문 순서/날짜/체류 시간/이름/메모 편집·DB 저장/삭제. `personal_course`는 Keycloak sub로 소유자 분리, 버전 조건으로 다른 탭 변경 덮어쓰기 방지. 계정 탈퇴 시 함께 삭제. `/saved`는 직접 만든 코스와 저장 추천 테마를 분리한다.
+- **지도·교통**: 코스별 날짜 선택·번호 마커·식당/숙소를 포함한 동선·이동 추정. 현재 점선은 방문 순서이며 도로 경로가 아니다. 사용자 결정에 따라 Kakao Mobility 연동은 진행하지 않고 OSM/OSRM은 검토만. 고속도로는 관광지마다 반복하지 않고 탐색 지역 통계에서 출발 전 참고 정보로 제공한다.
+- **공통 UI**: 문서 스크롤, PC 사이드바 256px(중간 폭 224px)/접힘 76px. 같은 위치의 패널 토글·공통 Avatar·네이티브 Select 외형 통일. 로그인도 공통 메뉴 유지. 새 개인 코스가 내 여행 메뉴에 연결된다.
+- **인증**: Keycloak 26.6.3 커스텀 테마·Google IdP·한국어/영어. 앱 로그아웃은 서버에서 ID 토큰 확보 → Auth.js 쿠키 제거 → Keycloak end-session으로 한 번에 이동. HTTPS `__Secure-` 쿠키와 청크를 올바르게 읽는다. 실제 Google 전체 왕복·SMTP는 별도 확인 사항.
+- **배포·캐시**: 필수 env 8개, GHCR 이미지 pull, shared-db, UID1001 `/app/cache` named volume. 호출 합치기·정상 빈 결과·오류 재호출 제한·영속 캐시. 날씨/대기질 10분, 교통 5분, 자외선/행사 1시간, 집중률 6시간, 관광/무장애 상세/방문통계 24시간. 사용자 데이터는 API 캐시에 저장하지 않는다.
+- **후속 검증**: TypeScript·단위 197개·Chrome 29개 시나리오 확인. 320~1920px 반응형, 개인 코스 CRUD/소유자/버전 충돌/추천 복사/행사 포함, 실제 무장애 원문·회원/리뷰 흐름. 상세 검증 기록은 고도화 문서 참조.
+- 아래 과거 단계 기록과 다르면 이 현황이 우선한다.
 
 ## 서비스 개요
 
@@ -56,12 +57,12 @@ Repository 는 항상 DB+실데이터 구현을 사용한다.
 - 화면 뷰: [apps/web/src/components/screens/](apps/web/src/components/screens/) — `home/matching/theme-result/course/spot/alternatives/discover/map/saved/profile/profile-edit/reviews/settings/doc/login/onboarding`.
 - 전역 상태/크롬(Sidebar·TabBar·Toast): [apps/web/src/components/app-shell.tsx](apps/web/src/components/app-shell.tsx) — `useAppState()`로 auth/session/toast/lang 제공. auth 는 Auth.js+Keycloak 세션을 사용.
 - 네비게이션 어댑터: [apps/web/src/lib/nav.ts](apps/web/src/lib/nav.ts) — `urlFor(name, params)` + `useAppNav()`.
-- `design/` 에는 이제 **재사용 프리미티브만**: `icons.tsx`, `ui.tsx`(Sidebar/TabBar/ThemeHueBg/Signal/Placeholder 등), `brand-logos.tsx`, `styles.css`, `data.ts`(mock). 화면 컴포넌트(screens-*)는 전부 삭제됨.
+- `design/` 에는 이제 **재사용 프리미티브만**: `icons.tsx`, `ui.tsx`(Sidebar/TabBar/ThemeHueBg/Signal/Placeholder 등), `brand-logos.tsx`, `styles.css`. 런타임 목 데이터 `data.ts`는 삭제했다. 화면 컴포넌트(screens-*)는 전부 삭제됨.
 
 ### 공공 API 연동 계층 (서버 전용)
 
 - [apps/web/src/server/public-api/http.ts](apps/web/src/server/public-api/http.ts) — data.go.kr 공통 fetch(serviceKey 주입·타임아웃·XML 에러 감지).
-- [apps/web/src/server/public-api/tourapi.ts](apps/web/src/server/public-api/tourapi.ts) — 국문관광정보(KorService2, 강원 lDongRegnCd=51). 현재 공공 API 7종 구현.
+- [apps/web/src/server/public-api/tourapi.ts](apps/web/src/server/public-api/tourapi.ts) — 국문관광정보(KorService2, 강원 lDongRegnCd=51). 현재 공공 API 8종 구현.
 - [apps/web/scripts/verify-public-api.mjs](apps/web/scripts/verify-public-api.mjs) — 키 연결 검증.
 - 환경변수: 루트 `.env` (next.config.mjs 가 dotenv 로 로드) → [apps/web/src/lib/env.ts](apps/web/src/lib/env.ts)(zod 검증). 템플릿 [.env.example](.env.example).
 - **API 신청 가이드(키 발급용)**: [docs/공공API-신청가이드.md](docs/공공API-신청가이드.md)
