@@ -197,6 +197,8 @@ export const personalCourses = table("personal_course", {
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   note: text("note").notNull().default(""),
+  transport: text("transport").$type<"car" | "transit" | "walk">().notNull().default("car"),
+  startTime: text("start_time").notNull().default("09:30"),
   items: jsonb("items").$type<import("@/domain/personal-course").PersonalCourseItem[]>().notNull(),
   version: integer("version").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

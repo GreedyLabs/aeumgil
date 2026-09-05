@@ -1,4 +1,4 @@
-// B단계 배선 테스트 — LiveRepository.matchThemes 가 에이전트 경로로 동작하는지.
+// 테마 검색의 결정형 매칭과 코스 정리 에이전트 배선 테스트.
 //
 // heuristicProvider(키 없는 LLM 대역) + DB 카탈로그 대역 + 도메인 도구만 타므로 네트워크가 필요 없다.
 // 검증 관점: Repository 인터페이스 계약(ThemeMatch)을 깨지 않고 유효한 결과를 내는가.
@@ -81,7 +81,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireDb.mockReturnValue({ __db: true });
   mocks.fetchThemes.mockResolvedValue(themes);
-  mocks.fetchTheme.mockImplementation(async (_db, id: string) => themes.find((t) => t.id === id) ?? null);
+  mocks.fetchTheme.mockImplementation(
+    async (_db, id: string) => themes.find((t) => t.id === id) ?? null,
+  );
   mocks.fetchDefaultCourseTemplate.mockImplementation(async (_db, id: string) =>
     id === "east-sea-sunrise" ? course : null,
   );
@@ -89,10 +91,12 @@ beforeEach(() => {
   mocks.fetchSpotProfilesForTheme.mockImplementation(async (_db, id: string) =>
     id === "east-sea-sunrise" ? spots : [],
   );
-  mocks.fetchSpotProfile.mockImplementation(async (_db, id: string) => spots.find((s) => s.id === id) ?? null);
+  mocks.fetchSpotProfile.mockImplementation(
+    async (_db, id: string) => spots.find((s) => s.id === id) ?? null,
+  );
 });
 
-describe("LiveRepository.matchThemes — 에이전트 배선", () => {
+describe("LiveRepository.matchThemes — 키워드 배선", () => {
   it("자연어 입력에 대해 유효한 ThemeMatch 를 반환한다", async () => {
     const live = new LiveRepository();
     const themeIds = themes.map((t) => t.id);
@@ -107,12 +111,11 @@ describe("LiveRepository.matchThemes — 에이전트 배선", () => {
     for (const id of match.altIds) expect(themeIds).toContain(id);
   });
 
-  it("다른 의도에도 깨지지 않고 유효한 테마를 고른다", async () => {
+  it("카탈로그에 없는 의도를 억지로 다른 테마에 연결하지 않는다", async () => {
     const live = new LiveRepository();
-    const themeIds = themes.map((t) => t.id);
-
     const match = await live.matchThemes("유명한 산 트레킹 코스");
-    expect(themeIds).toContain(match.primaryId);
+    expect(match.primaryId).toBe("");
+    expect(match.explanation?.status).toBe("unmatched");
   });
 });
 

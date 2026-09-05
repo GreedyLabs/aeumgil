@@ -118,41 +118,46 @@ export function CourseMap({
       {failed && (
         <p role="status">지도를 불러오지 못했어요. 아래 순서와 이동 안내를 확인해 주세요.</p>
       )}
-      <ol className="route-stop-list">
-        {stops.map((stop, i) => {
-          const next = stops[i + 1];
-          const leg = legs.find((l) => l.fromId === stop.id && l.toId === next?.id);
-          return (
-            <li key={`${stop.id}-${i}`}>
-              <button
-                aria-pressed={selected === i}
-                onClick={() => {
-                  setSelected(i);
-                  map.current?.panTo([stop.lat, stop.lon]);
-                }}
-              >
-                <span className="route-order">{i + 1}</span>
-                <strong>{stop.name}</strong>
-                <small>{stop.time}</small>
-              </button>
-              {next && (
-                <div className="route-leg">
-                  {leg
-                    ? `약 ${leg.minutes}분 · ${leg.distanceKm.toFixed(1)}km${leg.source === "approx" ? " (좌표 기반 추정)" : " (자동차 경로 조회)"}`
-                    : "구간 이동 정보 확인 필요"}
-                  <a
-                    href={`https://map.kakao.com/link/from/${encodeURIComponent(stop.name)},${stop.lat},${stop.lon}/to/${encodeURIComponent(next.name)},${next.lat},${next.lon}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    길찾기 ↗
-                  </a>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+      <details className="route-leg-details">
+        <summary>
+          구간별 이동·길찾기 <span>{stops.length}곳</span>
+        </summary>
+        <ol className="route-stop-list">
+          {stops.map((stop, i) => {
+            const next = stops[i + 1];
+            const leg = legs.find((l) => l.fromId === stop.id && l.toId === next?.id);
+            return (
+              <li key={`${stop.id}-${i}`}>
+                <button
+                  aria-pressed={selected === i}
+                  onClick={() => {
+                    setSelected(i);
+                    map.current?.panTo([stop.lat, stop.lon]);
+                  }}
+                >
+                  <span className="route-order">{i + 1}</span>
+                  <strong>{stop.name}</strong>
+                  <small>{stop.time}</small>
+                </button>
+                {next && (
+                  <div className="route-leg">
+                    {leg
+                      ? `약 ${leg.minutes}분 · ${leg.distanceKm.toFixed(1)}km${leg.source === "approx" ? " (좌표 기반 추정)" : " (자동차 경로 조회)"}`
+                      : "구간 이동 정보 확인 필요"}
+                    <a
+                      href={`https://map.kakao.com/link/from/${encodeURIComponent(stop.name)},${stop.lat},${stop.lon}/to/${encodeURIComponent(next.name)},${next.lat},${next.lon}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      길찾기 ↗
+                    </a>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </details>
     </section>
   );
 }

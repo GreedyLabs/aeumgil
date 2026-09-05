@@ -95,7 +95,7 @@ export function SavedView({
         </div>
         {!saved.length && (
           <p className="section-description">
-            마음에 드는 추천 코스의 저장 버튼을 눌러 모아보세요.
+            추천 코스의 ‘테마 보관’을 눌러 다시 떠나고 싶은 여행을 모아보세요.
           </p>
         )}
       </section>

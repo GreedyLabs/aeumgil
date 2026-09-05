@@ -12,9 +12,7 @@
 // C단계에서 RealLlmProvider(키 필요)를 추가하면 이 파일의 인터페이스만 구현하면 된다.
 // ─────────────────────────────────────────────
 
-import { regionalThemeMatch } from "@/domain/regional-matching";
-import { matchThemeIdsByKeyword } from "@/domain/matching";
-import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
+import { rankCatalogThemes, type MatchableTheme } from "@/domain/matching";
 import { env } from "@/lib/env";
 import { L } from "@/lib/i18n";
 import type { AgentStep, FinalAnswer, LlmDecideInput, LlmDecision, LlmProvider } from "./types";
@@ -58,48 +56,14 @@ function lastResult(trace: AgentStep[], tool: string): unknown {
   return undefined;
 }
 
-/**
- * list_themes 결과(배열)에서 의도와 가장 겹치는 테마 id 를 고른다(없으면 첫 번째).
- *
- * [학습 메모] ① 큐레이션 키워드 규칙을 1차 신호로 둔다 — 결정형 폴백(repository)과
- * 같은 규칙을 공유하므로, heuristic↔폴백 어느 경로를 타도 "바다→동해 테마" 기준선이
- * 일치한다(프로바이더 교체 시 일관성 확보 기법). ② 규칙 미스일 때만 테마 제목/태그
- * 근사를 시도한다 — 기존에는 이 근사가 "쿼리가 제목 전체를 포함"해야 해 사실상
- * 항상 첫 테마로 수렴하는 버그가 있었다(2026-07-11).
- */
+/** 서비스와 실험용 에이전트가 같은 단어·제외 조건을 사용한다. */
 function chooseTheme(intent: string, themesResult: unknown): string | undefined {
-  if (!Array.isArray(themesResult) || themesResult.length === 0) return undefined;
-  const regional = regionalThemeMatch(
-    intent,
-    themesResult.filter(
-      (t): t is { id: string; title: string; subtitle?: string } =>
-        typeof t?.id === "string" && typeof t?.title === "string",
-    ),
+  if (!Array.isArray(themesResult)) return undefined;
+  const themes = themesResult.filter(
+    (theme): theme is MatchableTheme =>
+      typeof theme?.id === "string" && typeof theme?.title === "string",
   );
-  if (regional) return regional;
-  const ids = new Set(themesResult.map((t) => String((t as { id: unknown }).id)));
-  const keywordHit = matchThemeIdsByKeyword(intent, THEME_KEYWORD_RULES).find((id) => ids.has(id));
-  if (keywordHit) return keywordHit;
-  const q = intent.toLowerCase();
-  for (const t of themesResult) {
-    const tags: string[] = [
-      ...(typeof (t as { title?: unknown }).title === "string"
-        ? [(t as { title: string }).title]
-        : []),
-      ...(typeof (t as { tag?: unknown }).tag === "string" ? [(t as { tag: string }).tag] : []),
-      ...(Array.isArray((t as { mood?: unknown }).mood) ? (t as { mood: string[] }).mood : []),
-    ];
-    if (
-      tags.some(
-        (tag) =>
-          q.includes(String(tag).toLowerCase()) ||
-          String(tag).toLowerCase().includes(q.slice(0, 2)),
-      )
-    ) {
-      return String((t as { id: unknown }).id);
-    }
-  }
-  return String((themesResult[0] as { id: unknown }).id);
+  return rankCatalogThemes(intent, themes).primaryId || undefined;
 }
 
 /** get_course 결과에서 첫 스팟 refId 를 꺼낸다 */
@@ -134,7 +98,7 @@ export function heuristicProvider(): LlmProvider {
       }
 
       // 3) "한산함"을 원하면 혼잡도 확인 단계를 추가 (의도에 따른 분기)
-      if (wantsQuiet(intent) && !called(trace, "estimate_congestion")) {
+      if (themeId && wantsQuiet(intent) && !called(trace, "estimate_congestion")) {
         const spotId = firstSpotId(lastResult(trace, "get_course"));
         if (spotId) {
           return { kind: "tool", tool: { name: "estimate_congestion", args: { spotId } } };
@@ -154,10 +118,15 @@ export function heuristicProvider(): LlmProvider {
         final: {
           primaryThemeId: themeId ?? "",
           altThemeIds: [],
-          rationale: L(
-            `요청을 "${intent}"로 이해해 ${themeId ?? "기본"} 테마를 골랐어요.${quietNote}`,
-            `Interpreted "${intent}" and selected the ${themeId ?? "default"} theme.`,
-          ),
+          rationale: themeId
+            ? L(
+                `입력 단어와 연결되는 ${themeId} 테마를 골랐어요.${quietNote}`,
+                `Selected ${themeId} using matching words.`,
+              )
+            : L(
+                "일치하는 목적 단어를 찾지 못했어요. 지역이나 활동을 함께 적어 주세요.",
+                "Add a town or an activity to find a theme.",
+              ),
         },
       };
     },

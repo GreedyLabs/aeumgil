@@ -5,7 +5,10 @@ import { expect, test } from "@playwright/test";
 
 test("비로그인으로 코스 저장을 누르면 /login?reason=save 로 보낸다", async ({ page }) => {
   await page.goto("/course/east-sea-sunrise");
-  await page.getByRole("button", { name: "내 여행에 저장" }).click({ timeout: 60_000 });
+  await page
+    .getByRole("button", { name: "테마 보관", exact: true })
+    .first()
+    .click({ timeout: 60_000 });
   await page.waitForURL(/\/login\?reason=save/);
 });
 

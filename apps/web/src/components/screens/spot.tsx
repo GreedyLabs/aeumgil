@@ -161,9 +161,9 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
         </div>
         <Link
           className="btn btn-secondary btn-sm spot-customize"
-          href={`/my-courses/new?spot=${encodeURIComponent(s.id)}`}
+          href={`/my-courses/add?spot=${encodeURIComponent(s.id)}`}
         >
-          <Icon.plus /> 이 장소로 내 코스 만들기
+          <Icon.plus /> 내 코스에 담기
         </Link>
         <h1 style={{ fontSize: 34, margin: "0 0 12px", lineHeight: 1.1 }}>
           {localized(s.name, lang)}

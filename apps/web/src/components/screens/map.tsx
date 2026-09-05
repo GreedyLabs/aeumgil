@@ -3,6 +3,7 @@ import { Select } from "@/components/select";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useRouter } from "next/navigation";
 import { localized } from "@/lib/i18n";
 import { useAppState } from "@/components/app-shell";
@@ -23,6 +24,7 @@ export function MapView({
   result: PlaceSearchResult;
   embedded?: boolean;
 }) {
+  const ready = useHydrated();
   const { lang } = useAppState();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -101,6 +103,7 @@ export function MapView({
           <input
             type="search"
             aria-label="관광지 검색"
+            disabled={!ready}
             placeholder="속초 해변, 박수근미술관, 정동진…"
             value={query}
             maxLength={100}
@@ -114,7 +117,7 @@ export function MapView({
               search(e.currentTarget.value);
             }}
           />
-          <button className="btn btn-primary btn-sm" type="submit">
+          <button className="btn btn-primary btn-sm" disabled={!ready} type="submit">
             검색
           </button>
         </div>
@@ -134,26 +137,34 @@ export function MapView({
           </Select>
         </label>
       </form>
-      <div className="places-categories" aria-label="여행지 종류">
-        {[{ id: "", label: "전체" }, ...PLACE_CATEGORIES].map((c) => (
-          <button
-            key={c.id}
-            className={`chip${displayFilters.category === c.id ? " active" : ""}`}
-            aria-pressed={displayFilters.category === c.id}
-            onClick={() => navigate({ category: c.id })}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      <label className="accessibility-filter">
-        <input
-          type="checkbox"
-          checked={displayFilters.accessibility === "info"}
-          onChange={(e) => navigate({ accessibility: e.target.checked ? "info" : "" })}
-        />{" "}
-        무장애 안내 있는 곳
-      </label>
+      <details className="places-extra-filters">
+        <summary>
+          <Icon.filter /> 종류·무장애 조건
+          {displayFilters.category || displayFilters.accessibility ? " · 적용 중" : ""}
+        </summary>
+        <div className="places-categories" aria-label="여행지 종류">
+          {[{ id: "", label: "전체" }, ...PLACE_CATEGORIES].map((c) => (
+            <button
+              disabled={!ready}
+              key={c.id}
+              className={`chip${displayFilters.category === c.id ? " active" : ""}`}
+              aria-pressed={displayFilters.category === c.id}
+              onClick={() => navigate({ category: c.id })}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <label className="accessibility-filter">
+          <input
+            type="checkbox"
+            disabled={!ready}
+            checked={displayFilters.accessibility === "info"}
+            onChange={(e) => navigate({ accessibility: e.target.checked ? "info" : "" })}
+          />{" "}
+          무장애 안내 있는 곳
+        </label>
+      </details>
       <div className="results-heading">
         <h2 aria-live="polite">
           {pending ? (
@@ -170,6 +181,7 @@ export function MapView({
           result.query.accessibility) && (
           <button
             className="text-link"
+            disabled={!ready}
             onClick={() => {
               setQuery("");
               navigate({ q: "", region: "", category: "", accessibility: "" });
@@ -196,6 +208,7 @@ export function MapView({
                     )}
                     <button
                       className="place-card-select"
+                      disabled={!ready}
                       aria-label={`${localized(p.name, lang)} 지도 보기`}
                       aria-pressed={selected?.id === p.id}
                       onClick={(e) => {
@@ -235,7 +248,7 @@ export function MapView({
               <nav className="places-pagination" aria-label="여행지 페이지">
                 <button
                   className="btn btn-secondary"
-                  disabled={result.page <= 1 || pending}
+                  disabled={!ready || result.page <= 1 || pending}
                   onClick={() => navigate({ page: result.page - 1 })}
                 >
                   이전
@@ -245,7 +258,7 @@ export function MapView({
                 </span>
                 <button
                   className="btn btn-secondary"
-                  disabled={result.page >= pages || pending}
+                  disabled={!ready || result.page >= pages || pending}
                   onClick={() => navigate({ page: result.page + 1 })}
                 >
                   다음
@@ -259,6 +272,7 @@ export function MapView({
               <p>장소 이름을 짧게 입력하거나 지역·종류 필터를 풀어보세요.</p>
               <button
                 className="btn btn-secondary"
+                disabled={!ready}
                 onClick={() => {
                   setQuery("");
                   navigate({ q: "", region: "", category: "", accessibility: "" });

@@ -91,32 +91,40 @@ export function ThemeResultView({
             </div>
           </section>
         </div>
-        <aside className="detail-aside summary-panel" aria-label="여행 요약">
-          <h2>이렇게 떠나보세요</h2>
-          <dl className="summary-facts">
-            <div>
-              <dt>여행 지역</dt>
-              <dd>{localized(theme.region, lang)}</dd>
-            </div>
-            <div>
-              <dt>여행 일정</dt>
-              <dd>{options.days ? `${options.days}일` : localized(theme.duration, lang)}</dd>
-            </div>
-            <div>
-              <dt>관광지 후보</dt>
-              <dd>{theme.spotCount}곳</dd>
-            </div>
-            <div>
-              <dt>여행 분위기</dt>
-              <dd>{localized(theme.pace, lang)}</dd>
-            </div>
-            {options.transport && (
+        <aside
+          className="detail-aside summary-panel mobile-first theme-plan-summary"
+          aria-label="여행 요약"
+        >
+          <details className="trip-facts">
+            <summary>
+              {options.days ? `${options.days}일` : localized(theme.duration, lang)} ·{" "}
+              {localized(theme.region, lang)} <span>여행 요약</span>
+            </summary>
+            <dl className="summary-facts">
               <div>
-                <dt>이동수단</dt>
-                <dd>{{ car: "자동차", transit: "대중교통", walk: "도보" }[options.transport]}</dd>
+                <dt>여행 지역</dt>
+                <dd>{localized(theme.region, lang)}</dd>
               </div>
-            )}
-          </dl>
+              <div>
+                <dt>여행 일정</dt>
+                <dd>{options.days ? `${options.days}일` : localized(theme.duration, lang)}</dd>
+              </div>
+              <div>
+                <dt>관광지 후보</dt>
+                <dd>{theme.spotCount}곳</dd>
+              </div>
+              <div>
+                <dt>여행 분위기</dt>
+                <dd>{localized(theme.pace, lang)}</dd>
+              </div>
+              {options.transport && (
+                <div>
+                  <dt>이동수단</dt>
+                  <dd>{{ car: "자동차", transit: "대중교통", walk: "도보" }[options.transport]}</dd>
+                </div>
+              )}
+            </dl>
+          </details>
           <p>준비된 테마 코스를 바탕으로 일정과 이동수단에 맞춰 방문 순서를 살펴볼 수 있어요.</p>
           <button
             className="btn btn-primary btn-block"

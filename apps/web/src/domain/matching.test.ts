@@ -5,7 +5,7 @@ import { matchThemeIdsByKeyword, matchThemes, normalizeIntentQuery } from "./mat
 import { THEME_KEYWORD_RULES } from "./theme-keywords";
 import type { KeywordRule } from "./types";
 
-// design/data.ts 의 KEYWORD_MATCH 와 동일 구조의 대표 규칙(테스트 고정값).
+// 독립된 작은 사전으로 단일 규칙 호출 계약을 검증한다.
 const rules: KeywordRule[] = [
   { keywords: ["조용", "한적", "quiet", "calm"], themeId: "quiet-inland" },
   { keywords: ["바다", "해변", "일출", "sea", "beach"], themeId: "east-sea-sunrise" },
@@ -25,7 +25,9 @@ const themeIds = [
 
 describe("matchThemes", () => {
   it("키워드로 대표 테마를 고른다", () => {
-    expect(matchThemes("오늘 조용하게 여행하고 싶어", rules, themeIds).primaryId).toBe("quiet-inland");
+    expect(matchThemes("오늘 조용하게 여행하고 싶어", rules, themeIds).primaryId).toBe(
+      "quiet-inland",
+    );
     expect(matchThemes("바다 일출 보러 가자", rules, themeIds).primaryId).toBe("east-sea-sunrise");
   });
 
@@ -33,8 +35,8 @@ describe("matchThemes", () => {
     expect(matchThemes("I want a MOUNTAIN trek", rules, themeIds).primaryId).toBe("mountain-trek");
   });
 
-  it("매칭이 없으면 첫 테마로 폴백한다", () => {
-    expect(matchThemes("zzzz 의미없는 입력", rules, themeIds).primaryId).toBe(themeIds[0]);
+  it("매칭이 없으면 임의의 테마를 고르지 않는다", () => {
+    expect(matchThemes("zzzz 의미없는 입력", rules, themeIds).primaryId).toBe("");
   });
 
   it("보조 테마는 대표를 제외하고 최대 개수만큼 채운다", () => {
@@ -59,13 +61,16 @@ describe("matchThemes", () => {
 
 describe("matchThemeIdsByKeyword", () => {
   it("걸린 규칙만 순서대로 돌려주고, 미스면 빈 배열이다(폴백 없음)", () => {
-    expect(matchThemeIdsByKeyword("시장 구경하고 카페도", rules)).toEqual(["market-local", "cafe-viewpoint"]);
+    expect(matchThemeIdsByKeyword("시장 구경하고 카페도", rules)).toEqual([
+      "market-local",
+      "cafe-viewpoint",
+    ]);
     expect(matchThemeIdsByKeyword("zzzz 의미없는 입력", rules)).toEqual([]);
   });
 });
 
 describe("THEME_KEYWORD_RULES (도메인 정본 규칙)", () => {
-  it("규칙의 themeId 는 전부 시드 카탈로그의 테마 id 다", () => {
+  it("개별 테마 규칙은 알려진 큐레이션 ID에 연결된다", () => {
     for (const rule of THEME_KEYWORD_RULES) {
       expect(themeIds).toContain(rule.themeId);
     }
@@ -89,7 +94,9 @@ describe("THEME_KEYWORD_RULES (도메인 정본 규칙)", () => {
 
 describe("normalizeIntentQuery", () => {
   it("연속 공백·개행을 한 칸으로 붙이고 양끝을 자른다", () => {
-    expect(normalizeIntentQuery("  부모님이랑 \n\n 바다  보고 싶어  ")).toBe("부모님이랑 바다 보고 싶어");
+    expect(normalizeIntentQuery("  부모님이랑 \n\n 바다  보고 싶어  ")).toBe(
+      "부모님이랑 바다 보고 싶어",
+    );
   });
 
   it("공백뿐인 입력은 빈 문자열이 된다", () => {

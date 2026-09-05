@@ -12,17 +12,29 @@ import type { Scorer } from "./types";
 
 /** 대표 테마가 실제 존재하는 테마인가 (헛것 생성 차단). */
 export function themeValidity(validThemeIds: string[]): Scorer {
-  return (_c, r) => {
-    const ok = r.primaryThemeId.length > 0 && validThemeIds.includes(r.primaryThemeId);
-    return { scorer: "themeValidity", pass: ok, detail: ok ? r.primaryThemeId : `invalid: "${r.primaryThemeId}"` };
+  return (c, r) => {
+    const ok = c.expectNoMatch
+      ? r.primaryThemeId === "" && r.altThemeIds.length === 0
+      : r.primaryThemeId.length > 0 && validThemeIds.includes(r.primaryThemeId);
+    return {
+      scorer: "themeValidity",
+      pass: ok,
+      detail: ok ? r.primaryThemeId : `invalid: "${r.primaryThemeId}"`,
+    };
   };
 }
 
 /** 보조 테마가 모두 유효하고 대표와 중복되지 않는가. */
 export function altThemesClean(validThemeIds: string[]): Scorer {
   return (_c, r) => {
-    const bad = r.altThemeIds.filter((id) => !validThemeIds.includes(id) || id === r.primaryThemeId);
-    return { scorer: "altThemesClean", pass: bad.length === 0, detail: bad.length ? `bad: ${bad.join(",")}` : "ok" };
+    const bad = r.altThemeIds.filter(
+      (id) => !validThemeIds.includes(id) || id === r.primaryThemeId,
+    );
+    return {
+      scorer: "altThemesClean",
+      pass: bad.length === 0,
+      detail: bad.length ? `bad: ${bad.join(",")}` : "ok",
+    };
   };
 }
 

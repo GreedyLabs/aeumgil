@@ -3,6 +3,7 @@ import { Select } from "@/components/select";
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useRouter } from "next/navigation";
 import { localized } from "@/lib/i18n";
 import { useAppState } from "@/components/app-shell";
@@ -23,6 +24,7 @@ export function DiscoverView({
   places?: ReactNode;
   activeTab?: string;
 }) {
+  const ready = useHydrated();
   const { lang } = useAppState();
   const router = useRouter();
   const mode = activeTab;
@@ -59,24 +61,56 @@ export function DiscoverView({
       <header className="page-heading">
         <div>
           <span className="eyebrow">취향 따라 떠나는 강원</span>
-          <h1>어떤 여행을 찾고 있나요?</h1>
-          <p>코스부터 고르거나, 가고 싶은 장소부터 찾아보세요. 동선은 코스에서 함께 확인해요.</p>
+          <h1>
+            {{
+              places: "가고 싶은 곳을 찾아보세요",
+              themes: "마음에 드는 코스부터",
+              festivals: "여행에 특별한 하루를 더해요",
+              visitors: "지역별 여행 흐름",
+            }[mode] ?? "강원 여행 탐색"}
+          </h1>
+          <p>
+            {
+              {
+                places: "장소와 위치를 비교하고 내 여행에 담아보세요.",
+                themes: "준비된 여행에 나만의 장소와 순서를 더하세요.",
+                festivals: "행사 일정과 주변 여행지를 함께 살펴보세요.",
+                visitors: "지난 방문 추이로 여행 지역을 비교해보세요.",
+              }[mode]
+            }
+          </p>
         </div>
-        <Link href="/" className="btn btn-secondary">
+        <Link href="/" className="btn btn-secondary discover-match-link">
           <Icon.sparkle /> 나에게 맞는 여행 찾기
         </Link>
       </header>
       <div className="browse-tabs" aria-label="탐색 종류">
-        <button aria-pressed={mode === "places"} onClick={() => setMode("places")}>
+        <button
+          disabled={!ready}
+          aria-pressed={mode === "places"}
+          onClick={() => setMode("places")}
+        >
           여행지 찾기
         </button>
-        <button aria-pressed={mode === "themes"} onClick={() => setMode("themes")}>
+        <button
+          disabled={!ready}
+          aria-pressed={mode === "themes"}
+          onClick={() => setMode("themes")}
+        >
           테마 코스
         </button>
-        <button aria-pressed={mode === "festivals"} onClick={() => setMode("festivals")}>
+        <button
+          disabled={!ready}
+          aria-pressed={mode === "festivals"}
+          onClick={() => setMode("festivals")}
+        >
           다가오는 행사
         </button>
-        <button aria-pressed={mode === "visitors"} onClick={() => setMode("visitors")}>
+        <button
+          disabled={!ready}
+          aria-pressed={mode === "visitors"}
+          onClick={() => setMode("visitors")}
+        >
           지역 방문 통계
         </button>
       </div>
@@ -93,6 +127,7 @@ export function DiscoverView({
               <Icon.search />
               <input
                 aria-label="테마 검색"
+                disabled={!ready}
                 type="search"
                 placeholder="바다, 숲, 시장…"
                 value={query}

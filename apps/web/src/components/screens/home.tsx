@@ -2,6 +2,7 @@
 import { Select } from "@/components/select";
 
 import Link from "next/link";
+import { useHydrated } from "@/lib/use-hydrated";
 import { GANGWON_REGIONS } from "@/domain/place-search";
 import { ThemeCard } from "./theme-card";
 import { useState, type FormEvent } from "react";
@@ -23,6 +24,7 @@ export function HomeView({
   prompts: SamplePrompt[];
   bestSpots: Spot[];
 }) {
+  const ready = useHydrated();
   const { lang } = useAppState();
   const { nav } = useAppNav();
   const [region, setRegion] = useState("");
@@ -69,26 +71,32 @@ export function HomeView({
             }}
           >
             <Icon.sparkle />
-            <input
+            <textarea
+              rows={2}
               aria-label="여행 목적"
+              disabled={!ready}
               value={prompt}
               maxLength={INTENT_QUERY_MAX_LENGTH}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="예) 부모님과 한적한 바다 여행"
+              placeholder="예) 속초에서 부모님과 바다 보고 시장 구경"
               enterKeyHint="search"
             />
             <button
               type="submit"
-              className="icon-btn"
+              className="btn btn-primary"
               aria-label="여행 추천 받기"
-              disabled={!prompt.trim()}
+              disabled={!ready || !prompt.trim()}
             >
-              <Icon.search />
+              테마 찾기 <Icon.chevR />
             </button>
           </form>
           <div className="prompt-chips">
             {prompts.slice(0, 3).map((p) => (
-              <button key={p.text.ko} onClick={() => submit(localized(p.text, lang))}>
+              <button
+                disabled={!ready}
+                key={p.text.ko}
+                onClick={() => submit(localized(p.text, lang))}
+              >
                 {localized(p.text, lang)}
               </button>
             ))}

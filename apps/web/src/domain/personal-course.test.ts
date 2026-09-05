@@ -39,3 +39,14 @@ it("기존 개인 코스 수정에는 읽었던 버전이 필요하다", () => {
   expect(personalCourseInput.safeParse(input).success).toBe(false);
   expect(personalCourseInput.safeParse({ ...input, version: 0 }).success).toBe(true);
 });
+
+it("이동수단과 출발 시간을 보존하고 잘못된 시간은 거절한다", () => {
+  const base = { title: "내 여행", note: "", items: [item] };
+  expect(personalCourseInput.parse(base)).toMatchObject({ transport: "car", startTime: "09:30" });
+  expect(
+    personalCourseInput.parse({ ...base, transport: "transit", startTime: "10:45" }),
+  ).toMatchObject({ transport: "transit", startTime: "10:45" });
+  for (const startTime of ["", "24:00", "09:60", "9:30"])
+    expect(personalCourseInput.safeParse({ ...base, startTime }).success).toBe(false);
+  expect(personalCourseInput.safeParse({ ...base, transport: "flight" }).success).toBe(false);
+});

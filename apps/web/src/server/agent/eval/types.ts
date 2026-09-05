@@ -13,6 +13,8 @@ import type { PlanResult } from "../types";
 
 /** 평가 케이스 — 정답 라벨이 아니라 "기대 속성"을 담는다(룰브릭 채점). */
 export interface EvalCase {
+  /** 목적 단어가 없는 입력은 임의 추천 없이 빈 결과가 정답이다. */
+  expectNoMatch?: boolean;
   id: string;
   intent: string;
   /** "한산/조용" 류 제약이 있어 혼잡 확인을 기대하는 케이스인지 */

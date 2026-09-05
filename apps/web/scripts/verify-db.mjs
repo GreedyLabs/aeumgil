@@ -40,7 +40,17 @@ try {
 }
 
 const EXPECTED = {
-  personal_course: ["id", "user_id", "title", "note", "items", "version", "updated_at"],
+  personal_course: [
+    "id",
+    "user_id",
+    "title",
+    "note",
+    "transport",
+    "start_time",
+    "items",
+    "version",
+    "updated_at",
+  ],
   saved_theme: ["user_id", "theme_id", "saved_at"],
   review: ["id", "user_id", "spot_id", "rating", "text", "helpful", "created_at"],
   visit: ["id", "user_id", "spot_id", "visited_at", "congestion_then"],

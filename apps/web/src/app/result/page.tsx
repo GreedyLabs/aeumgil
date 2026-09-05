@@ -7,8 +7,7 @@ import { str, type SearchParams } from "@/lib/search-params";
 
 export default async function ResultPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  // [운영-준비-플랜 §3.1] 무인증 진입점 입력 방어 — 빈/초과 입력은 매칭(LLM 경로)에
-  // 진입하지 않고 안내한다. 정상 입력만 리포지토리로 내려보낸다.
+  // 빈 입력과 과도한 길이는 매칭 전에 안내한다.
   const query = normalizeIntentQuery(str(sp.q) ?? "");
   if (!query || query.length > INTENT_QUERY_MAX_LENGTH) {
     return (
@@ -28,6 +27,20 @@ export default async function ResultPage({ searchParams }: { searchParams: Searc
     );
   }
 
-  const { primaryId, altIds } = await getRepository().matchThemes(query);
-  return <MatchingView query={query} primaryId={primaryId} altIds={altIds} />;
+  const repo = getRepository();
+  const match = await repo.matchThemes(query);
+  const [primary, ...alternatives] = await Promise.all(
+    [match.primaryId, ...match.altIds].map((id) =>
+      id ? repo.getTheme(id) : Promise.resolve(null),
+    ),
+  );
+  return (
+    <MatchingView
+      key={query}
+      query={query}
+      match={match}
+      primary={primary ?? null}
+      alternatives={alternatives.filter((theme) => theme !== null)}
+    />
+  );
 }

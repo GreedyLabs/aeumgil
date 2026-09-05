@@ -167,7 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const activeTab = activeTabFor(pathname);
-  const showChrome = !/^\/(result|onboarding)/.test(pathname);
+  const showChrome = !/^\/onboarding/.test(pathname);
 
   const goTab = (id: string) => router.push(urlForTab(id));
 
@@ -196,7 +196,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="screen-body" key={pathname} id="main-content">
             {children}
           </main>
-          {showChrome && <TabBar active={activeTab} onNav={goTab} lang={lang} />}
+          {showChrome && (
+            <TabBar ready={sidebarReady} active={activeTab} onNav={goTab} lang={lang} />
+          )}
         </div>
         {toast && (
           <div className="toast" role="status" aria-live="polite">

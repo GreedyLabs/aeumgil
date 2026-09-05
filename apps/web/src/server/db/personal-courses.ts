@@ -10,6 +10,8 @@ function toCourse(row: typeof personalCourses.$inferSelect): PersonalCourse {
     id: row.id,
     title: row.title,
     note: row.note,
+    transport: row.transport,
+    startTime: row.startTime,
     items: row.items,
     version: row.version,
     updatedAt: row.updatedAt.toISOString(),
@@ -47,6 +49,8 @@ export async function savePersonalCourse(
   const values = {
     title: input.title,
     note: input.note,
+    transport: input.transport,
+    startTime: input.startTime,
     items: orderPersonalItems(input.items),
     updatedAt: new Date(),
   };

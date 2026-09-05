@@ -63,5 +63,7 @@ test("새 지역 테마는 실제 장소로 구성되고 검색할 수 있다", 
   await expect(page.locator(".theme-grid")).not.toContainText("0개 장소");
   await page.goto("/course/gangwon-yanggu-culture", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: /양구.*전시/ }).first()).toBeVisible();
-  await expect(page.getByText("박수근미술관", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.locator(".course-timeline").getByText("박수근미술관", { exact: true }).first(),
+  ).toBeVisible();
 });

@@ -19,13 +19,20 @@ export default async function PersonalCoursePage({
     ),
   );
   const repo = getRepository();
-  if (!(await repo.getCurrentUser())) {
+  const user = await repo.getCurrentUser();
+  if (!user) {
     const suffix = new URLSearchParams(query).toString();
     redirect(
       `/login?reason=save&returnTo=${encodeURIComponent(`/my-courses/${id}${suffix ? `?${suffix}` : ""}`)}`,
     );
   }
-  let initial: PersonalCourseInput = { title: "", note: "", items: [] };
+  let initial: PersonalCourseInput = {
+    title: "",
+    note: "",
+    items: [],
+    transport: "car",
+    startTime: "09:30",
+  };
   if (id !== "new") {
     const saved = await repo.getPersonalCourse(id);
     if (!saved) notFound();
@@ -34,14 +41,18 @@ export default async function PersonalCoursePage({
     const course = await repo.getCourse(query.from, parseCourseOptions(query));
     if (!course) notFound();
     initial = {
+      ...initial,
       title: `${course.title.ko} · 나의 코스`.slice(0, 60),
       note: "",
       items: toPersonalItems(course.items),
+      transport: parseCourseOptions(query).transport ?? "car",
+      startTime: course.items[0]?.time ?? "09:30",
     };
   } else if (query.festival) {
     const festival = await repo.getFestival(query.festival);
     if (!festival) notFound();
     initial = {
+      ...initial,
       title: `${festival.event.name.ko} · 나의 여행`.slice(0, 60),
       note: `${festival.event.startsOn} ~ ${festival.event.endsOn} 행사 일정 확인`,
       items: [{ kind: "festival", refId: festival.place.id, day: 1, durationMin: 120 }],
@@ -71,10 +82,16 @@ export default async function PersonalCoursePage({
   const search = await repo.searchSpots();
   return (
     <PersonalCourseEditor
-      key={id}
+      key={id + new URLSearchParams(query).toString()}
+      ownerId={user.handle}
+      draftKey={id + new URLSearchParams(query).toString()}
       initial={initial}
       initialPlaces={places}
-      initialSearch={search}
+      initialSearch={{
+        ...search,
+        kind: "spot",
+        items: search.items.map((place) => ({ ...place, kind: "spot" })),
+      }}
     />
   );
 }

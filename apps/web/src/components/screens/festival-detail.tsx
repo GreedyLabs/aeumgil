@@ -32,7 +32,7 @@ export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; 
     ["주최", detail.host],
     ["문의", detail.phone],
   ].filter(([, value]) => value);
-  const create = `/my-courses/new?festival=${event.id}`;
+  const create = `/my-courses/add?festival=${event.id}`;
   return (
     <div className="screen-enter festival-detail-page">
       <UI.TopBar
@@ -51,7 +51,7 @@ export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; 
           <h1>{event.name.ko}</h1>
           <p>{event.address}</p>
           <Link className="btn btn-primary" href={create}>
-            <Icon.plus /> 이 행사로 코스 만들기
+            <Icon.plus /> 내 코스에 담기
           </Link>
         </header>
         {place.imageUrl && (

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "leaflet/dist/leaflet.css";
 import "../design/styles.css";
+import "../design/travel-ui.css";
 import { AppShell } from "@/components/app-shell";
 import { Providers } from "./providers";
 

@@ -16,7 +16,7 @@ export const DATASET: EvalCase[] = [
   { id: "quiet-beach", intent: "부모님이랑 안 붐비는 바다 보고 싶어", expectQuietHandling: true },
   { id: "famous-beach", intent: "유명한 바다 명소 위주로", expectQuietHandling: false },
   { id: "quiet-mountain", intent: "조용한 산 트레킹 코스", expectQuietHandling: true },
-  { id: "vague", intent: "강원도 여행 추천", expectQuietHandling: false },
+  { id: "vague", intent: "강원도 여행 추천", expectQuietHandling: false, expectNoMatch: true },
 ];
 
 // ── 샘플 컨텍스트 ────────────────────────────

@@ -108,11 +108,11 @@ export function CourseView({
     Boolean(options.startRegion);
   const saveLabel = isSaved
     ? lang === "ko"
-      ? "저장 해제"
-      : "Unsave trip"
+      ? "테마 보관 해제"
+      : "Remove theme"
     : lang === "ko"
-      ? "내 여행에 저장"
-      : "Save trip";
+      ? "테마 보관"
+      : "Keep theme";
 
   const toggleSave = () => {
     requireAuth("save", () => {
@@ -121,7 +121,7 @@ export function CourseView({
       startTransition(async () => {
         try {
           await onSaveTheme(theme.id, next);
-          showToast(next ? "내 여행에 저장했어요" : "저장을 해제했어요");
+          showToast(next ? "내 여행에 테마를 보관했어요" : "저장을 해제했어요");
         } catch {
           setIsSaved(!next);
           showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요");
@@ -186,7 +186,7 @@ export function CourseView({
         </div>
         <button
           className="icon-btn filled"
-          aria-label={isSaved ? "코스 저장 해제" : "코스 저장"}
+          aria-label={isSaved ? "테마 보관 해제" : "테마 보관"}
           onClick={toggleSave}
           disabled={isPending}
         >
@@ -246,15 +246,6 @@ export function CourseView({
             </button>
           </div>
           {isTuning && <p role="status">선택한 조건으로 코스를 조정하고 있어요…</p>}
-          <div className="course-customize">
-            <div>
-              <strong>내 취향대로 바꾸고 싶다면</strong>
-              <p>이 일정을 복사해 장소와 방문 순서를 직접 편집하세요.</p>
-            </div>
-            <Link className="btn btn-primary" href={`/my-courses/new?${copyQuery}`}>
-              <Icon.plus /> 내 코스로 편집
-            </Link>
-          </div>
           <CourseMap stops={mapStops} legs={mapLegs} day={day} />
           <div className="course-timeline">
             {items.map((it, i) => (
@@ -294,34 +285,46 @@ export function CourseView({
             />
           ) : (
             <>
-              <h2>내 여행 조건</h2>
-              <dl className="summary-facts">
-                <div>
-                  <dt>일정</dt>
-                  <dd>{course.dayCount}일</dd>
-                </div>
-                <div>
-                  <dt>이동수단</dt>
-                  <dd>{transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko}</dd>
-                </div>
-                <div>
-                  <dt>여행 페이스</dt>
-                  <dd>{paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko}</dd>
-                </div>
-                <div>
-                  <dt>동행</dt>
-                  <dd>
-                    {options.companion
-                      ? companionChoices.find((c) => c.id === options.companion)?.ko
-                      : "자유롭게"}
-                  </dd>
-                </div>
-              </dl>
+              <Link className="btn btn-primary btn-block" href={`/my-courses/new?${copyQuery}`}>
+                <Icon.plus /> 내 코스로 편집
+              </Link>
+              <p>장소·방문 순서를 바꾸고 이 일정을 저장하세요.</p>
+              <details className="trip-facts">
+                <summary>
+                  {course.dayCount}일 ·{" "}
+                  {transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko}
+                  <span>여행 조건</span>
+                </summary>
+                <dl className="summary-facts">
+                  <div>
+                    <dt>일정</dt>
+                    <dd>{course.dayCount}일</dd>
+                  </div>
+                  <div>
+                    <dt>이동수단</dt>
+                    <dd>
+                      {transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>여행 페이스</dt>
+                    <dd>{paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko}</dd>
+                  </div>
+                  <div>
+                    <dt>동행</dt>
+                    <dd>
+                      {options.companion
+                        ? companionChoices.find((c) => c.id === options.companion)?.ko
+                        : "자유롭게"}
+                    </dd>
+                  </div>
+                </dl>
+              </details>
               <button className="btn btn-secondary btn-block" onClick={() => setShowTune(true)}>
                 <Icon.filter /> 여행 조건 바꾸기
               </button>
               <button
-                className="btn btn-primary btn-block"
+                className="btn btn-ghost btn-block"
                 style={{ marginTop: 10 }}
                 onClick={toggleSave}
                 disabled={isPending}
@@ -329,9 +332,8 @@ export function CourseView({
                 {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />}
                 {isPending ? "저장 중…" : saveLabel}
               </button>
-              <p>
-                저장하면 내 여행에서 이 테마를 다시 찾을 수 있어요. 방문 시점의 여건에 따라 추천
-                코스는 달라질 수 있어요.
+              <p className="summary-footnote">
+                테마 보관은 테마만 기억해요. 지금 일정을 남기려면 내 코스로 편집하세요.
               </p>
             </>
           )}

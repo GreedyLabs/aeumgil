@@ -35,13 +35,13 @@ test("자연어 여행 조건이 코스에 전달되고 조건 변경 후에도 
     .getByRole("textbox", { name: "여행 목적" })
     .fill("부모님과 대중교통으로 1박 2일 바다 여행");
   await page.getByRole("button", { name: "여행 추천 받기" }).click();
-  await page.waitForURL(/\/theme\//);
-  await page.getByText("코스 자세히 보기").click();
+  await page.waitForURL(/\/result\?/);
+  await page.getByRole("link", { name: "이 조건으로 코스 보기" }).click();
   await page.waitForURL(/\/course\//);
   await expect(page).toHaveURL(/transport=transit/);
   await expect(page).toHaveURL(/companion=family/);
   await expect(page).toHaveURL(/days=2/);
-  await page.getByRole("button", { name: "조건", exact: true }).click();
+  await page.getByRole("button", { name: "여행 조건 바꾸기", exact: true }).click();
   await page.getByRole("button", { name: "1일", exact: true }).click();
   await page.getByRole("button", { name: "조건 적용" }).click();
   await expect(page).toHaveURL(/days=1/);

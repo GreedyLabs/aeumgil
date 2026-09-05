@@ -69,13 +69,12 @@ import {
 } from "@/server/db/user-data";
 import {
   INTENT_QUERY_MAX_LENGTH,
-  matchThemeIdsByKeyword,
+  matchingTheme,
+  rankCatalogThemes,
   normalizeIntentQuery,
 } from "@/domain/matching";
-import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
 import { courseMapStops } from "@/domain/course-map";
 import { routingPortFromEnv, approximateDirectionsPort } from "@/server/routing/travel-time";
-import { regionalThemeMatch } from "@/domain/regional-matching";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
@@ -91,15 +90,14 @@ import {
 } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
 import { apiCache } from "@/server/cache";
-import { agentMatchLimiter, requestClientKey } from "@/server/rate-limit";
 import { createLogger } from "@/server/log";
 import { env } from "@/lib/env";
 import { buildTravelTimeLookup } from "@/server/routing/travel-time";
 import type { Coord } from "@/domain/travel-time";
 import { L, type LocalizedText } from "@/lib/i18n";
 import { buildTools } from "@/server/agent/tools";
-import { planCourse, planItinerary } from "@/server/agent/planner";
-import { courseProviderFromEnv, itineraryProviderFromEnv } from "@/server/agent/llm";
+import { planItinerary } from "@/server/agent/planner";
+import { itineraryProviderFromEnv } from "@/server/agent/llm";
 import type { AgentStep, SpotMeta, ToolContext } from "@/server/agent/types";
 import { getSpotMapping } from "./spot-mapping";
 import { getCrowdForecast } from "@/server/public-api/tourism-demand";
@@ -112,7 +110,6 @@ const log = createLogger("repo");
 // 10분 TTL 은 원천 데이터 갱신 주기보다 잦았다(§3.2 쿼터 계산은 플랜 문서 참고).
 const TTL_MS = 30 * 60 * 1000; // 동적 데이터(날씨/대기질) 30분
 const DAY_MS = 24 * 60 * 60 * 1000; // 관광 상세 24시간
-const MATCH_TTL_MS = 60 * 60 * 1000; // 자연어 매칭 결과(LLM 비용 방어) 1시간
 const cached = apiCache.cached;
 
 /** "HH:MM" → 분(정렬용). 파싱 실패 시 720(정오). */
@@ -785,112 +782,16 @@ export class LiveRepository implements Repository {
     await setSavedTheme(requireDb(), uid, themeId, saved);
   }
 
-  // ───────────────────────────────────────────
-  // 에이전트 배선 (B단계) — 자연어 매칭을 Multi-step 에이전트에 위임한다.
-  //
-  // [학습 메모] Repository 인터페이스(matchThemes 시그니처)는 그대로다. 바뀐 건
-  // "내부에서 누가 테마를 고르느냐"뿐 — LLM 에이전트(planCourse)가 도구를 호출해가며 고른다.
-  // 에이전트가 실패하면 DB 테마 텍스트 기반 결정형 매칭으로 폴백한다.
-  // 현재 LLM 자리는 env 로 선택한다. 기본은 키 없는 heuristic, EUMGIL_AGENT_LLM=openai 이면 실 LLM.
-  // ───────────────────────────────────────────
-  async matchThemes(query: string): Promise<ThemeMatch> {
-    // [§3.1 어뷰즈 방어] /result?q= 는 무인증 진입점이라 임의 입력이 LLM·공공 API
-    // 호출로 직결된다. 화면(result/page.tsx)이 1차 검증하지만, 리포지토리도 스스로
-    // 방어한다(다른 호출부·직접 호출 대비): 정규화 + 길이 절단.
-    const intent = normalizeIntentQuery(query).slice(0, INTENT_QUERY_MAX_LENGTH);
-    if (!intent) return this.matchThemesDeterministic(intent);
-
-    // 동일 정규화 쿼리는 단기 캐시로 흡수 — 캐시 히트는 LLM/토큰버킷 비용이 0.
-    // 프로바이더를 키에 포함해 heuristic↔openai 전환 시 결과가 섞이지 않게 한다.
-    // 트레이드오프: 레이트리밋·에이전트 실패로 결정형 폴백이 나온 경우도 1h 캐시된다
-    // (품질이 잠시 고정되지만, 어뷰즈 방어 관점에선 의도된 동작).
-    const cacheKey = `match:${env.EUMGIL_AGENT_LLM}:${intent.toLowerCase()}`;
-    return cached(cacheKey, MATCH_TTL_MS, async () => {
-      // 캐시 미스에서만 토큰 소모. 소진 시 LLM 미호출 — 결정형 매칭으로 응답은 유지.
-      if (!agentMatchLimiter.take(await requestClientKey())) {
-        log.warn(`matchThemes "${intent}" rate-limited → deterministic only`);
-        return this.matchThemesDeterministic(intent);
-      }
-
-      const ctx = await this.buildAgentContext();
-      const result = await planCourse(
-        { intent, lang: "ko", at: nowKst() },
-        {
-          llm: courseProviderFromEnv(),
-          tools: buildTools(ctx),
-          fallback: async () => {
-            const m = await this.matchThemesDeterministic(intent);
-            return {
-              primaryThemeId: m.primaryId,
-              altThemeIds: m.altIds,
-              rationale: L("DB 테마 텍스트 매칭"),
-            };
-          },
-        },
-      );
-
-      // 보조 테마(혼잡 분산용)는 DB 테마 텍스트 매칭으로 보강한다.
-      // [§6.1 유효성 가드] LLM 이 낸 테마 id 는 실존 테마와 대조한다 — 헛 id 가
-      // 통과하면 /theme/<없는id> 로 이동해 화면이 깨진다. 무효면 결정형 결과로 대체.
-      const det = await this.matchThemesDeterministic(intent);
-      const validIds = new Set(ctx.themes.map((t) => t.id));
-      const primaryId = validIds.has(result.primaryThemeId) ? result.primaryThemeId : det.primaryId;
-      const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
-      const altIds = altSource.filter((id) => validIds.has(id) && id !== primaryId).slice(0, 2);
-
-      log.log(
-        `matchThemes "${intent}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`,
-      );
-      return { primaryId, altIds };
-    });
-  }
-
   /**
-   * 결정형 매칭 — 에이전트 실패·레이트리밋 시 안전망.
-   * ① 정적 큐레이션 키워드 규칙(도메인 정본, heuristic 판단부와 공유)을 1차 신호로,
-   * ② 테마 텍스트 토큰 겹침 점수를 2차 신호로 합친다. DB 테마 텍스트는 제목뿐이라
-   * (mood 미시드) 토큰 겹침만으로는 대부분의 자연어가 0점 동률 → 첫 테마로 수렴하는
-   * 문제가 있었다(2026-07-11) — 규칙이 그 구멍을 메운다.
+   * 여행 목적 검색은 명시적 키워드만으로 결정한다. DB 테마 한 번 조회 후 순수 계산하므로
+   * 검색마다 코스·혼잡 API를 호출하지 않는다. 입력과 결과도 외부 LLM으로 보내지 않는다.
+   * 실험용 에이전트는 코스 정리에만 남겨 검색 품질과 비용을 예측 가능하게 유지한다.
    */
-  private async matchThemesDeterministic(query: string): Promise<ThemeMatch> {
+  async matchThemes(query: string): Promise<ThemeMatch> {
+    const intent = normalizeIntentQuery(query).slice(0, INTENT_QUERY_MAX_LENGTH);
+    if (!intent) return rankCatalogThemes(intent, []);
     const themes = await this.listThemes();
-    const q = query.trim().toLowerCase();
-    const known = new Set(themes.map((t) => t.id));
-    const keywordHits = matchThemeIdsByKeyword(q, THEME_KEYWORD_RULES).filter((id) =>
-      known.has(id),
-    );
-    const scored = themes
-      .map((theme) => {
-        const haystack = [
-          theme.id,
-          theme.title.ko,
-          theme.title.en,
-          theme.subtitle.ko,
-          theme.tag.ko,
-          theme.region.ko,
-          theme.blurb.ko,
-          ...theme.mood.map((m) => m.ko),
-        ]
-          .join(" ")
-          .toLowerCase();
-        const score = q
-          .split(/\s+/)
-          .filter(Boolean)
-          .reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
-        return { id: theme.id, score };
-      })
-      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-
-    const regional = regionalThemeMatch(
-      q,
-      themes.map((t) => ({ id: t.id, title: t.title.ko, subtitle: t.subtitle.ko })),
-    );
-    const ranked: string[] = regional ? [regional] : [];
-    for (const id of [...keywordHits, ...scored.map((item) => item.id)]) {
-      if (!ranked.includes(id)) ranked.push(id);
-    }
-    const primaryId = ranked[0] ?? "";
-    return { primaryId, altIds: ranked.slice(1, 3) };
+    return rankCatalogThemes(intent, themes.map(matchingTheme));
   }
 
   /**

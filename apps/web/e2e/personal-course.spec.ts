@@ -41,7 +41,7 @@ test("개인 코스 생성·장소 편집·저장·재조회·소유자 격리·
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "박수근미술관 제거", exact: true }).click();
   await page.getByRole("button", { name: "내 코스 저장", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "저장된 코스" })).toBeVisible();
+  await expect(page.locator(".mobile-plan-save")).toContainText("저장된 코스");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
     true,
   );
@@ -63,6 +63,7 @@ test("무장애 필터와 관광지 카드 선택·상세 진입을 구분한다
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/discover?tab=places&q=박수근", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".places-map")).toHaveCount(1);
+  await page.locator(".places-extra-filters summary").click();
   await page.getByRole("checkbox", { name: "무장애 안내 있는 곳", exact: true }).check();
   await expect(page).toHaveURL(/accessibility=info/);
   await page.getByRole("button", { name: "박수근미술관 지도 보기", exact: true }).click();
@@ -142,10 +143,15 @@ test("행사 상세에서 위치·인근 장소를 확인하고 행사와 여행
 
 test("추천 코스를 복사하고 다른 탭의 이전 버전 저장을 막는다", async ({ page, context }) => {
   await context.addCookies([await sessionCookie()]);
-  await page.goto("/course/gangwon-gangneung-sea?days=1", { waitUntil: "domcontentloaded" });
+  await page.goto("/course/gangwon-gangneung-sea?days=1&transport=transit", {
+    waitUntil: "domcontentloaded",
+  });
   await page.getByRole("link", { name: /내 코스로 편집/ }).click();
   await expect(page).toHaveURL(/\/my-courses\/new\?from=/);
   expect(await page.locator(".personal-stop-list li").count()).toBeGreaterThan(0);
+  await expect(page.getByRole("combobox", { name: "내 코스 이동수단" })).toHaveValue("transit");
+  const copiedStart = await page.getByLabel("하루 출발 시간").inputValue();
+  expect(copiedStart).toMatch(/^\d{2}:\d{2}$/);
   await page.getByLabel("코스 이름", { exact: true }).fill("E2E 추천 복사");
   await page.getByRole("button", { name: "내 코스 저장", exact: true }).click();
   await expect(page).toHaveURL(/\/my-courses\/[0-9a-f-]{36}$/);
@@ -161,8 +167,168 @@ test("추천 코스를 복사하고 다른 탭의 이전 버전 저장을 막는
   ).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByLabel("코스 이름", { exact: true })).toHaveValue("E2E 최신 변경");
-  stale.on("dialog", (dialog) => dialog.accept());
+  await expect(page.getByRole("combobox", { name: "내 코스 이동수단" })).toHaveValue("transit");
+  await expect(page.getByLabel("하루 출발 시간")).toHaveValue(copiedStart);
+  const originalUrl = page.url();
+  await stale.reload({ waitUntil: "domcontentloaded" });
+  await expect(
+    stale.getByRole("button", { name: "이전 초안을 새 코스로 복구", exact: true }),
+  ).toBeVisible();
+  await stale.getByLabel("코스 이름", { exact: true }).fill("E2E 최신 버전의 미저장 편집");
+  await stale.getByRole("link", { name: "내 여행", exact: true }).click();
+  await expect(stale).toHaveURL(/\/saved$/);
+  await stale.goBack();
+  await expect(stale.getByLabel("코스 이름", { exact: true })).toHaveValue(
+    "E2E 최신 버전의 미저장 편집",
+  );
+  await stale.getByRole("button", { name: "이전 초안을 새 코스로 복구", exact: true }).click();
+  await expect(stale).toHaveURL(/\/my-courses\/new\?recovery=[0-9a-f-]{36}$/);
+  const recoveryUrl = stale.url();
+  await expect(stale.getByLabel("코스 이름", { exact: true })).toHaveValue(
+    "E2E 이전 탭 수정 · 복구",
+  );
+  await expect(stale.getByRole("combobox", { name: "내 코스 이동수단" })).toHaveValue("transit");
+  await expect(stale.getByLabel("하루 출발 시간")).toHaveValue(copiedStart);
+  await stale.getByRole("textbox", { name: "여행 메모", exact: true }).fill("복구 후 이어 쓴 메모");
+  await stale.getByRole("link", { name: "내 여행", exact: true }).click();
+  await expect(stale).toHaveURL(/\/saved$/);
+  await stale.goBack();
+  await expect(stale).toHaveURL(recoveryUrl);
+  await expect(stale.getByLabel("코스 이름", { exact: true })).toHaveValue(
+    "E2E 이전 탭 수정 · 복구",
+  );
+  await expect(stale.getByRole("textbox", { name: "여행 메모", exact: true })).toHaveValue(
+    "복구 후 이어 쓴 메모",
+  );
+  await stale.getByRole("button", { name: "내 코스 저장", exact: true }).click();
+  await expect(stale).toHaveURL(/\/my-courses\/[0-9a-f-]{36}$/);
+  const recoveredUrl = stale.url();
+  expect(recoveredUrl).not.toBe(originalUrl);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("코스 이름", { exact: true })).toHaveValue("E2E 최신 변경");
+  await stale.goto(originalUrl, { waitUntil: "domcontentloaded" });
+  await expect(stale.getByLabel("코스 이름", { exact: true })).toHaveValue(
+    "E2E 최신 버전의 미저장 편집",
+  );
+  await expect(
+    stale.getByRole("button", { name: "이전 초안을 새 코스로 복구", exact: true }),
+  ).toHaveCount(0);
+  await stale.goto(recoveredUrl, { waitUntil: "domcontentloaded" });
+  await stale.getByRole("button", { name: "이 코스 삭제", exact: true }).click();
+  await stale.getByRole("button", { name: "삭제 확인", exact: true }).click();
+  await expect(stale).toHaveURL(/\/saved$/);
   await stale.close({ runBeforeUnload: false });
+  await page.getByRole("button", { name: "이 코스 삭제", exact: true }).click();
+  await page.getByRole("button", { name: "삭제 확인", exact: true }).click();
+  await expect(page).toHaveURL(/\/saved$/);
+});
+
+test("여행지 상세에서 기존 코스 날짜에 담고 이동수단·출발시간을 보존한다", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([await sessionCookie()]);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/my-courses/new?spot=sokcho-market", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("코스 이름", { exact: true }).fill("E2E 기존 일정에 담기");
+  await page.getByRole("combobox", { name: "내 코스 이동수단" }).selectOption("transit");
+  await page.getByLabel("하루 출발 시간").fill("10:45");
+  await page.getByRole("button", { name: "내 코스 저장", exact: true }).click();
+  await expect(page).toHaveURL(/\/my-courses\/[0-9a-f-]{36}$/);
+  const savedUrl = page.url();
+  const courseId = new URL(savedUrl).pathname.split("/").at(-1)!;
+
+  await page.goto("/spot/dongmyeong-port", { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: "내 코스에 담기", exact: true }).click();
+  await expect(page).toHaveURL(/\/my-courses\/add\?spot=/);
+  await expect(page.getByRole("heading", { name: "어느 코스에 담을까요?" })).toBeVisible();
+  await page.getByRole("combobox", { name: "추가할 내 코스", exact: true }).selectOption(courseId);
+  await page.getByRole("combobox", { name: "추가할 날짜", exact: true }).selectOption("2");
+  await page.getByRole("button", { name: "이 코스에 1곳 담기", exact: true }).click();
+  await expect(page).toHaveURL(savedUrl);
+  await expect(page.getByRole("combobox", { name: "내 코스 이동수단" })).toHaveValue("transit");
+  await expect(page.getByLabel("하루 출발 시간")).toHaveValue("10:45");
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(1);
+  await page.getByRole("combobox", { name: "편집할 날짜", exact: true }).selectOption("2");
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(1);
+  await expect(page.locator(".personal-stop-list")).toContainText("동명항");
+  await page.locator(".route-leg-details summary").click();
+  await expect(page.locator(".route-stop-list")).toContainText("10:45");
+
+  // 같은 날짜에 중복 추가를 유도하지 않는다.
+  await page.goto("/my-courses/add?spot=dongmyeong-port", { waitUntil: "domcontentloaded" });
+  await page.getByRole("combobox", { name: "추가할 내 코스", exact: true }).selectOption(courseId);
+  await page.getByRole("combobox", { name: "추가할 날짜", exact: true }).selectOption("2");
+  await expect(page.getByRole("status").filter({ hasText: "이미 모두 담겨" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "이 코스에 0곳 담기", exact: true }),
+  ).toBeDisabled();
+  await page.goto(savedUrl, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "이 코스 삭제", exact: true }).click();
+  await page.getByRole("button", { name: "삭제 확인", exact: true }).click();
+  await expect(page).toHaveURL(/\/saved$/);
+});
+
+test("모바일에서 저장 전 코스를 떠나도 같은 탭으로 돌아와 초안을 이어간다", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([await sessionCookie()]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/my-courses/new?spot=sokcho-market", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("코스 이름", { exact: true }).fill("E2E 모바일 복원 여행");
+  await page
+    .getByRole("textbox", { name: "여행 메모", exact: true })
+    .fill("예약 전에 동선부터 확인하기");
+  await page.getByRole("combobox", { name: "내 코스 이동수단" }).selectOption("walk");
+  await page.getByLabel("하루 출발 시간").fill("11:15");
+  await page.getByRole("tab", { name: "+ 장소 추가", exact: true }).click();
+  await expect(page.getByRole("region", { name: "내 코스 일정", exact: true })).not.toBeVisible();
+  await page.getByRole("searchbox", { name: "내 코스 여행지 검색" }).fill("박수근미술관");
+  await page.getByRole("button", { name: "박수근미술관 추가", exact: true }).click();
+  await page.getByRole("combobox", { name: "추가할 장소 종류", exact: true }).selectOption("eat");
+  await page.getByRole("searchbox", { name: "내 코스 여행지 검색" }).fill("강릉");
+  const restaurant = page
+    .locator(".personal-search-results article")
+    .filter({ has: page.getByRole("link", { name: "영업·예약 정보 ↗", exact: true }) })
+    .first();
+  await expect(restaurant).toBeVisible();
+  await expect(
+    restaurant.getByRole("link", { name: "영업·예약 정보 ↗", exact: true }),
+  ).toHaveAttribute("href", /map\.kakao\.com/);
+  const restaurantName = await restaurant.locator("strong").innerText();
+  await restaurant.getByRole("button", { name: `${restaurantName} 추가`, exact: true }).click();
+  await expect(page.locator(".mobile-plan-save")).toContainText("3곳");
+  await expect(page.locator(".mobile-plan-save")).toContainText("이 탭에 임시 저장됨");
+  await page.getByRole("tab", { name: /^일정/ }).click();
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(3);
+
+  // Link로 다른 앱 화면에 간 뒤 뒤로 돌아오는 SPA 이동을 검증한다.
+  await page.getByRole("link", { name: "내 여행", exact: true }).click();
+  await expect(page).toHaveURL(/\/saved$/);
+  await expect(page.getByRole("link", { name: /E2E 모바일 복원 여행/ })).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/my-courses\/new\?spot=sokcho-market/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "초안을 이어서 불러왔어요" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("코스 이름", { exact: true })).toHaveValue("E2E 모바일 복원 여행");
+  await expect(page.getByRole("textbox", { name: "여행 메모", exact: true })).toHaveValue(
+    "예약 전에 동선부터 확인하기",
+  );
+  await expect(page.getByRole("combobox", { name: "내 코스 이동수단" })).toHaveValue("walk");
+  await expect(page.getByLabel("하루 출발 시간")).toHaveValue("11:15");
+  await expect(page.locator(".personal-stop-list")).toContainText(restaurantName);
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(3);
+  await page.getByRole("button", { name: "내 코스 저장", exact: true }).click();
+  await expect(page).toHaveURL(/\/my-courses\/[0-9a-f-]{36}$/);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".personal-stop-list li")).toHaveCount(3);
+  await expect(page.getByLabel("하루 출발 시간")).toHaveValue("11:15");
+  await expect(page.locator(".personal-stop-list")).toContainText(restaurantName);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+    true,
+  );
   await page.getByRole("button", { name: "이 코스 삭제", exact: true }).click();
   await page.getByRole("button", { name: "삭제 확인", exact: true }).click();
   await expect(page).toHaveURL(/\/saved$/);

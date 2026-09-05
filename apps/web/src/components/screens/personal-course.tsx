@@ -11,7 +11,19 @@ import { Select } from "@/components/select";
 import { useAppState } from "@/components/app-shell";
 import type { PersonalCourseInput, PersonalCourseItem } from "@/domain/personal-course";
 import { orderPersonalItems } from "@/domain/personal-course";
-import { GANGWON_REGIONS, type PlaceSearchResult } from "@/domain/place-search";
+import {
+  readCourseDraft,
+  preserveOlderDraft,
+  prepareRecoveredDraft,
+  clearRecoveredSource,
+  type CourseDraftSnapshot,
+} from "@/domain/personal-draft";
+import { GANGWON_REGIONS } from "@/domain/place-search";
+import type {
+  CoursePlaceSearchResult,
+  CourseSearchKind,
+  CourseSearchPlace,
+} from "@/domain/course-place-search";
 import type { Spot } from "@/domain/types";
 import type { CourseMapStop, CourseRouteLeg } from "@/domain/course-map";
 import { estimateDrive } from "@/domain/travel-time";
@@ -26,21 +38,34 @@ export function PersonalCourseEditor({
   initial,
   initialPlaces,
   initialSearch,
+  ownerId,
+  draftKey,
 }: {
   initial: PersonalCourseInput;
   initialPlaces: Record<string, EditorPlace>;
-  initialSearch: PlaceSearchResult;
+  initialSearch: CoursePlaceSearchResult;
+  ownerId: string;
+  draftKey: string;
 }) {
   const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+
   const router = useRouter();
   const { showToast } = useAppState();
   const [draft, setDraft] = useState(initial);
   const [places, setPlaces] = useState(initialPlaces);
   const [dirty, setDirty] = useState(false);
   const [day, setDay] = useState(1);
+  const [panel, setPanel] = useState<"itinerary" | "search">("itinerary");
+  const [draftNotice, setDraftNotice] = useState("");
+  const [draftCached, setDraftCached] = useState(false);
+  const [olderDraft, setOlderDraft] = useState<CourseDraftSnapshot | null>(null);
+  const [recoverySourceKey, setRecoverySourceKey] = useState<string>();
+  const [recoverySourceVersion, setRecoverySourceVersion] = useState<number>();
+  const storageKey = `eumgil.draft:${ownerId}:${draftKey}`;
+  const olderStorageKey = `${storageKey}:older`;
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState("");
+  const [searchKind, setSearchKind] = useState<CourseSearchKind>("spot");
   const [accessible, setAccessible] = useState(false);
   const [results, setResults] = useState(initialSearch);
   const [searchError, setSearchError] = useState("");
@@ -56,24 +81,81 @@ export function PersonalCourseEditor({
     setError("");
   };
   useEffect(() => {
-    if (!dirty) return;
+    try {
+      const older = readCourseDraft(sessionStorage.getItem(olderStorageKey), ownerId);
+      if (older) {
+        setOlderDraft(older);
+        setDraftNotice("이전 초안을 별도 코스로 복구할 수 있어요.");
+      }
+      const raw = sessionStorage.getItem(storageKey);
+      const saved = readCourseDraft(raw, ownerId);
+      if (saved && saved.draft.id === initial.id && saved.draft.version === initial.version) {
+        setDraft(saved.draft);
+        setPlaces({ ...initialPlaces, ...saved.places });
+        setRecoverySourceKey(saved.recoverySourceKey);
+        setRecoverySourceVersion(saved.recoverySourceVersion);
+        setDirty(true);
+        setDraftCached(true);
+        setDraftNotice("이 탭에서 편집하던 초안을 이어서 불러왔어요.");
+      } else if (saved && saved.draft.id === initial.id && raw) {
+        preserveOlderDraft(sessionStorage, storageKey, raw);
+        setOlderDraft(saved);
+        setDraftNotice(
+          "다른 곳에서 저장한 최신 코스를 불러왔어요. 이전 초안은 별도 코스로 복구할 수 있어요.",
+        );
+      } else if (raw) {
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch {
+      setDraftNotice(
+        "이 브라우저에서는 임시 저장을 사용할 수 없어요. 이동 전에 코스를 저장해 주세요.",
+      );
+    }
+    setReady(true);
+    // 같은 코스의 초기 버전을 기준으로 한 번만 복원한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+  useEffect(() => {
+    if (!ready || !dirty) return;
+    try {
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ draft, places, recoverySourceKey, recoverySourceVersion }),
+      );
+      setDraftCached(true);
+    } catch {
+      setDraftCached(false);
+    }
+  }, [ready, dirty, draft, places, storageKey, recoverySourceKey, recoverySourceVersion]);
+  const clearDraft = () => {
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      /* 임시 저장 미지원 */
+    }
+  };
+  useEffect(() => {
+    if (!dirty || draftCached) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, draftCached]);
   const searchPage = (page: number) => {
     const seq = ++request.current;
     setSearchError("");
     startSearch(async () => {
       try {
-        const result = await searchCoursePlacesAction({
-          q: query,
-          region,
-          accessibility: accessible ? "info" : "",
-          page,
-        });
+        const result = await searchCoursePlacesAction(
+          {
+            q: query,
+            region,
+            accessibility: accessible ? "info" : "",
+            page,
+          },
+          searchKind,
+        );
         if (seq === request.current) setResults(result);
       } catch {
         if (seq === request.current)
@@ -91,19 +173,24 @@ export function PersonalCourseEditor({
     return () => clearTimeout(timer);
     // 검색 입력이 바뀔 때만 실행한다. 요청 번호로 늦게 도착한 응답을 무시한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, region, accessible]);
+  }, [query, region, accessible, searchKind]);
   const items = useMemo(() => orderPersonalItems(draft.items), [draft.items]);
   const mapData = useMemo(() => {
     const today = items.filter((item) => item.day === day);
     const stops: CourseMapStop[] = [];
     const legs: CourseRouteLeg[] = [];
-    let minutes = 9 * 60 + 30;
+    const [hours, mins] = draft.startTime.split(":").map(Number);
+    let minutes = (hours ?? 9) * 60 + (mins ?? 30);
     for (const item of today) {
       const place = places[item.refId];
       if (!place || !Number.isFinite(place.lat) || !Number.isFinite(place.lon)) continue;
       const previous = stops.at(-1);
       if (previous) {
-        const estimate = estimateDrive(previous, { lat: place.lat!, lon: place.lon! }, "car");
+        const estimate = estimateDrive(
+          previous,
+          { lat: place.lat!, lon: place.lon! },
+          draft.transport,
+        );
         if (!estimate) continue;
         minutes += estimate.driveMinutes;
         legs.push({
@@ -129,17 +216,24 @@ export function PersonalCourseEditor({
         kind: item.kind === "festival" ? "spot" : item.kind,
         time,
       });
-      minutes += item.durationMin;
+      // 마지막 숙박의 체류는 다음 날까지 이어지므로 당일 과밀 경고에서 제외한다.
+      if (item.kind !== "stay" || item !== today.at(-1)) minutes += item.durationMin;
     }
     return { stops, legs, tooLong: minutes > 21 * 60 };
-  }, [items, places, day]);
-  const add = (spot: Spot) => {
+  }, [items, places, day, draft.startTime, draft.transport]);
+  const add = (spot: CourseSearchPlace) => {
     if (draft.items.length >= 30) {
       showToast("한 코스에는 최대 30곳을 담을 수 있어요.");
       return;
     }
     setPlaces((current) => ({ ...current, [spot.id]: spot }));
-    update({ items: [...draft.items, { kind: "spot", refId: spot.id, day, durationMin: 60 }] });
+    update({
+      items: [
+        ...draft.items,
+        { kind: spot.kind, refId: spot.id, day, durationMin: spot.kind === "stay" ? 480 : 60 },
+      ],
+    });
+    showToast(`Day ${day}에 ${spot.name.ko} 추가했어요.`);
   };
   const patchItem = (index: number, change: Partial<PersonalCourseItem>) => {
     const next = items.map((item, i) => (i === index ? { ...item, ...change } : item));
@@ -167,6 +261,15 @@ export function PersonalCourseEditor({
         setError(result.error);
         return;
       }
+      clearDraft();
+      try {
+        clearRecoveredSource(sessionStorage, ownerId, recoverySourceKey, recoverySourceVersion);
+      } catch {
+        /* DB 저장은 완료됐으므로 백업 삭제 실패는 초안 유지로 처리한다. */
+      }
+      setRecoverySourceKey(undefined);
+      setRecoverySourceVersion(undefined);
+      setDraftNotice("");
       setDraft(result.course);
       setDirty(false);
       showToast("내 코스를 저장했어요.");
@@ -182,7 +285,7 @@ export function PersonalCourseEditor({
           </Link>
         }
       />
-      <fieldset className="editor-controls" disabled={!ready || saving}>
+      <fieldset className={`editor-controls editor-panel-${panel}`} disabled={!ready || saving}>
         <header className="page-heading">
           <div>
             <span className="eyebrow">장소를 담고, 나만의 순서로</span>
@@ -192,6 +295,50 @@ export function PersonalCourseEditor({
             </p>
           </div>
         </header>
+        {draftNotice && (
+          <p className="notice" role="status">
+            {draftNotice}
+          </p>
+        )}
+        {olderDraft && (
+          <div className="draft-recovery-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                try {
+                  const href = prepareRecoveredDraft(
+                    sessionStorage,
+                    ownerId,
+                    olderStorageKey,
+                    olderDraft,
+                    crypto.randomUUID(),
+                  );
+                  router.push(href);
+                } catch {
+                  setError(
+                    "복구본을 임시 저장하지 못했어요. 이전 초안은 그대로 보관 중이니 다시 시도해 주세요.",
+                  );
+                }
+              }}
+            >
+              이전 초안을 새 코스로 복구
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem(olderStorageKey);
+                  setOlderDraft(null);
+                  setDraftNotice("");
+                } catch {
+                  setError("이전 초안을 삭제하지 못했어요. 다시 시도해 주세요.");
+                }
+              }}
+            >
+              이전 초안 삭제
+            </button>
+          </div>
+        )}
         <div className="personal-course-meta card">
           <label>
             코스 이름
@@ -216,7 +363,32 @@ export function PersonalCourseEditor({
               onChange={(e) => update({ note: e.target.value })}
             />
           </label>
-          <div className="personal-save-row">
+          <div className="personal-plan-options">
+            <label>
+              이동수단
+              <Select
+                aria-label="내 코스 이동수단"
+                value={draft.transport}
+                onChange={(e) =>
+                  update({ transport: e.target.value as PersonalCourseInput["transport"] })
+                }
+              >
+                <option value="car">자동차</option>
+                <option value="transit">대중교통</option>
+                <option value="walk">도보</option>
+              </Select>
+            </label>
+            <label>
+              하루 출발 시간
+              <input
+                className="input"
+                type="time"
+                value={draft.startTime}
+                onChange={(e) => update({ startTime: e.target.value })}
+              />
+            </label>
+          </div>
+          <div className="personal-save-row desktop-plan-save">
             <span role="status">
               {dirty || !draft.id ? "아직 저장하지 않은 변경사항" : "저장된 코스"} ·{" "}
               {draft.items.length}/30곳
@@ -230,6 +402,18 @@ export function PersonalCourseEditor({
             </button>
           </div>
           {error && <p role="alert">{error}</p>}
+        </div>
+        <div className="editor-mobile-tabs" role="tablist" aria-label="코스 편집 화면">
+          <button
+            role="tab"
+            aria-selected={panel === "itinerary"}
+            onClick={() => setPanel("itinerary")}
+          >
+            일정 <span>{draft.items.length}</span>
+          </button>
+          <button role="tab" aria-selected={panel === "search"} onClick={() => setPanel("search")}>
+            + 장소 추가
+          </button>
         </div>
         <div className="personal-course-layout">
           <section className="personal-itinerary" aria-label="내 코스 일정">
@@ -248,7 +432,9 @@ export function PersonalCourseEditor({
               </Select>
             </div>
             <p className="section-description">
-              선택한 날짜에 장소를 추가해요. 이동은 오전 9:30 출발·자동차 기준 추정입니다.
+              {draft.startTime} 출발 ·{" "}
+              {{ car: "자동차", transit: "대중교통", walk: "도보" }[draft.transport]} 이동
+              추정이에요. 실제 길찾기·운행 시간은 출발 전 확인해 주세요.
             </p>
             <ol className="personal-stop-list">
               {items.map(
@@ -335,7 +521,10 @@ export function PersonalCourseEditor({
               <div className="empty-state">
                 <Icon.pin />
                 <h3>Day {day}에 가볼 곳을 담아보세요</h3>
-                <p>아래 검색에서 원하는 여행지를 추가하세요.</p>
+                <p>장소 추가에서 여행지를 찾아 일정을 채워보세요.</p>
+                <button className="btn btn-primary mobile-only" onClick={() => setPanel("search")}>
+                  가볼 곳 추가
+                </button>
               </div>
             )}
             {mapData.tooLong && (
@@ -346,7 +535,33 @@ export function PersonalCourseEditor({
             <CourseMap stops={mapData.stops} legs={mapData.legs} day={day} />
           </section>
           <section className="personal-search card" aria-label="코스에 장소 추가">
-            <h2>가볼 곳 추가</h2>
+            <div className="section-heading">
+              <h2>가볼 곳 추가</h2>
+              <Select
+                aria-label="장소를 추가할 날짜"
+                value={day}
+                onChange={(e) => setDay(Number(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <option key={value} value={value}>
+                    Day {value}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Select
+              aria-label="추가할 장소 종류"
+              value={searchKind}
+              onChange={(e) => {
+                setSearchKind(e.target.value as CourseSearchKind);
+                setQuery("");
+                setAccessible(false);
+              }}
+            >
+              <option value="spot">여행지</option>
+              <option value="eat">음식점</option>
+              <option value="stay">숙소</option>
+            </Select>
             <form
               role="search"
               onSubmit={(e) => {
@@ -361,7 +576,7 @@ export function PersonalCourseEditor({
                   aria-label="내 코스 여행지 검색"
                   disabled={!ready}
                   maxLength={100}
-                  placeholder="장소 이름이나 지역 검색"
+                  placeholder={`${{ spot: "여행지", eat: "음식점", stay: "숙소" }[searchKind]} 이름이나 지역 검색`}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -381,14 +596,16 @@ export function PersonalCourseEditor({
                   </option>
                 ))}
               </Select>
-              <label className="accessibility-filter">
-                <input
-                  type="checkbox"
-                  checked={accessible}
-                  onChange={(e) => setAccessible(e.target.checked)}
-                />
-                무장애 안내 있는 곳
-              </label>
+              {searchKind === "spot" && (
+                <label className="accessibility-filter">
+                  <input
+                    type="checkbox"
+                    checked={accessible}
+                    onChange={(e) => setAccessible(e.target.checked)}
+                  />
+                  무장애 안내 있는 곳
+                </label>
+              )}
             </form>
             {searchError && <p role="alert">{searchError}</p>}
             <p className="data-caption" aria-live="polite">
@@ -397,33 +614,45 @@ export function PersonalCourseEditor({
                 : `${results.total.toLocaleString()}곳 · Day ${day}에 추가`}
             </p>
             <div className="personal-search-results" aria-busy={searching}>
-              {results.items.map((spot) => {
-                const added = draft.items.some(
-                  (item) => item.refId === spot.id && item.day === day,
-                );
-                return (
-                  <article key={spot.id}>
-                    <div>
-                      <strong>{spot.name.ko}</strong>
-                      <small>
-                        {spot.region.ko} · {spot.type.ko}
-                        {spot.hasAccessibilityInfo ? " · 무장애 안내" : ""}
-                      </small>
-                      <Link href={`/spot/${spot.id}`} target="_blank" className="text-link">
-                        상세 보기 ↗
-                      </Link>
-                    </div>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={added || saving}
-                      aria-label={`${spot.name.ko} 추가`}
-                      onClick={() => add(spot)}
-                    >
-                      {added ? "추가됨" : "+ 추가"}
-                    </button>
-                  </article>
-                );
-              })}
+              {results.kind === searchKind &&
+                results.items.map((spot) => {
+                  const added = draft.items.some(
+                    (item) => item.refId === spot.id && item.day === day,
+                  );
+                  return (
+                    <article key={spot.id}>
+                      <div>
+                        <strong>{spot.name.ko}</strong>
+                        <small>
+                          {spot.region.ko} · {spot.type.ko}
+                          {spot.hasAccessibilityInfo ? " · 무장애 안내" : ""}
+                        </small>
+                        {spot.kind === "spot" ? (
+                          <Link href={`/spot/${spot.id}`} target="_blank" className="text-link">
+                            상세 보기 ↗
+                          </Link>
+                        ) : (
+                          <a
+                            href={`https://map.kakao.com/link/search/${encodeURIComponent(`${spot.region.ko} ${spot.name.ko}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-link"
+                          >
+                            영업·예약 정보 ↗
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled={added || saving}
+                        aria-label={`${spot.name.ko} 추가`}
+                        onClick={() => add(spot)}
+                      >
+                        {added ? "추가됨" : "+ 추가"}
+                      </button>
+                    </article>
+                  );
+                })}
             </div>
             {!results.items.length && <p>검색 결과가 없어요. 검색어나 지역 조건을 바꿔보세요.</p>}
             <nav className="places-pagination" aria-label="추가할 여행지 페이지">
@@ -462,6 +691,7 @@ export function PersonalCourseEditor({
                     startSave(async () => {
                       const result = await deletePersonalCourseAction(draft.id!);
                       if (result.ok) {
+                        clearDraft();
                         setDirty(false);
                         router.push("/saved");
                       } else setError("삭제하지 못했어요. 다시 시도해 주세요.");
@@ -478,6 +708,25 @@ export function PersonalCourseEditor({
             )}
           </div>
         )}
+        <div className="mobile-plan-save">
+          <span>
+            {draft.items.length}곳 ·{" "}
+            {dirty
+              ? draftCached
+                ? "이 탭에 임시 저장됨"
+                : "저장 전 변경사항"
+              : draft.id
+                ? "저장된 코스"
+                : "새 코스"}
+          </span>
+          <button
+            className="btn btn-primary"
+            disabled={saving || !draft.items.length || !draft.title.trim()}
+            onClick={save}
+          >
+            {saving ? "저장 중…" : "내 코스 저장"}
+          </button>
+        </div>
       </fieldset>
     </div>
   );

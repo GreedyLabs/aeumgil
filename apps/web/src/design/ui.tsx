@@ -59,11 +59,11 @@ function TopBar({ title, onBack, right, elev = false }) {
   );
 }
 
-function TabBar({ active, onNav, lang = 'ko' }) {
+function TabBar({ ready = true, active, onNav, lang = 'ko' }) {
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
-    { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
+    { id: 'saved', ko: '내 여행', en: 'My trips', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
   return (
@@ -71,7 +71,7 @@ function TabBar({ active, onNav, lang = 'ko' }) {
       {items.map(it => {
         const I = it.icon;
         return (
-          <button key={it.id}
+          <button disabled={!ready} key={it.id}
             className={'tab' + (active === it.id ? ' active' : '')}
             aria-current={active === it.id ? 'page' : undefined} onClick={() => onNav(it.id)}>
             <I/>
@@ -107,7 +107,7 @@ function Sidebar({ ready = true, active, onNav, lang = 'ko', isMember, user, onL
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
-    { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
+    { id: 'saved', ko: '내 여행', en: 'My trips', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
   return (
@@ -121,7 +121,7 @@ function Sidebar({ ready = true, active, onNav, lang = 'ko', isMember, user, onL
         {items.map(it => {
           const I = it.icon;
           return (
-            <button key={it.id} className={'dnav-item' + (active === it.id ? ' active' : '')} aria-label={it[lang]} title={collapsed ? it[lang] : undefined} aria-current={active === it.id ? 'page' : undefined} onClick={() => onNav(it.id)}>
+            <button disabled={!ready} key={it.id} className={'dnav-item' + (active === it.id ? ' active' : '')} aria-label={it[lang]} title={collapsed ? it[lang] : undefined} aria-current={active === it.id ? 'page' : undefined} onClick={() => onNav(it.id)}>
               <I/><span>{it[lang]}</span>
             </button>
           );

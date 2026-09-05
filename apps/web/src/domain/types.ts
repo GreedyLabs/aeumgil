@@ -77,6 +77,15 @@ export interface ThemeMatch {
   primaryId: string;
   /** 혼잡 분산/대안 제시용 보조 테마 */
   altIds: string[];
+  /** 키워드 근거이며 확률·현재 혼잡도·접근성 판정이 아니다. */
+  explanation?: {
+    status: "matched" | "partial" | "unmatched";
+    keywords: string[];
+    excludedKeywords: string[];
+    regions: string[];
+    summary: LocalizedText;
+    notice?: LocalizedText;
+  };
 }
 
 // ── 관광지 / POI ──────────────────────────

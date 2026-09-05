@@ -526,6 +526,12 @@ try {
     items jsonb not null, version integer not null default 0, updated_at timestamptz not null default now()
   )`);
   await sql.unsafe(
+    `alter table ${qTable("personal_course")} add column if not exists transport text not null default 'car'`,
+  );
+  await sql.unsafe(
+    `alter table ${qTable("personal_course")} add column if not exists start_time text not null default '09:30'`,
+  );
+  await sql.unsafe(
     `create index if not exists personal_course_user_idx on ${qTable("personal_course")} (user_id, updated_at desc)`,
   );
   await sql.unsafe(
