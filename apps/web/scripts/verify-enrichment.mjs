@@ -18,15 +18,18 @@
 //   여기도 같이 갱신할 것(검증 스크립트라 의존성 없이 독립 실행되도록 값만 복사).
 // ─────────────────────────────────────────────
 
-const TOUR = process.env.TOUR_API_SERVICE_KEY;
-const AIR = process.env.AIRKOREA_SERVICE_KEY;
+const TOUR = process.env.DATA_GO_KR_SERVICE_KEY;
+const AIR = process.env.DATA_GO_KR_SERVICE_KEY;
 
 // spot-mapping.ts 미러 — contentId 가 있는 스팟만(null 은 보강 대상 아님)
 const SPOT_CONTENT = [
+  ["anmok-beach", "127722"],
+  ["ojukheon", "129784"],
+  ["daegwallyeong-sheep", "129263"],
   ["seorak-gwongeum", "125798"],
-  ["sokcho-market", "3354272"],
+  ["sokcho-market", "1260275"],
   ["dongmyeong-port", "129454"],
-  ["sacheon-beach", "2773046"], // 사천진항(type12) — beach 프록시, 보강 적절성 확인
+  ["sacheon-beach", "585526"], // 실제 사천진해변(type12)
   ["woljeongsa-trail", "2022311"], // 오대산 선재길(type28) — 개요/이미지 응답 확인
 ];
 
@@ -75,7 +78,7 @@ function buildUrl(base, params, key) {
 // airkorea.ts 와 동일: 괄호 접미사·공백 제거 ("중앙동(강원)" → "중앙동")
 const normStation = (name) => (name ?? "").replace(/\(.*?\)/g, "").trim();
 
-const TOUR_BASE = "http://apis.data.go.kr/B551011/KorService2";
+const TOUR_BASE = "https://apis.data.go.kr/B551011/KorService2";
 const COMMON = { MobileOS: "ETC", MobileApp: "eumgil", _type: "json" };
 
 // detailCommon2 를 호출하고 {item, code, msg, snippet} 를 돌려준다.
@@ -115,7 +118,7 @@ async function fetchDetail(contentId) {
 
 async function main() {
   if (!TOUR || !AIR) {
-    console.error("키 누락 — TOUR_API_SERVICE_KEY / AIRKOREA_SERVICE_KEY 가 .env 에 있어야 합니다. (--env-file 확인)");
+    console.error("키 누락 — DATA_GO_KR_SERVICE_KEY 가 .env 에 있어야 합니다. (--env-file 확인)");
     process.exit(1);
   }
 
@@ -147,7 +150,7 @@ async function main() {
   console.log("\n══════════ 2) 에어코리아 측정소 매핑 검증 ══════════");
   try {
     const url = buildUrl(
-      "http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
+      "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
       { returnType: "json", numOfRows: 200, pageNo: 1, sidoName: "강원", ver: "1.3" },
       AIR,
     );

@@ -14,7 +14,7 @@
 const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
 
 const issuer = (process.env.AUTH_KEYCLOAK_ISSUER || "http://localhost:8080/realms/eumgil").replace(/\/$/, "");
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+const appUrl = (process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
 
 function localhostFallback(url) {
   const u = new URL(url);

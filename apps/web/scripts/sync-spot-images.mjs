@@ -13,14 +13,14 @@
 const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
 const DATABASE_URL = process.env.DATABASE_URL;
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
-const TOUR = process.env.TOUR_API_SERVICE_KEY;
+const TOUR = process.env.DATA_GO_KR_SERVICE_KEY;
 
 if (!DATABASE_URL) {
   console.error(`${C.red}✗ DATABASE_URL 이 비어 있습니다.${C.reset}`);
   process.exit(1);
 }
 if (!TOUR) {
-  console.error(`${C.red}✗ TOUR_API_SERVICE_KEY 가 비어 있습니다.${C.reset}`);
+  console.error(`${C.red}✗ DATA_GO_KR_SERVICE_KEY 가 비어 있습니다.${C.reset}`);
   process.exit(1);
 }
 if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(SCHEMA)) {
@@ -42,7 +42,7 @@ const qTable = (table) => `${schemaSql}.${quoteIdent(table)}`;
 const masked = DATABASE_URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");
 const sql = postgres(DATABASE_URL, { prepare: false, idle_timeout: 5, connect_timeout: 8, max: 1 });
 
-const TOUR_BASE = "http://apis.data.go.kr/B551011/KorService2/detailCommon2";
+const TOUR_BASE = "https://apis.data.go.kr/B551011/KorService2/detailCommon2";
 const COMMON = { MobileOS: "ETC", MobileApp: "eumgil", _type: "json", numOfRows: 1, pageNo: 1 };
 
 function buildUrl(contentId) {

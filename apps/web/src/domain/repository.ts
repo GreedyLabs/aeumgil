@@ -11,6 +11,8 @@ import type {
   Companion,
   Course,
   Eat,
+  FestivalListing,
+  RegionalVisitors,
   Grade,
   Pace,
   Review,
@@ -36,10 +38,12 @@ export interface SavedThemeRef {
 }
 
 export interface Repository {
+  getRegionalVisitors(): Promise<RegionalVisitors | null>;
   // ── 테마 ──
   listThemes(): Promise<Theme[]>;
   getTheme(id: string): Promise<Theme | null>;
   getSamplePrompts(): Promise<SamplePrompt[]>;
+  listFestivals(): Promise<FestivalListing>;
   /** 자연어 입력 → 대표/보조 테마 */
   matchThemes(query: string): Promise<ThemeMatch>;
 

@@ -1,6 +1,6 @@
 "use client";
 
-// OnboardingView — Phase 4(부분). 3단계 온보딩(관심사→스타일→완료). 저장은 mock.
+// 관심 테마와 여행 스타일을 앱 DB에 저장한다.
 import { useState, useTransition } from "react";
 import { setOnboardingPreferenceAction } from "@/app/actions/onboarding";
 import { localized } from "@/lib/i18n";
@@ -60,7 +60,7 @@ export function OnboardingView({ themes, paces, companions }: Props) {
   const companionName = companions.find((c) => c.id === companion);
 
   return (
-    <div className="screen-enter" style={{ minHeight: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+    <div className="screen-enter onb-page" style={{ minHeight: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <div className="onb-top">
         <button className="onb-back" onClick={() => (step === 0 ? skip() : setStep(step - 1))}>
           {step === 0 ? <Icon.close /> : <Icon.back />}

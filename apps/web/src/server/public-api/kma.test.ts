@@ -2,7 +2,7 @@
 // 픽스처는 실응답(2026-06-23 강릉) 모양: items.item[] 에 category/fcstValue.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getVilageWeather, weatherCacheKey } from "./kma";
+import { getVilageWeather, weatherCacheKey, latestBase } from "./kma";
 
 function mockFetchJson(payload: unknown) {
   vi.stubGlobal(
@@ -40,7 +40,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("getVilageWeather", () => {
   it("가장 이른 예보시점의 값으로 정규화한다", async () => {
     mockFetchJson(FIXTURE);
-    const w = await getVilageWeather(92, 132);
+    const w = await getVilageWeather(92, 132, new Date("2026-06-23T09:30:00+09:00"));
     expect(w.tempC).toBe(19); // 0900 의 TMP (1200=23 아님)
     expect(w.pop).toBe(60);
     expect(w.windMs).toBe(1.6);
@@ -50,14 +50,14 @@ describe("getVilageWeather", () => {
 
   it("강수형태(PTY=1)면 비 아이콘/설명을 준다", async () => {
     mockFetchJson(FIXTURE);
-    const w = await getVilageWeather(92, 132);
+    const w = await getVilageWeather(92, 132, new Date("2026-06-23T09:30:00+09:00"));
     expect(w.icon).toBe("rain");
     expect(w.desc.ko).toBe("비");
   });
 
   it("응답 items 가 비면 에러를 던진다", async () => {
     mockFetchJson({ response: { body: { items: "" } } });
-    await expect(getVilageWeather(92, 132)).rejects.toThrow();
+    await expect(getVilageWeather(92, 132, new Date("2026-06-23T09:30:00+09:00"))).rejects.toThrow();
   });
 });
 
@@ -72,6 +72,22 @@ describe("weatherCacheKey", () => {
   });
 
   it("키는 격자 좌표로 구성된다 (강릉 기준점 92,132 — grid.test.ts 검증점과 동일)", () => {
-    expect(weatherCacheKey(37.7519, 128.8761)).toBe("wx:g92,132");
+    expect(weatherCacheKey(37.7519, 128.8761)).toBe("wx:v2:g92,132");
+  });
+});
+
+describe("예보 시각·결측 회귀", () => {
+  it("현재 시간에 맞는 예보를 선택하고 누락 필드를 0으로 만들지 않는다", async () => {
+    mockFetchJson(FIXTURE);
+    await expect(getVilageWeather(92, 132, new Date("2026-06-23T12:10:00+09:00"))).rejects.toThrow("WSD");
+  });
+  it("과거 예보만 있으면 현재 날씨로 표시하지 않는다", async () => {
+    mockFetchJson(FIXTURE);
+    await expect(getVilageWeather(92, 132, new Date("2026-06-24T12:00:00+09:00"))).rejects.toThrow("현재 시각");
+  });
+  it("자정 이전 발표와 발표 지연 시간을 KST 기준으로 처리한다", () => {
+    expect(latestBase(new Date("2026-09-05T01:00:00+09:00"))).toEqual({ baseDate: "20260904", baseTime: "2300" });
+    expect(latestBase(new Date("2026-09-05T05:10:00+09:00"))).toEqual({ baseDate: "20260905", baseTime: "0200" });
+    expect(latestBase(new Date("2026-09-05T05:20:00+09:00"))).toEqual({ baseDate: "20260905", baseTime: "0500" });
   });
 });

@@ -74,6 +74,8 @@ export interface CacheOptions {
   flushDelayMs?: number;
   /** 영속 보관 최대 수명(ms). 초과 엔트리는 flush 시 제거. 기본 24h */
   maxAgeMs?: number;
+  /** 실패한 원천에 재요청하기 전 대기 시간. 기본 0(비활성). */
+  failureCooldownMs?: number;
 }
 
 export function createCache(store: CacheStore, opts: CacheOptions = {}): PersistentCache {
@@ -81,6 +83,7 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
   const maxAgeMs = opts.maxAgeMs ?? 24 * 60 * 60 * 1000;
 
   const mem = new Map<string, CacheEntry>();
+  const failures = new Map<string, { at: number; error: unknown }>();
   const inflight = new Map<string, Promise<unknown>>();
   let loaded = false;
   let loading: Promise<void> | null = null;
@@ -95,7 +98,11 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
         .then((data) => {
           // 파일 스냅샷을 메모리에 병합(이미 있는 키는 최신 메모리 우선).
           let n = 0;
-          for (const [k, e] of Object.entries(data)) if (!mem.has(k)) (mem.set(k, e), n++);
+          for (const [k, e] of Object.entries(data)) {
+            if (e && typeof e.at === "number" && Number.isFinite(e.at) && Date.now() >= e.at && Date.now() - e.at <= maxAgeMs && !mem.has(k)) {
+              mem.set(k, e); n++;
+            }
+          }
           if (n > 0) log.log(`LOAD ${n} entries from store`);
         })
         .catch(() => {})
@@ -141,10 +148,13 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
   async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
     await ensureLoaded();
     const hit = mem.get(key);
-    if (hit && Date.now() - hit.at < ttlMs) {
+    if (hit && Date.now() >= hit.at && Date.now() - hit.at < ttlMs) {
       if (log.on) log.log(`HIT  ${key} (age ${Math.round((Date.now() - hit.at) / 1000)}s)`);
       return hit.value as T;
     }
+    const failure = failures.get(key);
+    if (failure && Date.now() >= failure.at && Date.now() - failure.at < (opts.failureCooldownMs ?? 0)) throw failure.error;
+    failures.delete(key);
     if (log.on) log.log(`MISS ${key}${hit ? " (stale)" : ""} → fetch`);
     const pending = inflight.get(key);
     if (pending) {
@@ -159,6 +169,13 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
         scheduleFlush();
         return value;
       })
+      .catch((error: unknown) => {
+        if (opts.failureCooldownMs) {
+          if (failures.size >= 1000) failures.delete(failures.keys().next().value!);
+          failures.set(key, { at: Date.now(), error });
+        }
+        throw error;
+      })
       .finally(() => {
         inflight.delete(key);
       });
@@ -171,9 +188,9 @@ export function createCache(store: CacheStore, opts: CacheOptions = {}): Persist
 
 /** 기본 파일 경로 — EUMGIL_CACHE_DIR 또는 OS 임시 디렉터리. */
 export function defaultCachePath(): string {
-  const dir = process.env.EUMGIL_CACHE_DIR ?? path.join(os.tmpdir(), "eumgil-cache");
+  const dir = process.env.EUMGIL_CACHE_DIR || path.join(os.tmpdir(), "eumgil-cache");
   return path.join(dir, "api-cache.json");
 }
 
 /** 앱 공용 싱글턴 캐시(파일 백엔드). */
-export const apiCache: PersistentCache = createCache(fileStore(defaultCachePath()));
+export const apiCache: PersistentCache = createCache(fileStore(defaultCachePath()), { failureCooldownMs: 30_000 });

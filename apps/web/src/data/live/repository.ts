@@ -1,3 +1,6 @@
+import { getHighways } from "@/server/public-api/highway";
+import { getUvForRegion } from "@/server/public-api/living-weather";
+import { getRegionalVisitors } from "@/server/public-api/visitors";
 // ─────────────────────────────────────────────
 // LiveRepository — DB + 실데이터 기반 구현.
 //
@@ -21,6 +24,7 @@ import type {
   Course,
   CourseItem,
   Eat,
+  FestivalListing,
   Grade,
   Pace,
   Review,
@@ -52,15 +56,25 @@ import {
   fetchVisits,
   setSavedTheme,
 } from "@/server/db/user-data";
-import { INTENT_QUERY_MAX_LENGTH, matchThemeIdsByKeyword, normalizeIntentQuery } from "@/domain/matching";
+import {
+  INTENT_QUERY_MAX_LENGTH,
+  matchThemeIdsByKeyword,
+  normalizeIntentQuery,
+} from "@/domain/matching";
 import { THEME_KEYWORD_RULES } from "@/domain/theme-keywords";
 import { scoreSuitability } from "@/domain/scoring";
 import { estimateCongestion } from "@/domain/congestion";
 import { reorderSpotsByCongestion, type ScheduledSpot } from "@/domain/course-reorder";
+import { scheduleCourse } from "@/domain/course-schedule";
 import { composeCourse, type ComposeCourseOptions } from "@/domain/course-compose";
 import { getWeatherByCoords, weatherCacheKey } from "@/server/public-api/kma";
 import { getAirForStation } from "@/server/public-api/airkorea";
-import { getItemDetail, listGangwonItems, searchGangwonKeyword } from "@/server/public-api/tourapi";
+import {
+  getItemDetail,
+  listGangwonItems,
+  searchGangwonKeyword,
+  listGangwonFestivals,
+} from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
 import { apiCache } from "@/server/cache";
 import { agentMatchLimiter, requestClientKey } from "@/server/rate-limit";
@@ -74,6 +88,7 @@ import { planCourse, planItinerary } from "@/server/agent/planner";
 import { courseProviderFromEnv, itineraryProviderFromEnv } from "@/server/agent/llm";
 import type { AgentStep, SpotMeta, ToolContext } from "@/server/agent/types";
 import { getSpotMapping } from "./spot-mapping";
+import { getCrowdForecast } from "@/server/public-api/tourism-demand";
 import { nowKst } from "./congestion-now";
 
 const log = createLogger("repo");
@@ -96,14 +111,19 @@ function poiNamesFromTrace(trace: AgentStep[]): string[] {
   const step = [...trace].reverse().find((s) => s.tool === "search_pois" && s.ok);
   if (!Array.isArray(step?.result)) return [];
   return step.result
-    .map((p) => (typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined))
+    .map((p) =>
+      typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name : undefined,
+    )
     .filter((name): name is string => Boolean(name))
     .slice(0, 3);
 }
 
 function routeCoordsFromSpots(spots: Spot[]) {
   return spots
-    .filter((spot): spot is Spot & { lat: number; lon: number } => typeof spot.lat === "number" && typeof spot.lon === "number")
+    .filter(
+      (spot): spot is Spot & { lat: number; lon: number } =>
+        typeof spot.lat === "number" && typeof spot.lon === "number",
+    )
     .map((spot) => ({ lat: spot.lat, lon: spot.lon, region: spot.region.ko }));
 }
 
@@ -164,7 +184,11 @@ function applyReorderTrace(base: Course, trace: AgentStep[], rationale: Localize
 
   for (const s of trace) {
     if (s.tool !== "reorder_by_congestion" || !s.ok) continue;
-    const r = s.result as { day?: number; changed?: boolean; order?: { refId: string; time: string }[] };
+    const r = s.result as {
+      day?: number;
+      changed?: boolean;
+      order?: { refId: string; time: string }[];
+    };
     if (!r?.changed || !Array.isArray(r.order)) continue;
     const timeFor = new Map(r.order.map((o) => [o.refId, o.time]));
     for (const it of items) {
@@ -190,9 +214,21 @@ function applyReorderTrace(base: Course, trace: AgentStep[], rationale: Localize
 }
 
 const REFERENCE_PACES: Pace[] = [
-  { id: "calm", name: L("여유", "Calm"), desc: L("하루 장소 수를 줄이고 이동 여유를 둡니다.", "Fewer stops with more buffer time.") },
-  { id: "balanced", name: L("균형", "Balanced"), desc: L("이동과 체류를 균형 있게 배치합니다.", "Balances travel and time on site.") },
-  { id: "active", name: L("활동적", "Active"), desc: L("하루에 더 많은 장소를 방문합니다.", "Covers more stops per day.") },
+  {
+    id: "calm",
+    name: L("여유", "Calm"),
+    desc: L("하루 장소 수를 줄이고 이동 여유를 둡니다.", "Fewer stops with more buffer time."),
+  },
+  {
+    id: "balanced",
+    name: L("균형", "Balanced"),
+    desc: L("이동과 체류를 균형 있게 배치합니다.", "Balances travel and time on site."),
+  },
+  {
+    id: "active",
+    name: L("활동적", "Active"),
+    desc: L("하루에 더 많은 장소를 방문합니다.", "Covers more stops per day."),
+  },
 ];
 
 const REFERENCE_COMPANIONS: Companion[] = [
@@ -208,88 +244,133 @@ const REFERENCE_GRADES: Grade[] = [
 ];
 
 const AUTH_PROVIDERS: AuthProvider[] = [
-  { id: "keycloak", label: L("Keycloak 통합 로그인", "Keycloak SSO"), bg: "#111827", fg: "#ffffff", border: "transparent" },
+  {
+    id: "keycloak",
+    label: L("Keycloak 통합 로그인", "Keycloak SSO"),
+    bg: "#111827",
+    fg: "#ffffff",
+    border: "transparent",
+  },
 ];
 
 export class LiveRepository implements Repository {
-  /** DB 스팟을 실시간 날씨/대기질/적합성으로 보강. 실패 시 DB 원본 반환. */
+  async getRegionalVisitors() {
+    try {
+      return await getRegionalVisitors();
+    } catch {
+      log.warn("지역 방문 통계 미확인");
+      return null;
+    }
+  }
+  async listFestivals(): Promise<FestivalListing> {
+    if (!env.DATA_GO_KR_SERVICE_KEY) return { status: "unavailable", items: [] };
+    const today = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const through = new Date(today.getTime() + 30 * DAY_MS);
+    const fromKey = today.toISOString().slice(0, 10).replaceAll("-", "");
+    const throughKey = through.toISOString().slice(0, 10).replaceAll("-", "");
+    try {
+      const items = await cached(`festivals:v2:${fromKey}`, 60 * 60 * 1000, () =>
+        listGangwonFestivals(fromKey, throughKey),
+      );
+      return { status: "available", items };
+    } catch {
+      log.warn("강원 행사 정보 미확인");
+      return { status: "unavailable", items: [] };
+    }
+  }
+  /** 각 원천을 독립적으로 보강한다. 관광 상세 장애가 날씨·대기질을 지우지 않는다. */
   private async enrich(spot: Spot): Promise<Spot> {
     const m = getSpotMapping(spot.id);
-    if (!m) {
-      log.log(`enrich ${spot.id} → db (no mapping)`);
-      return spot;
-    }
+    const lat = spot.lat ?? m?.lat;
+    const lon = spot.lon ?? m?.lon;
+    const region = m
+      ? REGIONS[m.region]
+      : Object.values(REGIONS).find((r) => spot.region.ko.includes(r.ko));
+    const contentId = m?.tourContentId;
+    const [wxResult, airResult, tourResult, demandResult, uvResult, highwaysResult] =
+      await Promise.allSettled([
+        lat !== undefined && lon !== undefined && env.DATA_GO_KR_SERVICE_KEY
+          ? cached(weatherCacheKey(lat, lon), TTL_MS, () => getWeatherByCoords(lat, lon))
+          : Promise.resolve(undefined),
+        region && env.DATA_GO_KR_SERVICE_KEY
+          ? getAirForStation(region.station)
+          : Promise.resolve(undefined),
+        contentId && env.DATA_GO_KR_SERVICE_KEY
+          ? cached(`tour:v3:${contentId}`, DAY_MS, () => getItemDetail(contentId))
+          : Promise.resolve(null),
+        getCrowdForecast(spot.id),
 
-    try {
-      const station = REGIONS[m.region].station;
-      const [weather, air] = await Promise.all([
-        cached(weatherCacheKey(m.lat, m.lon), TTL_MS, () => getWeatherByCoords(m.lat, m.lon)),
-        cached(`air:${m.region}`, TTL_MS, () => getAirForStation(station)),
+        region ? getUvForRegion(region.key) : Promise.resolve(undefined),
+        getHighways(),
       ]);
-
-      // 정적 큐레이션 혼잡도를 인기 prior 로 두고, 현재 시각(KST)·날씨로 동적 혼잡 산출.
-      const crowd = estimateCongestion({
-        baseline: spot.congestion,
-        kind: m.env,
-        at: nowKst(),
-        pop: weather.pop,
-        pty: weather.pty,
-      });
-
-      const { suitability, reason } = scoreSuitability({
-        congestion: crowd.level,
-        pop: weather.pop,
-        windMs: weather.windMs,
-        pty: weather.pty,
-        khaiGrade: air.khaiGrade,
-        kind: m.env,
-      });
-
-      // 설명 우선순위: TourAPI 개요(contentId 확정 시) > 큐레이션 개요(spot_profile.description) > 적합성 사유.
-      // contentId 미확정 스팟(§4.4)은 큐레이션 개요가 상세 화면 설명이 된다.
-      let description = spot.description ?? L(reason.ko, reason.en);
-      let imageUrl = spot.imageUrl;
-      let tourMark = "tour–";
-      if (m.tourContentId) {
-        const detail = await cached(`tour:${m.tourContentId}`, DAY_MS, () =>
-          getItemDetail(m.tourContentId as string),
-        );
-        if (detail?.overview) {
-          description = L(detail.overview);
-          tourMark = "tour✓";
-        } else {
-          tourMark = "tour✗";
-        }
-        if (detail?.image) {
-          imageUrl = detail.image;
-          if (!spot.imageUrl) {
-            try {
-              await saveSpotProfileImageUrl(requireDb(), spot.id, detail.image);
-            } catch (e) {
-              log.warn(`image persist ${spot.id} → skipped (${e instanceof Error ? e.message : String(e)})`);
-            }
-          }
-        }
-      }
-
-      log.log(
-        `enrich ${spot.id} → live (wx✓ air✓ ${tourMark}) congestion=${crowd.level} suit=${suitability}`,
-      );
-      return {
-        ...spot,
-        congestion: crowd.level,
-        crowdTip: crowd.tip,
-        weather: { tempC: weather.tempC, desc: weather.desc, icon: weather.icon },
-        air: air.grade,
-        suitability,
-        description,
-        imageUrl,
-      };
-    } catch (e) {
-      // 외부 데이터 실패 → DB 기본값 유지
-      log.warn(`enrich ${spot.id} → db fallback (${e instanceof Error ? e.message : String(e)})`);
-      return spot;
+    const weather = wxResult.status === "fulfilled" ? wxResult.value : undefined;
+    const air = airResult.status === "fulfilled" ? airResult.value : undefined;
+    const detail = tourResult.status === "fulfilled" ? tourResult.value : undefined;
+    for (const [name, result] of [
+      ["날씨", wxResult],
+      ["대기질", airResult],
+      ["관광상세", tourResult],
+    ] as const) {
+      if (result.status === "rejected") log.warn(`enrich ${spot.id} ${name} 미확인`);
     }
+    const uv = uvResult.status === "fulfilled" ? uvResult.value : undefined;
+    const kind = spot.environment ?? m?.env ?? "inland";
+    const crowd = estimateCongestion({
+      baseline: spot.baselineCongestion ?? spot.congestion,
+      kind,
+      at: nowKst(),
+      pop: weather?.pop,
+      pty: weather?.pty,
+    });
+    const validAir = air && air.khaiGrade > 0 ? air : undefined;
+    // 누락된 날씨를 맑음/대기질 좋음으로 가정해 높은 적합도를 만들지 않는다.
+    const score =
+      weather && validAir
+        ? scoreSuitability({
+            congestion: crowd.level,
+            pop: weather.pop,
+            windMs: weather.windMs,
+            pty: weather.pty,
+            khaiGrade: validAir.khaiGrade,
+            kind,
+            uvIndex: uv?.index,
+          })
+        : undefined;
+    if (detail?.image && !spot.imageUrl) {
+      try {
+        await saveSpotProfileImageUrl(requireDb(), spot.id, detail.image);
+      } catch {
+        log.warn(`image persist ${spot.id} → skipped`);
+      }
+    }
+    return {
+      ...spot,
+      congestion: crowd.level,
+      crowdTip: crowd.tip,
+      crowdHourly: crowd.hourly,
+      weather: weather
+        ? { tempC: weather.tempC, desc: weather.desc, icon: weather.icon }
+        : spot.weather,
+      air: validAir?.grade ?? spot.air,
+      suitability: score?.suitability ?? spot.suitability,
+      description: detail?.overview ? L(detail.overview) : spot.description,
+      imageUrl: detail?.image || spot.imageUrl,
+      uv,
+      highways: highwaysResult.status === "fulfilled" ? highwaysResult.value : [],
+      photos: detail?.photos,
+      visitInfo: detail?.visitInfo,
+      crowdForecast: demandResult.status === "fulfilled" ? demandResult.value : undefined,
+      conditions: {
+        weather: weather ? "available" : "unavailable",
+        air: validAir ? "available" : "unavailable",
+        forecastAt: weather?.forecastAt,
+        airObservedAt: air?.observedAt,
+        airStation: air?.station,
+        airScope: air?.scope,
+        pm10: air?.pm10,
+        pm25: air?.pm25,
+      },
+    };
   }
 
   async listThemes() {
@@ -326,9 +407,22 @@ export class LiveRepository implements Repository {
     if (!base) return [];
     const all = await fetchSpotProfiles(db);
     const baseRegion = base.region.ko;
-    const candidates = all.filter((spot) => spot.id !== spotId && spot.region.ko === baseRegion).slice(0, 6);
+    const candidates = all
+      .filter(
+        (spot) =>
+          spot.id !== spotId &&
+          spot.region.ko === baseRegion &&
+          (base.themeIds?.length
+            ? spot.themeIds?.some((id) => base.themeIds!.includes(id))
+            : spot.type.ko === base.type.ko),
+      )
+      .slice(0, 6);
     if (options.enrich === false) return candidates;
-    return Promise.all(candidates.map((s) => this.enrich(s)));
+    const enriched = await Promise.all(candidates.map((s) => this.enrich(s)));
+    const crowdRank = { calm: 0, moderate: 1, busy: 2 };
+    return enriched.sort(
+      (a, b) => crowdRank[a.congestion] - crowdRank[b.congestion] || b.suitability - a.suitability,
+    );
   }
 
   /**
@@ -342,11 +436,18 @@ export class LiveRepository implements Repository {
   async getCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
     const base = await this.composeSeedCourse(themeId, options);
     if (!base) return base;
+    const spots = await fetchSpotProfilesForTheme(requireDb(), themeId);
+    const finalize = (course: Course) => scheduleCourse(course, spots, options?.transport ?? "car");
 
     try {
       const ctx = await this.buildAgentContext(options);
       const result = await planItinerary(
-        { intent: `테마 ${themeId} 코스를 현재 혼잡 기준으로 정리`, lang: "ko", themeId, at: nowKst() },
+        {
+          intent: `테마 ${themeId} 코스를 현재 혼잡 기준으로 정리`,
+          lang: "ko",
+          themeId,
+          at: nowKst(),
+        },
         {
           llm: itineraryProviderFromEnv(),
           tools: buildTools(ctx),
@@ -362,9 +463,9 @@ export class LiveRepository implements Repository {
         },
       );
       log.log(`getCourse ${themeId} → ${result.source} steps=${result.trace.length}`);
-      return result.course;
+      return finalize(result.course);
     } catch {
-      return base;
+      return finalize(base);
     }
   }
 
@@ -375,7 +476,10 @@ export class LiveRepository implements Repository {
    * 실제 항목은 테마·혼잡·대체지·권역 기준으로 다시 고른다. 이후 DB 테이블이 생기면
    * 여기서 읽는 후보 풀만 DB 쿼리로 바꾸고 `composeCourse` 순수 함수는 그대로 둔다.
    */
-  private async composeSeedCourse(themeId: string, options?: ComposeCourseOptions): Promise<Course | null> {
+  private async composeSeedCourse(
+    themeId: string,
+    options?: ComposeCourseOptions,
+  ): Promise<Course | null> {
     const db = requireDb();
     // eat/stay 는 보조 데이터 — 수집 전/조회 실패여도 코스 생성(스팟 중심)은 계속돼야 한다.
     const [theme, baseCourse, spots, eats, stays] = await Promise.all([
@@ -387,7 +491,11 @@ export class LiveRepository implements Repository {
     ]);
     if (!theme) return null;
 
-    const spotIds = [...new Set((baseCourse?.items ?? []).filter((it) => it.kind === "spot").map((it) => it.refId))];
+    const spotIds = [
+      ...new Set(
+        (baseCourse?.items ?? []).filter((it) => it.kind === "spot").map((it) => it.refId),
+      ),
+    ];
     const altEntries: [string, Spot[]][] = await Promise.all(
       spotIds.map(async (id) => {
         const dbAlternatives = spots.filter((spot) => spot.id !== id);
@@ -402,14 +510,17 @@ export class LiveRepository implements Repository {
       apiPairs: timelineApiPairs(baseCourse, spots, alternativesBySpot),
     });
 
-    return composeCourse({
-      theme,
-      baseCourse,
-      spots,
-      eats,
-      stays,
-      alternativesBySpot,
-    }, { ...options, travelTimeLookup });
+    return composeCourse(
+      {
+        theme,
+        baseCourse,
+        spots,
+        eats,
+        stays,
+        alternativesBySpot,
+      },
+      { ...options, travelTimeLookup },
+    );
   }
 
   /**
@@ -430,7 +541,11 @@ export class LiveRepository implements Repository {
       for (const it of spotItems) {
         const baseSpot = await fetchSpotProfile(requireDb(), it.refId);
         const env = getSpotMapping(it.refId)?.env ?? "inland";
-        const { hourly } = estimateCongestion({ baseline: baseSpot?.congestion ?? "moderate", kind: env, at });
+        const { hourly } = estimateCongestion({
+          baseline: baseSpot?.congestion ?? "moderate",
+          kind: env,
+          at,
+        });
         scheduled.push({ refId: it.refId, time: it.time, hourly });
       }
 
@@ -463,12 +578,21 @@ export class LiveRepository implements Repository {
   // ───────────────────────────────────────────
 
   /** 현재 세션 사용자. */
-  private async sessionUser(): Promise<{ id: string; name?: string | null; email?: string | null; image?: string | null } | null> {
+  private async sessionUser(): Promise<{
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  } | null> {
     try {
       const { auth } = await import("@/server/auth");
       const session = await auth();
-      const user = session?.user as { id?: string; name?: string | null; email?: string | null; image?: string | null } | undefined;
-      return user?.id ? { id: user.id, name: user.name, email: user.email, image: user.image } : null;
+      const user = session?.user as
+        | { id?: string; name?: string | null; email?: string | null; image?: string | null }
+        | undefined;
+      return user?.id
+        ? { id: user.id, name: user.name, email: user.email, image: user.image }
+        : null;
     } catch (e) {
       log.warn(`sessionUser → null (${e instanceof Error ? e.message : String(e)})`);
       return null;
@@ -488,7 +612,9 @@ export class LiveRepository implements Repository {
     const visits = stats.visits;
     const level = visits >= 15 ? 3 : visits >= 5 ? 2 : 1;
     const currentGrade = REFERENCE_GRADES.find((g) => g.level === level) ?? REFERENCE_GRADES[0]!;
-    const nextGrade = REFERENCE_GRADES.find((g) => g.level === level + 1) ?? REFERENCE_GRADES[REFERENCE_GRADES.length - 1]!;
+    const nextGrade =
+      REFERENCE_GRADES.find((g) => g.level === level + 1) ??
+      REFERENCE_GRADES[REFERENCE_GRADES.length - 1]!;
     return {
       name: L(profile?.displayName || sessionUser.name || "여행자"),
       handle: sessionUser.id,
@@ -571,7 +697,11 @@ export class LiveRepository implements Repository {
           tools: buildTools(ctx),
           fallback: async () => {
             const m = await this.matchThemesDeterministic(intent);
-            return { primaryThemeId: m.primaryId, altThemeIds: m.altIds, rationale: L("DB 테마 텍스트 매칭") };
+            return {
+              primaryThemeId: m.primaryId,
+              altThemeIds: m.altIds,
+              rationale: L("DB 테마 텍스트 매칭"),
+            };
           },
         },
       );
@@ -585,7 +715,9 @@ export class LiveRepository implements Repository {
       const altSource = result.altThemeIds.length > 0 ? result.altThemeIds : det.altIds;
       const altIds = altSource.filter((id) => validIds.has(id) && id !== primaryId).slice(0, 2);
 
-      log.log(`matchThemes "${intent}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`);
+      log.log(
+        `matchThemes "${intent}" → ${result.source} primary=${primaryId} steps=${result.trace.length}`,
+      );
       return { primaryId, altIds };
     });
   }
@@ -601,7 +733,9 @@ export class LiveRepository implements Repository {
     const themes = await this.listThemes();
     const q = query.trim().toLowerCase();
     const known = new Set(themes.map((t) => t.id));
-    const keywordHits = matchThemeIdsByKeyword(q, THEME_KEYWORD_RULES).filter((id) => known.has(id));
+    const keywordHits = matchThemeIdsByKeyword(q, THEME_KEYWORD_RULES).filter((id) =>
+      known.has(id),
+    );
     const scored = themes
       .map((theme) => {
         const haystack = [
@@ -638,14 +772,24 @@ export class LiveRepository implements Repository {
    * 클라이언트 + 캐시에서 가져온다. 도구 코드는 이 포트만 보므로 출처를 모른다.
    */
   private async buildAgentContext(options?: ComposeCourseOptions): Promise<ToolContext> {
-    const [themes, baseSpots] = await Promise.all([this.listThemes(), fetchSpotProfiles(requireDb())]);
+    const [themes, baseSpots] = await Promise.all([
+      this.listThemes(),
+      fetchSpotProfiles(requireDb()),
+    ]);
 
     // 매핑이 있는 스팟만 도구의 행동 대상으로 노출(좌표·권역·성격 필요).
     const spots: SpotMeta[] = [];
     for (const s of baseSpots) {
       const m = getSpotMapping(s.id);
       if (!m) continue;
-      spots.push({ id: s.id, baseline: s.congestion, env: m.env, lat: m.lat, lon: m.lon, region: m.region });
+      spots.push({
+        id: s.id,
+        baseline: s.congestion,
+        env: m.env,
+        lat: m.lat,
+        lon: m.lon,
+        region: m.region,
+      });
     }
 
     return {
@@ -653,7 +797,9 @@ export class LiveRepository implements Repository {
       spots,
       getCourse: (themeId) => this.composeSeedCourse(themeId, options),
       weather: async (meta) => {
-        const w = await cached(weatherCacheKey(meta.lat, meta.lon), TTL_MS, () => getWeatherByCoords(meta.lat, meta.lon));
+        const w = await cached(weatherCacheKey(meta.lat, meta.lon), TTL_MS, () =>
+          getWeatherByCoords(meta.lat, meta.lon),
+        );
         return { tempC: w.tempC, pop: w.pop, windMs: w.windMs, pty: w.pty, desc: w.desc };
       },
       air: async (region) => {

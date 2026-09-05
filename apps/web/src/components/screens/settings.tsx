@@ -1,6 +1,6 @@
 "use client";
 
-// SettingsView — Phase 4(부분). 설정 토글(로컬 상태). 인증 항목은 회원일 때만.
+// 실제 지원하는 서비스 정보와 계정 관리만 노출한다.
 import { useState } from "react";
 import { deleteAccountAction } from "@/app/actions/account";
 import { useAppNav } from "@/lib/nav";
@@ -8,21 +8,9 @@ import { useAppState } from "@/components/app-shell";
 import { MenuRow } from "./profile";
 import { Icon } from "./_ui";
 
-function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button className={"switch" + (on ? " on" : "")} onClick={() => onChange(!on)} role="switch" aria-checked={on}>
-      <span className="switch-knob" />
-    </button>
-  );
-}
-
 export function SettingsView() {
   const { lang, auth, logout, showToast } = useAppState();
   const { nav, back } = useAppNav();
-  const [push, setPush] = useState(true);
-  const [crowd, setCrowd] = useState(true);
-  const [marketing, setMarketing] = useState(false);
-  const [dark, setDark] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // 회원 탈퇴(§7.2): 앱 DB 파기 + (설정 시) Keycloak 계정 삭제 → 로그아웃으로 세션 종료.
@@ -34,20 +22,25 @@ export function SettingsView() {
     );
     if (!confirmed) return;
     setDeleting(true);
-    const res = await deleteAccountAction();
-    if (!res.ok) {
-      showToast(res.error);
+    try {
+      const res = await deleteAccountAction();
+      if (!res.ok) {
+        showToast(res.error);
+        return;
+      }
+      showToast("탈퇴가 완료됐어요. 그동안 함께해 주셔서 감사해요.");
+      await logout();
+    } catch {
+      showToast("탈퇴 처리 결과를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
       setDeleting(false);
-      return;
     }
-    showToast(lang === "ko" ? "탈퇴가 완료됐어요. 그동안 함께해 주셔서 감사해요." : "Your account has been deleted.");
-    logout();
   };
 
   return (
-    <div className="screen-enter">
+    <div className="screen-enter form-page">
       <div className="topbar elev">
-        <button className="icon-btn" onClick={back}>
+        <button className="icon-btn" onClick={back} aria-label="뒤로 가기">
           <Icon.back />
         </button>
         <h1>{lang === "ko" ? "설정" : "Settings"}</h1>
@@ -55,40 +48,12 @@ export function SettingsView() {
       </div>
 
       <div style={{ padding: "8px 20px 0" }}>
-        <div className="section-label">{lang === "ko" ? "알림" : "Notifications"}</div>
+        <div className="section-label">서비스 이용</div>
         <div className="menu-group">
-          <div className="menu-row static">
-            <span className="menu-lbl">{lang === "ko" ? "푸시 알림" : "Push"}</span>
-            <Switch on={push} onChange={setPush} />
-          </div>
-          <div className="menu-row static">
-            <span className="menu-lbl">{lang === "ko" ? "혼잡도 알림" : "Crowd alerts"}</span>
-            <Switch on={crowd} onChange={setCrowd} />
-          </div>
           <div className="menu-row static last">
-            <span className="menu-lbl">{lang === "ko" ? "마케팅 정보 수신" : "Marketing"}</span>
-            <Switch on={marketing} onChange={setMarketing} />
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: "20px 20px 0" }}>
-        <div className="section-label">{lang === "ko" ? "일반" : "General"}</div>
-        <div className="menu-group">
-          <button className="menu-row">
-            <span className="menu-ic">
-              <Icon.globe />
-            </span>
-            <span className="menu-lbl">{lang === "ko" ? "언어" : "Language"}</span>
-            <span className="menu-val">{lang === "ko" ? "한국어" : "English"}</span>
-            <Icon.chevR style={{ color: "var(--ink-4)", flexShrink: 0 }} />
-          </button>
-          <div className="menu-row static last">
-            <span className="menu-ic">
-              <Icon.sun />
-            </span>
-            <span className="menu-lbl">{lang === "ko" ? "다크 모드" : "Dark mode"}</span>
-            <Switch on={dark} onChange={setDark} />
+            <span className="menu-ic"><Icon.globe /></span>
+            <span className="menu-lbl">제공 언어</span>
+            <span className="menu-val">한국어</span>
           </div>
         </div>
       </div>
@@ -101,7 +66,7 @@ export function SettingsView() {
           <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "이용약관" : "Terms of service"} onClick={() => nav("doc", { doc: "terms" })} />
           <MenuRow icon={<Icon.lock />} label={lang === "ko" ? "개인정보처리방침" : "Privacy policy"} onClick={() => nav("doc", { doc: "privacy" })} />
           <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "데이터 출처" : "Data sources"} onClick={() => nav("doc", { doc: "sources" })} />
-          <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "앱 버전" : "App version"} value="1.4.0" last />
+          <MenuRow icon={<Icon.doc />} label={lang === "ko" ? "앱 버전" : "App version"} value="0.1.0" last />
         </div>
       </div>
 

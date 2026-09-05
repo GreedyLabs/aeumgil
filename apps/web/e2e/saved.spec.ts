@@ -14,13 +14,13 @@ test("로그인 상태에서 저장 토글이 saved 화면에 반영된다", asy
   // revalidatePath 가 현재 코스 페이지 RSC 갱신을 계속 진행하므로(30s+),
   // 그 동안 page.goto 를 하면 갱신과 경합해 ERR_ABORTED 가 난다.
   // 버튼이 "저장 해제"로 바뀌는 것(= transition 완료)을 기다린 뒤 이동한다.
-  await expect(page.getByRole("button", { name: "저장 해제" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "저장 해제", exact: true })).toBeVisible({ timeout: 60_000 });
 
   await page.goto("/saved");
   await expect(page.getByText("저장된 테마")).toBeVisible();
   // global-setup 이 데이터를 비우므로 이번 저장 1건만 존재해야 한다.
   // 카드는 테마의 대표 코스 제목("동해안 일출·드라이브 …")을 표시한다.
-  await expect(page.getByRole("heading", { name: "1개 코스" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "저장한 여행 1" })).toBeVisible();
   await expect(page.getByText(/동해안 일출|동해 일출/).first()).toBeVisible();
   // 저장 일자(YYYY.MM.DD, §4.3) 표기 확인
   await expect(page.getByText(/\d{4}\.\d{2}\.\d{2}/).first()).toBeVisible();

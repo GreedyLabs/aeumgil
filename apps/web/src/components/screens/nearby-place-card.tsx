@@ -2,33 +2,48 @@
 
 import { Icon, UI } from "./_ui";
 
-const { Placeholder } = UI;
-
-type NearbyPlaceTone = "accent" | "brand";
-
 interface NearbyPlaceCardProps {
   imageLabel: string;
+  imageUrl?: string;
+  address?: string;
   title: string;
   category: string;
   meta: string;
-  tone: NearbyPlaceTone;
+  tone: "accent" | "brand";
   icon: "utensils" | "bed";
 }
 
-export function NearbyPlaceCard({ imageLabel, title, category, meta, tone, icon }: NearbyPlaceCardProps) {
+export function NearbyPlaceCard({
+  imageUrl,
+  address,
+  title,
+  category,
+  meta,
+  tone,
+  icon,
+}: NearbyPlaceCardProps) {
   const PlaceIcon = icon === "utensils" ? Icon.utensils : Icon.bed;
-
   return (
-    <div className="card" style={{ width: 170, padding: 0 }}>
-      <Placeholder label={imageLabel} h={80} />
-      <div style={{ padding: "10px 12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: `var(--${tone})`, fontWeight: 600 }}>
+    <a
+      className="card commerce-card"
+      href={`https://map.kakao.com/link/search/${encodeURIComponent(`${title} ${address ?? "강원"}`)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${title} 지도에서 보기 (새 탭)`}
+    >
+      <UI.Placeholder label={title} src={imageUrl} h={150} />
+      <div className="commerce-body">
+        <span className={`commerce-category ${tone}`}>
           <PlaceIcon />
           {category}
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2, lineHeight: 1.25 }}>{title}</div>
-        <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>{meta}</div>
+        </span>
+        <h3>{title}</h3>
+        {address && <p>{address}</p>}
+        {meta && <p>{meta}</p>}
+        <span className="text-link">
+          지도·영업정보 확인 <Icon.chevR />
+        </span>
       </div>
-    </div>
+    </a>
   );
 }

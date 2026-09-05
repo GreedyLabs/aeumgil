@@ -16,8 +16,8 @@ next-env.d.ts
 .gitignore
 
 # env / secrets
-**/.env
-**/.env*.local
+**/.env*
+!**/.env.example
 *.pem
 
 # os / editor
@@ -34,3 +34,8 @@ README.md
 Dockerfile
 .dockerignore
 docker-compose.yml
+
+# local authentication fixtures and browser artifacts
+infra
+**/test-results
+**/playwright-report

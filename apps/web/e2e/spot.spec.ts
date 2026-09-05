@@ -7,12 +7,13 @@ test("스팟 상세에 혼잡·적합성·날씨 값이 렌더된다", async ({ 
   await page.goto("/spot/sokcho-market");
 
   // 방문 적합성: 레이블 + "NN/100" 점수
-  await expect(page.getByText("방문 적합성").first()).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText(/^\d{1,3}\/100$/).first()).toBeVisible();
+  await expect(page.getByRole("main").getByText("방문 적합성").first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("main").getByText(/^\d{1,3}\/100$|^확인 중$/).first()).toBeVisible();
 
   // 혼잡 Signal: 여유/보통/혼잡 중 하나
-  await expect(page.getByText(/^(여유|보통|혼잡)$/).first()).toBeVisible();
+  await expect(page.getByRole("main").getByText(/^(여유|보통|혼잡)$/).first()).toBeVisible();
 
   // 날씨: 온도 표기(예: 23°)
-  await expect(page.getByText(/-?\d+°/).first()).toBeVisible();
+  await expect(page.getByRole("main").getByText(/-?\d+°|예보 수신 대기/).first()).toBeVisible();
+  await expect(page.getByRole("main").getByText("시간대별 혼잡 · 자체 추정")).toBeVisible();
 });

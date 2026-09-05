@@ -100,7 +100,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 export function keycloakEndSessionUrl(idToken?: string): string {
   const url = new URL(`${KEYCLOAK_ISSUER}/protocol/openid-connect/logout`);
-  url.searchParams.set("post_logout_redirect_uri", env.NEXT_PUBLIC_APP_URL);
+  url.searchParams.set("post_logout_redirect_uri", env.AUTH_URL || "http://localhost:3000");
   url.searchParams.set("client_id", KEYCLOAK_CLIENT_ID);
   if (idToken) url.searchParams.set("id_token_hint", idToken);
   return url.toString();
@@ -112,9 +112,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authEnv("AUTH_SECRET", "eumgil-dev-only-auth-secret-change-before-production"),
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   jwt: { maxAge: SESSION_MAX_AGE_SECONDS },
-  // 호스트 헤더 신뢰는 로컬 개발 편의로만. 운영은 AUTH_URL 고정(§1.1 필수 검증)이
-  // canonical URL 로 쓰이므로 임의 Host 헤더 기반 리다이렉트를 차단한다.
-  trustHost: !isProductionRuntime,
+  // AUTH_URL이 고정된 배포에서는 Auth.js가 이 주소로 요청 URL을 정규화한다.
+  // trustHost도 활성화해야 프록시 뒤에서 UntrustedHost로 로그인이 거부되지 않는다.
+  trustHost: Boolean(env.AUTH_URL) || !isProductionRuntime,
   providers: [
     Keycloak({
       // 로컬 Keycloak 을 나중에 바로 띄워 붙일 수 있게 개발 기본값을 둔다.

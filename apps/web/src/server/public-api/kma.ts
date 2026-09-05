@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 // 기상청 단기예보(동네예보) 클라이언트 — 서버 전용.
 // 포털: https://www.data.go.kr/data/15084084/openapi.do
-// base: http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0
+// base: https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0
 //
 // getVilageFcst 로 격자(nx/ny) 단기예보를 받아 도메인 Weather 로 정규화한다.
 // 단기예보는 매일 02/05/08/11/14/17/20/23시(KST)에 발표 → 가장 가까운 과거
@@ -14,7 +14,7 @@ import type { Weather } from "@/domain/types";
 import { latLonToGrid } from "./grid";
 import { callDataGoKr } from "./http";
 
-const BASE = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
+const BASE = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
 const COMMON = { dataType: "JSON", MobileOS: "ETC", MobileApp: "eumgil" } as const;
 
 /** 정규화된 날씨 + 적합성 산출에 쓰는 원시 수치 */
@@ -27,6 +27,8 @@ export interface WeatherNow extends Weather {
   pty: number;
   /** 하늘상태 1맑음 3구름많음 4흐림 */
   sky: number;
+  /** 예보 대상 시각(KST, ISO 8601) */
+  forecastAt: string;
 }
 
 interface RawFcstResponse {
@@ -46,7 +48,7 @@ interface RawFcstItem {
 }
 
 /** KST 기준 가장 가까운 과거 발표시각(base_date, base_time) 산출 */
-function latestBase(now = new Date()): { baseDate: string; baseTime: string } {
+export function latestBase(now = new Date()): { baseDate: string; baseTime: string } {
   // KST = UTC+9
   const kst = new Date(now.getTime() + 9 * 3600 * 1000);
   const slots = [2, 5, 8, 11, 14, 17, 20, 23];
@@ -83,33 +85,46 @@ function describe(sky: number, pty: number): { icon: string; desc: LocalizedText
 
 /**
  * 격자(nx/ny) 기준 현재 시점에 가장 근접한 단기예보 1건을 도메인 Weather 로 반환.
- * 응답에서 가장 이른 예보시각(fcstDate+fcstTime)의 항목들을 모아 정규화한다.
+ * 현재 시간대 또는 그 이후 첫 예보시각(fcstDate+fcstTime)의 항목들을 정규화한다.
  */
-export async function getVilageWeather(nx: number, ny: number): Promise<WeatherNow> {
-  const { baseDate, baseTime } = latestBase();
+export async function getVilageWeather(nx: number, ny: number, now = new Date()): Promise<WeatherNow> {
+  const { baseDate, baseTime } = latestBase(now);
   const data = await callDataGoKr<RawFcstResponse>(
     `${BASE}/getVilageFcst`,
     { ...COMMON, numOfRows: 300, pageNo: 1, base_date: baseDate, base_time: baseTime, nx, ny },
-    { serviceKey: requireEnv("KMA_SERVICE_KEY") },
+    { serviceKey: requireEnv("DATA_GO_KR_SERVICE_KEY") },
   );
 
   const items = extractItems(data);
   if (items.length === 0) throw new Error("단기예보 응답이 비어있습니다.");
 
-  // 가장 이른 예보 시점(fcstDate+fcstTime)을 대상 시점으로 선택
+  // 발표 직후 첫 시각을 계속 보여주지 않고, 현재 KST 시각의 예보를 선택한다.
   const stamp = (it: RawFcstItem) => `${it.fcstDate ?? ""}${it.fcstTime ?? ""}`;
-  const target = items.reduce((min, it) => (stamp(it) < min ? stamp(it) : min), stamp(items[0]!));
+  const kst = new Date(now.getTime() + 9 * 3600 * 1000);
+  const current = kst.toISOString().slice(0, 13).replace(/[-T:]/g, "") + "00";
+  const times = [...new Set(items.map(stamp))].filter((t) => /^\d{12}$/.test(t)).sort();
+  const target = times.find((t) => t >= current);
+  if (!target) throw new Error("현재 시각 이후의 단기예보가 없습니다.");
   const slice = items.filter((it) => stamp(it) === target);
-
-  const pick = (cat: string) => slice.find((it) => it.category === cat)?.fcstValue;
-  const tempC = Number(pick("TMP") ?? "0");
-  const pop = Number(pick("POP") ?? "0");
-  const windMs = Number(pick("WSD") ?? "0");
-  const pty = Number(pick("PTY") ?? "0");
-  const sky = Number(pick("SKY") ?? "1");
+  const pick = (cat: string): number => {
+    const raw = slice.find((it) => it.category === cat)?.fcstValue;
+    if (raw === undefined || String(raw).trim() === "" || !Number.isFinite(Number(raw))) {
+      throw new Error(`단기예보 ${cat} 값이 없습니다.`);
+    }
+    return Number(raw);
+  };
+  const tempC = pick("TMP");
+  const pop = pick("POP");
+  const windMs = pick("WSD");
+  const pty = pick("PTY");
+  const sky = pick("SKY");
+  if (pop < 0 || pop > 100 || windMs < 0 || ![0, 1, 2, 3, 4].includes(pty) || ![1, 3, 4].includes(sky)) {
+    throw new Error("단기예보 값이 유효 범위를 벗어났습니다.");
+  }
+  const forecastAt = `${target.slice(0, 4)}-${target.slice(4, 6)}-${target.slice(6, 8)}T${target.slice(8, 10)}:${target.slice(10, 12)}:00+09:00`;
 
   const { icon, desc } = describe(sky, pty);
-  return { tempC, desc, icon, pop, windMs, pty, sky };
+  return { tempC, desc, icon, pop, windMs, pty, sky, forecastAt };
 }
 
 /** 위경도로 바로 날씨 조회 (격자 변환 포함) */
@@ -125,5 +140,5 @@ export async function getWeatherByCoords(lat: number, lon: number): Promise<Weat
  */
 export function weatherCacheKey(lat: number, lon: number): string {
   const { nx, ny } = latLonToGrid(lat, lon);
-  return `wx:g${nx},${ny}`;
+  return `wx:v2:g${nx},${ny}`;
 }

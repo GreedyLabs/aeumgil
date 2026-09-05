@@ -20,6 +20,5 @@ export function nowKst(): Date {
 /** 스팟의 현재(KST) 혼잡 등급 — 매핑이 없으면 큐레이션 baseline 그대로. */
 export function congestionNow(spot: Spot, at: Date = nowKst()): Congestion {
   const m = getSpotMapping(spot.id);
-  if (!m) return spot.congestion;
-  return estimateCongestion({ baseline: spot.congestion, kind: m.env, at }).level;
+  return estimateCongestion({ baseline: spot.baselineCongestion ?? spot.congestion, kind: spot.environment ?? m?.env ?? "inland", at }).level;
 }

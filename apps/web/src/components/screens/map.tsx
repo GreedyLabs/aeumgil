@@ -1,14 +1,12 @@
 "use client";
 
-// MapView — 혼잡도 지도(스타일라이즈 배경 + 실데이터 마커).
-// 좌표·혼잡도는 서버 page 에서 실데이터(스팟 좌표 + Phase 3 혼잡 모델)로 내려온다(§4.2).
+import { useState } from "react";
+import Link from "next/link";
 import { localized, type LocalizedText } from "@/lib/i18n";
-import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import { LocationMap } from "./location-map";
 import type { Congestion } from "@/domain/types";
-
-const { TopBar } = UI;
 
 export interface MapPoi {
   id: string;
@@ -16,103 +14,125 @@ export interface MapPoi {
   lat: number;
   lon: number;
   congestion: Congestion;
+  region?: LocalizedText;
+  imageUrl?: string;
 }
 
-// 마커 배치 여백(%) — 라벨이 화면 가장자리에 잘리지 않게 데이터 범위를 안쪽으로 사상.
-const PAD_X = 14;
-const PAD_Y = 12;
-// 라벨 겹침 판정 임계(%) — 이 안에 들어오면 아래로 밀어낸다.
-const NEAR_X = 20;
-const NEAR_Y = 5;
-
-/**
- * lat/lon → 화면 %(x,y) 선형 사상.
- * 스팟 데이터 범위(바운딩박스)를 화면에 펼치고, 근접 스팟(예: 속초시장↔동명항)의
- * 라벨 겹침은 뒤쪽 마커를 아래로 밀어 완화한다. 상대 위치(동해안=오른쪽)는 유지된다.
- */
-function projectPois(pois: MapPoi[]): Array<MapPoi & { x: number; y: number }> {
-  if (pois.length === 0) return [];
-  const lats = pois.map((p) => p.lat);
-  const lons = pois.map((p) => p.lon);
-  const latMin = Math.min(...lats);
-  const latMax = Math.max(...lats);
-  const lonMin = Math.min(...lons);
-  const lonMax = Math.max(...lons);
-  const latRange = latMax - latMin || 1;
-  const lonRange = lonMax - lonMin || 1;
-
-  const placed = pois.map((p) => ({
-    ...p,
-    x: PAD_X + ((p.lon - lonMin) / lonRange) * (100 - PAD_X * 2),
-    y: PAD_Y + ((latMax - p.lat) / latRange) * (100 - PAD_Y * 2),
-  }));
-
-  placed.sort((a, b) => a.y - b.y || a.x - b.x);
-  for (let i = 1; i < placed.length; i++) {
-    for (let j = 0; j < i; j++) {
-      const cur = placed[i]!;
-      const prev = placed[j]!;
-      if (Math.abs(cur.x - prev.x) < NEAR_X && cur.y - prev.y < NEAR_Y) {
-        cur.y = prev.y + NEAR_Y;
-      }
-    }
-  }
-  return placed;
-}
-
-export function MapView({ pois }: { pois: MapPoi[] }) {
+export function MapView({ pois, initialRegion = "" }: { pois: MapPoi[]; initialRegion?: string }) {
   const { lang } = useAppState();
-  const { nav } = useAppNav();
-  const markers = projectPois(pois);
-
+  const [region, setRegion] = useState(initialRegion);
+  const [onlyCalm, setOnlyCalm] = useState(false);
+  const [selected, setSelected] = useState(pois[0]?.id);
+  const filtered = pois.filter(
+    (p) => (!onlyCalm || p.congestion === "calm") && (!region || p.region?.ko === region),
+  );
+  const spot = filtered.find((p) => p.id === selected) ?? filtered[0];
   return (
-    <div className="screen-enter" style={{ minHeight: "calc(100vh - 60px)", display: "flex", flexDirection: "column" }}>
-      <TopBar
-        title={lang === "ko" ? "지도" : "Map"}
+    <div className="screen-enter map-page">
+      <UI.TopBar
+        title="여행 지도"
         right={
-          <button className="icon-btn filled">
-            <Icon.filter />
-          </button>
+          <Link href="/discover" className="text-link">
+            테마 탐색 <Icon.chevR />
+          </Link>
         }
       />
-      <div style={{ flex: 1, position: "relative", background: "linear-gradient(180deg, oklch(0.94 0.03 155), oklch(0.88 0.04 160))", borderTop: "1px solid var(--line)", overflow: "hidden" }}>
-        <svg width="100%" height="100%" viewBox="0 0 400 600" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.25 }}>
-          {Array.from({ length: 14 }).map((_, i) => (
-            <path key={i} d={`M -20 ${60 + i * 42} Q 100 ${40 + i * 42}, 200 ${80 + i * 42} T 420 ${60 + i * 42}`} fill="none" stroke="oklch(0.35 0.05 155)" strokeWidth="0.7" />
-          ))}
-        </svg>
-        <svg width="100%" height="100%" viewBox="0 0 400 600" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
-          <path d="M 330 -10 Q 310 150, 340 300 T 320 620 L 420 620 L 420 -10 Z" fill="oklch(0.82 0.05 220)" opacity="0.35" />
-        </svg>
-
-        {markers.map((m) => (
+      <header className="page-heading">
+        <div>
+          <span className="eyebrow">위치와 여유를 함께 살펴보세요</span>
+          <h1>지도에서 만나는 강원</h1>
+          <p>장소를 선택하면 실제 위치와 주변 도로를 볼 수 있어요.</p>
+        </div>
+        <button
+          className={`chip${onlyCalm ? " active" : ""}`}
+          aria-label="여유로운 장소만 보기"
+          aria-pressed={onlyCalm}
+          onClick={() => setOnlyCalm((v) => !v)}
+        >
+          <Icon.filter /> 여유로운 곳만
+        </button>
+      </header>
+      <div className="filter-list" aria-label="지도 지역">
+        {[
+          "",
+          ...new Set([
+            ...pois.map((p) => p.region?.ko).filter((r): r is string => !!r),
+            ...(initialRegion ? [initialRegion] : []),
+          ]),
+        ].map((r) => (
           <button
-            key={m.id}
-            onClick={() => nav("spot", { spotId: m.id })}
-            style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, transform: "translate(-50%, -50%)" }}
+            key={r}
+            className={`chip${region === r ? " active" : ""}`}
+            aria-pressed={region === r}
+            onClick={() => setRegion(r)}
           >
-            <div style={{ padding: "5px 10px 5px 6px", background: "var(--surface)", borderRadius: 100, boxShadow: "var(--shadow-md)", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--ink)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: `var(--${m.congestion})` }} />
-              {localized(m.name, lang)}
-            </div>
+            {r || "강원 전체"}
           </button>
         ))}
-
-        <div style={{ position: "absolute", bottom: 16, left: 16, background: "var(--surface)", borderRadius: 12, padding: "10px 12px", boxShadow: "var(--shadow-md)" }}>
-          <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>
-            {lang === "ko" ? "혼잡도" : "Congestion"}
+      </div>
+      <div className="map-layout">
+        <section className="map-place-list" aria-label="지도에서 볼 장소">
+          <div className="results-heading">
+            <h2>
+              여행 장소 <span>{filtered.length}</span>
+            </h2>
           </div>
-          <div style={{ display: "flex", gap: 10, fontSize: 11 }}>
-            {["calm", "moderate", "busy"].map((l) => (
-              <span key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: `var(--${l})` }} />
-                <span style={{ color: "var(--ink-2)" }}>
-                  {l === "calm" ? (lang === "ko" ? "여유" : "Calm") : l === "moderate" ? (lang === "ko" ? "보통" : "Mod") : lang === "ko" ? "혼잡" : "Busy"}
-                </span>
+          {filtered.map((p) => (
+            <button
+              key={p.id}
+              aria-pressed={p.id === spot?.id}
+              className={`map-place${p.id === spot?.id ? " selected" : ""}`}
+              onClick={() => setSelected(p.id)}
+            >
+              <UI.Placeholder
+                label={localized(p.name, lang)}
+                src={p.imageUrl}
+                h={60}
+                style={{ width: 64, borderRadius: 10, flexShrink: 0 }}
+              />
+              <span>
+                <strong>{localized(p.name, lang)}</strong>
+                {p.region && <small>{localized(p.region, lang)}</small>}
+                <UI.Signal level={p.congestion} lang={lang} />
               </span>
-            ))}
-          </div>
-        </div>
+              <Icon.chevR />
+            </button>
+          ))}
+          {!filtered.length && (
+            <div className="empty-state">
+              <p>이 조건으로 표시할 관광지가 없어요.</p>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setOnlyCalm(false);
+                  setRegion("");
+                }}
+              >
+                전체 장소 보기
+              </button>
+            </div>
+          )}
+          <p className="section-description">혼잡도는 시간대·요일·계절에 따른 모델 추정치예요.</p>
+        </section>
+        <section className="map-detail" aria-label="선택한 장소 지도">
+          {spot && (
+            <>
+              <LocationMap lat={spot.lat} lon={spot.lon} name={localized(spot.name, lang)} />
+              <div className="map-selection">
+                <div>
+                  <span className="eyebrow">선택한 장소</span>
+                  <h2>{localized(spot.name, lang)}</h2>
+                </div>
+                <Link className="btn btn-primary" href={`/spot/${spot.id}`}>
+                  장소 상세 <Icon.chevR />
+                </Link>
+              </div>
+              <p className="section-description">
+                지도 안에서는 확대·축소할 수 있어요. 다른 장소를 보려면 목록에서 선택하세요.
+              </p>
+            </>
+          )}
+        </section>
       </div>
     </div>
   );

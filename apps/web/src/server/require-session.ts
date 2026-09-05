@@ -11,5 +11,6 @@ export async function requireUserSession(reason: string): Promise<string> {
   const session = await auth();
   const userId = session?.user?.id;
   if (userId) return userId;
-  redirect(`/login?reason=${encodeURIComponent(reason)}`);
+  const returnTo = ({ save: "/saved", review: "/reviews", settings: "/settings", profile: "/profile/edit" } as Record<string, string>)[reason] ?? "/profile";
+  redirect(`/login?reason=${encodeURIComponent(reason)}&returnTo=${encodeURIComponent(returnTo)}`);
 }

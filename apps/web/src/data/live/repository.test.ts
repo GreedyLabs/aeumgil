@@ -23,6 +23,8 @@ vi.mock("@/server/db/course-catalog", async (importOriginal) => {
   };
 });
 
+vi.mock("@/server/cache", () => ({ apiCache: { cached: async (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn() } }));
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -72,7 +74,11 @@ describe("LiveRepository 폴백(회복력)", () => {
     const live = new LiveRepository();
 
     const got = await live.getSpot("seorak-gwongeum");
-    expect(got).toEqual(base); // 보강 실패 → DB 원본 유지
+    expect(got?.name).toEqual(base.name);
+    expect(got?.weather).toEqual(base.weather);
+    expect(got?.suitability).toBe(base.suitability);
+    expect(got?.conditions).toMatchObject({ weather: "unavailable", air: "unavailable" });
+    expect(got?.crowdHourly).toHaveLength(13);
   });
 });
 
@@ -90,11 +96,11 @@ describe("LiveRepository 보강(성공)", () => {
             body: {
               items: {
                 item: [
-                  { category: "TMP", fcstDate: "20260623", fcstTime: "0900", fcstValue: "17" },
-                  { category: "POP", fcstDate: "20260623", fcstTime: "0900", fcstValue: "10" },
-                  { category: "PTY", fcstDate: "20260623", fcstTime: "0900", fcstValue: "0" },
-                  { category: "SKY", fcstDate: "20260623", fcstTime: "0900", fcstValue: "1" },
-                  { category: "WSD", fcstDate: "20260623", fcstTime: "0900", fcstValue: "3" },
+                  { category: "TMP", fcstDate: "20260113", fcstTime: "0900", fcstValue: "17" },
+                  { category: "POP", fcstDate: "20260113", fcstTime: "0900", fcstValue: "10" },
+                  { category: "PTY", fcstDate: "20260113", fcstTime: "0900", fcstValue: "0" },
+                  { category: "SKY", fcstDate: "20260113", fcstTime: "0900", fcstValue: "1" },
+                  { category: "WSD", fcstDate: "20260113", fcstTime: "0900", fcstValue: "3" },
                 ],
               },
             },
@@ -131,4 +137,18 @@ describe("LiveRepository 보강(성공)", () => {
     expect(spot!.suitability).toBe(100); // 악조건 없음(한산)
     expect(spot!.description?.ko).toBe("속초 동명항 설명"); // contentId 있어 개요로 보강
   });
+});
+
+it("날씨가 실패해도 정상 대기질과 관광 개요는 유지한다", async () => {
+  routeFetch([
+    { match: "getCtprvnRltmMesureDnsty", payload: { response: { body: { items: [{ stationName: "중앙동", khaiGrade: "2", pm10Value: "31" }] } } } },
+    { match: "detailCommon2", payload: { response: { body: { items: { item: [{ contentid: "129454", overview: "실제 관광 개요" }] } } } } },
+  ]);
+  mocks.requireDb.mockReturnValue({});
+  mocks.fetchSpotProfile.mockResolvedValue(dbSpot("dongmyeong-port"));
+  const spot = await new LiveRepository().getSpot("dongmyeong-port");
+  expect(spot?.air.ko).toBe("보통");
+  expect(spot?.description?.ko).toBe("실제 관광 개요");
+  expect(spot?.conditions).toMatchObject({ weather: "unavailable", air: "available" });
+  expect(spot?.suitability).toBe(75);
 });

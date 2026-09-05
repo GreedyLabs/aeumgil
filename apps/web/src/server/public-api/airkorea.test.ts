@@ -42,6 +42,13 @@ describe("listGangwonAir", () => {
 });
 
 describe("getAirForStation", () => {
+  it("서로 다른 권역의 동시 조회가 강원 전체 응답 1회를 공유한다", async () => {
+    mockFetchJson(FIXTURE);
+    const [a, b] = await Promise.all([getAirForStation("중앙동"), getAirForStation("옥천동")]);
+    expect(a.station).toBe("중앙동(강원)");
+    expect(b.station).toBe("옥천동");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("괄호 접미사를 무시하고 측정소를 매칭한다", async () => {
     mockFetchJson(FIXTURE);
     const a = await getAirForStation("중앙동"); // 응답은 "중앙동(강원)"

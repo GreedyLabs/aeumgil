@@ -109,3 +109,21 @@ describe("PersistentCache", () => {
     expect(got).toBe("ok");
   });
 });
+
+it("미래 시각이나 손상된 영속 항목을 정상 캐시로 쓰지 않는다", async () => {
+  const cache = createCache({ load: async () => ({ future: { at: Date.now() + 99999, value: "old" }, broken: null } as unknown as Record<string, CacheEntry>), save: async () => {} });
+  await expect(cache.cached("future", 1000, async () => "fresh")).resolves.toBe("fresh");
+  await expect(cache.cached("broken", 1000, async () => "safe")).resolves.toBe("safe");
+});
+
+it("원천 장애 중 반복 요청을 짧게 억제하고 대기 후 복구한다", async () => {
+  vi.useFakeTimers(); vi.setSystemTime(0);
+  const { store } = memStore();
+  const cache = createCache(store, { failureCooldownMs: 1000 });
+  const fn = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValue("ok");
+  await expect(cache.cached("k", 1000, fn)).rejects.toThrow("down");
+  await expect(cache.cached("k", 1000, fn)).rejects.toThrow("down");
+  expect(fn).toHaveBeenCalledTimes(1);
+  vi.setSystemTime(1001);
+  await expect(cache.cached("k", 1000, fn)).resolves.toBe("ok");
+});

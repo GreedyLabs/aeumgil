@@ -32,7 +32,7 @@ export default defineConfig({
     locale: "ko-KR",
     trace: "retain-on-failure",
   },
-  webServer: {
+  webServer: process.env.E2E_BASE_URL ? undefined : {
     command: "pnpm dev",
     url: "http://localhost:3000/api/health",
     reuseExistingServer: true,

@@ -23,6 +23,8 @@ export interface ScoreInput {
   /** 통합대기 등급 1~4 (0 정보없음) */
   khaiGrade: number;
   kind: EnvKind;
+  /** 현재 3시간 구간의 자외선 예측, 누락이면 감점에 사용하지 않는다. */
+  uvIndex?: number;
 }
 
 export interface ScoreResult {
@@ -91,6 +93,13 @@ export function scoreSuitability(input: ScoreInput): ScoreResult {
     en.push(khaiGrade === 4 ? "very unhealthy air" : "unhealthy air");
   }
 
+  if (input.uvIndex !== undefined && input.uvIndex >= 6) {
+    // 야외 노출이 큰 해변/산악은 더 민감하게 반영한다(서비스 자체 가중치).
+    score -=
+      (input.uvIndex >= 11 ? 15 : input.uvIndex >= 8 ? 10 : 5) * (kind === "inland" ? 0.5 : 1);
+    ko.push(`자외선지수 ${input.uvIndex}`);
+    en.push(`UV index ${input.uvIndex}`);
+  }
   const suitability = clamp(Math.round(score));
   const reason =
     ko.length === 0

@@ -2,6 +2,6 @@ import { SettingsView } from "@/components/screens/settings";
 import { requireUserSession } from "@/server/require-session";
 
 export default async function SettingsPage() {
-  await requireUserSession("profile");
+  await requireUserSession("settings");
   return <SettingsView />;
 }

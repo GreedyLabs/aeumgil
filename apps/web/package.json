@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "eval:real": "EUMGIL_EVAL_REAL=1 node --env-file=../../.env node_modules/vitest/vitest.mjs run src/server/agent/eval/real.eval.test.ts",
-    "verify:api": "node --env-file=../../.env scripts/verify-public-api.mjs",
+    "verify:api": "node scripts/verify-public-api.mjs",
     "find:content": "node --env-file=../../.env scripts/find-content-ids.mjs",
     "verify:enrichment": "node --env-file=../../.env scripts/verify-enrichment.mjs",
     "verify:db": "node --env-file=../../.env scripts/verify-db.mjs",

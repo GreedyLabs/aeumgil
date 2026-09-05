@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body>
+      <body data-palette="ocean">
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

@@ -1,6 +1,6 @@
 "use client";
 
-// ProfileEditView — Phase 4(부분). 프로필 편집. 저장은 mock(토스트). DB 는 Phase 4 본편.
+// 세션에 연결된 앱 프로필과 관심 테마를 저장한다.
 import { useState, useTransition } from "react";
 import { updateProfileAction } from "@/app/actions/profile";
 import { localized } from "@/lib/i18n";
@@ -43,15 +43,15 @@ export function ProfileEditView({ user, themes }: Props) {
   };
 
   return (
-    <div className="screen-enter">
+    <div className="screen-enter form-page">
       <div className="topbar elev">
-        <button className="icon-btn" onClick={back}>
+        <button className="icon-btn" onClick={back} aria-label="뒤로 가기">
           <Icon.back />
         </button>
         <h1>{lang === "ko" ? "프로필 편집" : "Edit profile"}</h1>
         <button
           className="link-sm"
-          style={{ fontWeight: 700, color: "var(--brand)", minWidth: 36 }}
+          style={{ fontWeight: 700, color: "var(--brand)", minWidth: 44, minHeight: 44 }}
           onClick={save}
           disabled={isPending || name.trim().length === 0 || interests.length === 0}
         >
@@ -62,20 +62,20 @@ export function ProfileEditView({ user, themes }: Props) {
       <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 8px" }}>
         <div style={{ position: "relative" }}>
           <Avatar className="avatar-lg" src={user.avatarUrl} size={86} />
-          <button className="avatar-cam">
-            <Icon.camera />
-          </button>
+
         </div>
       </div>
 
+      <p style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 12 }}>프로필 사진은 연결한 로그인 계정에서 관리해요.</p>
       <div style={{ padding: "12px 20px 0" }}>
-        <label className="field-label">{lang === "ko" ? "닉네임" : "Nickname"}</label>
-        <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} disabled={isPending} />
+        <label htmlFor="profile-name" className="field-label">{lang === "ko" ? "닉네임" : "Nickname"}</label>
+        <input id="profile-name" className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} disabled={isPending} />
 
-        <label className="field-label" style={{ marginTop: 18 }}>
+        <label htmlFor="profile-bio" className="field-label" style={{ marginTop: 18 }}>
           {lang === "ko" ? "한 줄 소개" : "Bio"}
         </label>
         <textarea
+          id="profile-bio"
           className="field-input"
           rows={3}
           value={bio}
@@ -99,6 +99,7 @@ export function ProfileEditView({ user, themes }: Props) {
                 key={th.id}
                 className={"chip" + (on ? " active" : "")}
                 onClick={() => toggle(th.id)}
+                aria-pressed={on}
                 disabled={isPending}
                 style={{ padding: "9px 14px", fontSize: 13 }}
               >

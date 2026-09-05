@@ -84,7 +84,7 @@ describe("composeCourse", () => {
     expect(course).not.toBeNull();
     expect(course!.items.find((it) => it.time === "10:00")?.refId).toBe("sacheon-beach");
     expect(course!.items.map((it) => it.refId)).not.toContain("anmok-beach");
-    expect(course!.altNote?.ko).toContain("코스 생성 엔진");
+    expect(course!.altNote?.ko).toContain("여행 조건");
   });
 
   it("식당은 같은 날 스팟 권역에 맞춰 다시 고른다", () => {
@@ -275,5 +275,31 @@ describe("composeCourse", () => {
     );
 
     expect(course!.items.find((it) => it.kind === "spot")?.refId).toBe("gangneung-calm");
+  });
+});
+
+describe("코스 생성 회귀", () => {
+  const input = { theme, baseCourse, spots: [busyBeach, quietBeach, farBeach, port], eats, stays };
+  it("일정을 늘려도 빈 날짜가 생기지 않는다", () => {
+    const course = composeCourse(input, { days: 3 })!;
+    expect(course.dayCount).toBe(3);
+    for (let day = 1; day <= 3; day++) expect(course.items.some((it) => it.day === day && it.kind === "spot")).toBe(true);
+  });
+  it("여유 페이스는 템플릿에도 적용된다", () => {
+    const course = composeCourse({ ...input, baseCourse: { ...baseCourse, items: [...baseCourse.items,
+      { kind: "spot", day: 1, time: "16:30", refId: "far-beach" },
+    ] } }, { pace: "calm" })!;
+    expect(course.items.filter((it) => it.kind === "spot")).toHaveLength(2);
+  });
+  it("앞 슬롯의 대체지로 이미 사용한 원본 스팟을 중복 방문하지 않는다", () => {
+    const course = composeCourse({ ...input, alternativesBySpot: { "anmok-beach": [port] } })!;
+    const ids = course.items.filter((it) => it.kind === "spot").map((it) => it.refId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+  it("일정을 줄이면 마지막 날의 숙박을 제거한다", () => {
+    const course = composeCourse({ ...input, baseCourse: { ...baseCourse, dayCount: 2, items: [...baseCourse.items,
+      { kind: "stay", day: 1, time: "18:00", refId: "stay-gangneung" },
+    ] } }, { days: 1 })!;
+    expect(course.items.some((it) => it.kind === "stay")).toBe(false);
   });
 });

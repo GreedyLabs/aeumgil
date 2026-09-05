@@ -1,27 +1,30 @@
 // @ts-nocheck
 "use client";
 import React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
 import { Icon } from "./icons";
 
 // ─────────────────────────────────────────────
 // Shared primitives
 // ─────────────────────────────────────────────
 
-function Placeholder({ label, h = 160, dark = false, style, id, src: explicitSrc, overlay = false, children }) {
-  const src = explicitSrc || null;
+function Placeholder({ label, h = 160, dark = false, style, id, src: explicitSrc, overlay = false, priority = false, children }) {
+  const [failed, setFailed] = useState(false);
+  const src = !failed ? explicitSrc : null;
   return (
     <div style={{
       height: h, width: '100%', position: 'relative', overflow: 'hidden',
       borderRadius: style?.borderRadius,
-      background: src
-        ? `#2a2e2a url("${src}") center/cover no-repeat`
-        : `repeating-linear-gradient(135deg, color-mix(in oklab, var(--brand) 12%, var(--bg-elev)) 0 10px, var(--bg-elev) 10px 22px)`,
+      background: `linear-gradient(145deg, var(--brand-soft), var(--bg-elev))`,
       ...style,
     }}>
+      {src && <Image src={src} alt={label || "관광지 사진"} priority={priority} fill sizes="(max-width: 599px) 100vw, (max-width: 1100px) 50vw, 600px" style={{ objectFit: "cover" }} onError={() => setFailed(true)} />}
       {overlay && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%)' }}/>}
       {!src && label && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
-          <span className="ph-label" style={{ fontFamily: 'SF Mono, monospace', fontSize: 10, background: 'color-mix(in oklab, var(--bg) 85%, transparent)', padding: '4px 8px', borderRadius: 4, color: 'var(--ink-2)' }}>{label}</span>
+          <Icon.pin style={{ width: 28, height: 28, opacity: .4 }} aria-label={`${label} 사진 준비 중`} />
         </div>
       )}
       {children}
@@ -40,17 +43,17 @@ function Signal({ level, lang = 'ko' }) {
 
 function Chip({ children, active, brand, onClick }) {
   const cls = ['chip', active && 'active', brand && 'brand'].filter(Boolean).join(' ');
-  return <button className={cls} onClick={onClick}>{children}</button>;
+  return onClick ? <button className={cls} onClick={onClick}>{children}</button> : <span className={cls}>{children}</span>;
 }
 
 function TopBar({ title, onBack, right, elev = false }) {
   return (
     <div className={'topbar' + (elev ? ' elev' : '')}>
       {onBack
-        ? <button className="icon-btn" onClick={onBack}><Icon.back/></button>
-        : <button className="icon-btn"><Icon.menu/></button>}
-      <h1>{title}</h1>
-      <div style={{ display: 'flex', gap: 4 }}>{right || <button className="icon-btn"><Icon.user/></button>}</div>
+        ? <button className="icon-btn" onClick={onBack} aria-label="뒤로가기"><Icon.back/></button>
+        : <Link href="/" className="icon-btn" aria-label="홈으로"><Icon.home/></Link>}
+      <p className="topbar-title">{title}</p>
+      <div style={{ display: 'flex', gap: 4 }}>{right || <Link href="/profile" className="icon-btn" aria-label="내 정보"><Icon.user/></Link>}</div>
     </div>
   );
 }
@@ -59,37 +62,39 @@ function TabBar({ active, onNav, lang = 'ko' }) {
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
+    { id: 'map', ko: '지도', en: 'Map', icon: Icon.map },
     { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
   return (
-    <div className="tabbar">
+    <nav className="tabbar" aria-label="주 메뉴">
       {items.map(it => {
         const I = it.icon;
         return (
           <button key={it.id}
             className={'tab' + (active === it.id ? ' active' : '')}
-            onClick={() => onNav(it.id)}>
+            aria-current={active === it.id ? 'page' : undefined} onClick={() => onNav(it.id)}>
             <I/>
             <span>{it[lang]}</span>
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
-function ThemeHueBg({ hue, children, h, themeId }) {
+function ThemeHueBg({ hue, children, h, themeId, src, label }) {
   return (
-    <div style={{
+    <div className="theme-visual" style={{
       height: h, width: '100%', position: 'relative', overflow: 'hidden',
       background: `radial-gradient(circle at 30% 20%, oklch(0.55 0.12 ${hue}) 0%, oklch(0.3 0.08 ${hue}) 70%)`,
     }}>
+      {src && <Placeholder src={src} label={label} h="100%" />}
       <div style={{
         position: 'absolute', inset: 0,
         background: `linear-gradient(180deg, color-mix(in oklch, oklch(0.38 0.08 ${hue}) 25%, transparent) 0%, rgba(0,0,0,0.45) 100%)`,
       }}/>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(135deg, rgba(255,255,255,0.07) 0 14px, transparent 14px 28px)` }}/>
+      {!src && <div className="theme-landscape" aria-hidden="true" />}
       {children}
     </div>
   );
@@ -98,38 +103,42 @@ function ThemeHueBg({ hue, children, h, themeId }) {
 // ──────────────────────────────
 // Desktop sidebar nav (≥900px) — replaces bottom TabBar
 // ──────────────────────────────
-function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin }) {
+function Sidebar({ active, onNav, lang = 'ko', isMember, user, onLogin, collapsed, onToggle }) {
   const items = [
     { id: 'home', ko: '홈', en: 'Home', icon: Icon.home },
     { id: 'discover', ko: '탐색', en: 'Discover', icon: Icon.discover },
+    { id: 'map', ko: '지도', en: 'Map', icon: Icon.map },
     { id: 'saved', ko: '저장', en: 'Saved', icon: Icon.saved },
     { id: 'profile', ko: '내 정보', en: 'Profile', icon: Icon.user },
   ];
   return (
-    <aside className="desktop-nav">
-      <div className="dnav-brand serif">에움길</div>
-      <nav className="dnav-items">
+    <aside className={'desktop-nav' + (collapsed ? ' is-collapsed' : '')}>
+      <Link href="/" className="dnav-brand" aria-label="에움길 홈"><span className="brand-symbol" aria-hidden="true"><Icon.route /></span><span className="dnav-brand-text">에움길<small>조금 돌아가도, 더 좋은 여행</small></span></Link>
+      <button className="dnav-toggle" onClick={onToggle} aria-expanded={!collapsed} aria-controls="desktop-menu" aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'} title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}><Icon.chevR /><span>사이드바 접기</span></button>
+      <div className="dnav-label">나의 강원 여행</div>
+      <nav className="dnav-items" id="desktop-menu" aria-label="주 메뉴">
         {items.map(it => {
           const I = it.icon;
           return (
-            <button key={it.id} className={'dnav-item' + (active === it.id ? ' active' : '')} onClick={() => onNav(it.id)}>
+            <button key={it.id} className={'dnav-item' + (active === it.id ? ' active' : '')} aria-label={it[lang]} title={collapsed ? it[lang] : undefined} aria-current={active === it.id ? 'page' : undefined} onClick={() => onNav(it.id)}>
               <I/><span>{it[lang]}</span>
             </button>
           );
         })}
       </nav>
+      <div className="dnav-note"><Icon.sparkle /><p>사람 많은 곳을 벗어나<br />나에게 맞는 강원도를 만나세요.</p><Link href="/doc?type=sources">여행 정보의 기준 <Icon.chevR /></Link></div>
       <div className="dnav-foot">
         {isMember && user ? (
-          <button className="dnav-user" onClick={() => onNav('profile')}>
-            {user.avatar ? <img src={user.avatar} alt=""/> : <span className="avatar-md" aria-hidden="true" />}
+          <button className="dnav-user" aria-label={`${user.name} · 내 정보`} title={collapsed ? user.name : undefined} onClick={() => onNav('profile')}>
+            {user.avatar ? <span className="avatar-md" style={{ backgroundImage: `url(${JSON.stringify(user.avatar)})`, backgroundSize: "cover" }} aria-hidden="true"/> : <span className="avatar-md" aria-hidden="true" />}
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user[`name_${lang}`] || user.name_ko}</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Lv.{user.level} · {user[`grade_${lang}`] || user.grade_ko}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>나의 여행 기록</div>
             </div>
           </button>
         ) : (
-          <button className="btn btn-primary btn-block btn-sm" onClick={onLogin}>
-            <Icon.user style={{ width: 16, height: 16 }}/>{lang === 'ko' ? '로그인' : 'Sign in'}
+          <button className="btn btn-primary btn-block btn-sm" aria-label={lang === 'ko' ? '로그인' : 'Sign in'} title={collapsed ? '로그인' : undefined} onClick={onLogin}>
+            <Icon.user style={{ width: 16, height: 16 }}/><span>{lang === 'ko' ? '로그인' : 'Sign in'}</span>
           </button>
         )}
         <div className="dnav-copy">에움길 · Made by GreedyLabs</div>

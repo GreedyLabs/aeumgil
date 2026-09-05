@@ -1,142 +1,221 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────
-// 공공 API 키 연결 검증 스크립트
-//
-// 사용법 (루트에서):
-//   node --env-file=.env apps/web/scripts/verify-public-api.mjs
-//
-// .env 의 각 서비스키로 실제 1회 호출해 연결 상태를 출력한다.
-//   ✓ 연결됨   ✗ 오류(메시지)   – 키없음(건너뜀)   ? 수동확인 권장
-//
-// 진단 정보: HTTP 상태코드 + 응답 형태(JSON/XML/HTML) + 키 지문(길이/끝 4자/중복 여부).
-// data.go.kr 는 계정당 인증키 1개로 승인된 모든 서비스를 호출한다 →
-//   TOUR/KMA/AIRKOREA 키는 보통 같은 값이어야 한다(아래 지문으로 확인).
-// 개발계정 자동승인이라도 발급 직후 1~2시간 반영 지연이 있을 수 있다.
-// ─────────────────────────────────────────────
-
-const KST = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, "");
-
-async function getRes(url, timeoutMs = 10000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    return { status: res.status, ctype: res.headers.get("content-type") ?? "", text: await res.text() };
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-function shape(text) {
-  const s = text.trimStart();
-  if (s.startsWith("{") || s.startsWith("[")) return "JSON";
-  if (/^<\?xml|^<response|^<OpenAPI/i.test(s)) return "XML";
-  if (s.startsWith("<")) return "HTML";
-  return "TEXT";
-}
-
-function parseMaybeJson(text) {
-  const s = text.trimStart();
-  if (s.startsWith("<")) {
-    const msg = /<returnAuthMsg>(.*?)<\/returnAuthMsg>/.exec(s)?.[1];
-    const code = /<returnReasonCode>(.*?)<\/returnReasonCode>/.exec(s)?.[1];
-    return { xmlError: msg ? `${msg}${code ? ` (${code})` : ""}` : null };
-  }
-  try {
-    return { json: JSON.parse(text) };
-  } catch {
-    return {};
-  }
-}
-
-const build = (base, params, key) => {
-  const u = new URL(base);
-  u.searchParams.set("serviceKey", key);
-  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
-  return u.toString();
-};
-
-const statusHint = (s) =>
-  s === 401
-    ? " → 키 미인식(키 값 오류/누락)"
-    : s === 403
-      ? " → 키는 유효하나 이 서비스 권한 없음: data.go.kr 활용신청 '승인' 여부·반영(최대 1~2h) 확인"
-      : s === 400
-        ? " → 요청 파라미터 오류"
-        : "";
-const diag = (r) => `[HTTP ${r.status} · ${shape(r.text)}] ${r.text.replace(/\s+/g, " ").trim().slice(0, 100)}${statusHint(r.status)}`;
-
-// ── 자동 프로브 (https 사용) ──────────────────
-async function probeTourApi(key) {
-  const r = await getRes(
-    build("https://apis.data.go.kr/B551011/KorService2/areaBasedList2", { MobileOS: "ETC", MobileApp: "eumgil", _type: "json", areaCode: 32, numOfRows: 1, pageNo: 1 }, key),
-  );
-  const p = parseMaybeJson(r.text);
-  if (p.json?.response?.header?.resultCode === "0000")
-    return { ok: true, msg: `강원 totalCount=${p.json.response.body?.totalCount ?? "?"}` };
-  return { ok: false, msg: p.xmlError ?? diag(r) };
-}
-
-async function probeKma(key) {
-  const r = await getRes(
-    build("https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst", { dataType: "JSON", base_date: KST(), base_time: "0500", nx: 92, ny: 131, numOfRows: 1, pageNo: 1 }, key),
-  );
-  const p = parseMaybeJson(r.text);
-  const code = p.json?.response?.header?.resultCode;
-  if (code === "00" || code === "03") return { ok: true, msg: `resultCode=${code}` };
-  return { ok: false, msg: p.xmlError ?? diag(r) };
-}
-
-async function probeAirKorea(key) {
-  const r = await getRes(
-    build("https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty", { returnType: "json", sidoName: "강원", numOfRows: 1, pageNo: 1, ver: "1.0" }, key),
-  );
-  const p = parseMaybeJson(r.text);
-  if (p.json?.response?.header?.resultCode === "00")
-    return { ok: true, msg: `강원 측정소 ${p.json.response.body?.totalCount ?? "?"}곳` };
-  return { ok: false, msg: p.xmlError ?? diag(r) };
-}
-
-const CHECKS = [
-  { name: "1. 국문 관광정보(TourAPI)", env: "TOUR_API_SERVICE_KEY", probe: probeTourApi },
-  { name: "4. 기상청 단기예보", env: "KMA_SERVICE_KEY", probe: probeKma },
-  { name: "5. 기상청 생활기상지수", env: "KMA_SERVICE_KEY", manual: "단기예보와 동일 KMA 키(4번으로 검증)" },
-  { name: "6. 에어코리아 대기오염", env: "AIRKOREA_SERVICE_KEY", probe: probeAirKorea },
-  { name: "2. 관광 빅데이터 방문자수", env: "TOUR_BIGDATA_SERVICE_KEY", manual: "파라미터 확정 후 자동화 예정" },
-  { name: "3. 관광지 집중률 예측", env: "TOUR_BIGDATA_SERVICE_KEY", manual: "데이터랩 형태 확인 후 자동화 예정" },
-  { name: "7. 한국도로공사 실시간 소통", env: "EX_ROAD_SERVICE_KEY", manual: "data.ex.co.kr 확정 후 자동화 예정" },
+// 실제 연결·응답 품질을 함께 확인한다. 키·원문 응답은 로그에 남기지 않는다.
+import { config } from "dotenv";
+import { fileURLToPath } from "node:url";
+const root = new URL("../../../", import.meta.url);
+config({ path: fileURLToPath(new URL(".env.local", root)) });
+config({ path: fileURLToPath(new URL(".env", root)) });
+const now = new Date();
+const kst = new Date(now.getTime() + 9 * 3600000);
+const slot = [2, 5, 8, 11, 14, 17, 20, 23]
+  .filter((h) => h < kst.getUTCHours() || (h === kst.getUTCHours() && kst.getUTCMinutes() >= 15))
+  .at(-1);
+const base = new Date(kst);
+if (slot === undefined) base.setUTCDate(base.getUTCDate() - 1);
+const date = (d) => d.toISOString().slice(0, 10).replaceAll("-", "");
+const common = { MobileOS: "ETC", MobileApp: "eumgil", _type: "json", numOfRows: 5, pageNo: 1 };
+const array = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+const checks = [
+  {
+    name: "국문 관광정보",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B551011/KorService2/areaBasedList2",
+    params: { ...common, lDongRegnCd: 51 },
+    inspect: (body) => {
+      const items = array(body.items?.item);
+      if (!items.length || items.some((it) => !it.contentid || !it.title))
+        throw new Error("관광지 ID·제목 누락 또는 빈 목록");
+      return {
+        totalCount: body.totalCount,
+        sampleCount: items.length,
+        withImage: items.filter((it) => it.firstimage).length,
+      };
+    },
+  },
+  {
+    name: "관광 상세 보강",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B551011/KorService2/detailCommon2",
+    params: { ...common, contentId: "2022311", numOfRows: 1 },
+    inspect: (body) => {
+      const item = array(body.items?.item)[0];
+      if (!item?.contentid || !item.overview) throw new Error("관광 상세·개요 누락");
+      return { contentId: item.contentid, hasOverview: true, hasImage: Boolean(item.firstimage) };
+    },
+  },
+  {
+    name: "기상청 단기예보",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "1360000/VilageFcstInfoService_2.0/getVilageFcst",
+    params: {
+      dataType: "JSON",
+      base_date: date(base),
+      base_time: `${String(slot ?? 23).padStart(2, "0")}00`,
+      nx: 92,
+      ny: 132,
+      numOfRows: 300,
+      pageNo: 1,
+    },
+    inspect: (body) => {
+      const items = array(body.items?.item);
+      const current = kst.toISOString().slice(0, 13).replace(/[-T:]/g, "") + "00";
+      const stamp = (it) => `${it.fcstDate}${it.fcstTime}`;
+      const target = [...new Set(items.map(stamp))].sort().find((t) => t >= current);
+      const slice = items.filter((it) => stamp(it) === target);
+      const values = Object.fromEntries(slice.map((it) => [it.category, it.fcstValue]));
+      if (
+        !target ||
+        ["TMP", "POP", "WSD", "PTY", "SKY"].some(
+          (key) =>
+            values[key] === undefined ||
+            values[key] === "" ||
+            !Number.isFinite(Number(values[key])),
+        )
+      )
+        throw new Error("현재 시각 예보·필수 수치 누락");
+      return {
+        forecastAt: target,
+        temperature: Number(values.TMP),
+        rainProbability: Number(values.POP),
+        itemCount: items.length,
+      };
+    },
+  },
+  {
+    name: "에어코리아",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
+    params: { returnType: "json", sidoName: "강원", numOfRows: 200, pageNo: 1, ver: "1.3" },
+    inspect: (body) => {
+      const items = array(body.items);
+      const valid = items.filter((it) => /^[1-4]$/.test(it.khaiGrade));
+      if (!valid.length) throw new Error("유효한 대기질 측정값 없음");
+      return {
+        stations: items.length,
+        validStations: valid.length,
+        observedAt: valid[0].dataTime,
+        mapping: ["옥천동", "중앙동", "평창읍"].map((name) => ({
+          name,
+          found: items.some((it) => it.stationName?.replace(/\(.*?\)/g, "").trim() === name),
+        })),
+      };
+    },
+  },
+  {
+    name: "관광지 일별 집중률 예측",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B551011/TatsCnctrRateService/tatsCnctrRatedList",
+    params: { ...common, areaCd: 51, signguCd: 51150, tAtsNm: "안목해변", numOfRows: 100 },
+    inspect: (body) => {
+      const rows = array(body.items?.item);
+      if (!rows.length) throw new Error("집중률 예측 없음");
+      return { place: rows[0].tAtsNm, days: rows.length, firstDate: rows[0].baseYmd };
+    },
+  },
+  {
+    name: "지역별 방문자수",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "B551011/DataLabService/locgoRegnVisitrDDList",
+    params: {
+      ...common,
+      startYmd: date(new Date(kst.getTime() - 35 * 86400000)),
+      endYmd: date(new Date(kst.getTime() - 35 * 86400000)),
+      numOfRows: 1000,
+    },
+    inspect: (body) => {
+      const rows = array(body.items?.item).filter((x) => x.signguCode === "51150");
+      return {
+        rows: rows.length,
+        date: rows[0]?.baseYmd,
+        note: rows.length ? "공개 표본일 자료" : "정상 빈 응답: 공개 시차 확인 필요",
+      };
+    },
+  },
+  {
+    name: "기상청 자외선지수",
+    env: "DATA_GO_KR_SERVICE_KEY",
+    endpoint: "1360000/LivingWthrIdxServiceV5/getUVIdxV5",
+    params: {
+      dataType: "JSON",
+      areaNo: "5115000000",
+      time:
+        date(new Date(kst.getTime() - 1800000)) +
+        String(Math.floor(new Date(kst.getTime() - 1800000).getUTCHours() / 3) * 3).padStart(
+          2,
+          "0",
+        ),
+      numOfRows: 10,
+      pageNo: 1,
+    },
+    inspect: (body) => {
+      const row = array(body.items?.item)[0];
+      if (!row?.date) throw new Error("자외선 발표자료 없음");
+      return { issuedAt: row.date, index: row.h0 };
+    },
+  },
 ];
-
-const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", yellow: "\x1b[33m", cyan: "\x1b[36m", reset: "\x1b[0m" };
-const fp = (k) => (k ? `len=${k.length} …${k.slice(-4)}` : "(없음)");
-
-// ── 키 지문 (같은 값인지 확인) ───────────────
-console.log("\n공공 API 연결 검증\n──────────────────────────────");
-const tour = process.env.TOUR_API_SERVICE_KEY;
-const kma = process.env.KMA_SERVICE_KEY;
-const air = process.env.AIRKOREA_SERVICE_KEY;
-console.log(`${C.cyan}키 지문${C.reset}`);
-console.log(`  TOUR     ${fp(tour)}`);
-console.log(`  KMA      ${fp(kma)}${kma && tour ? (kma === tour ? `  ${C.gray}(TOUR와 동일)${C.reset}` : `  ${C.yellow}(TOUR와 다름!)${C.reset}`) : ""}`);
-console.log(`  AIRKOREA ${fp(air)}${air && tour ? (air === tour ? `  ${C.gray}(TOUR와 동일)${C.reset}` : `  ${C.yellow}(TOUR와 다름!)${C.reset}`) : ""}`);
-console.log(`  ${C.gray}※ data.go.kr 는 계정당 인증키 1개 — 세 값이 같아야 정상인 경우가 많음${C.reset}`);
-console.log("──────────────────────────────");
-
-for (const check of CHECKS) {
+async function probe(check) {
   const key = process.env[check.env];
-  if (!key) {
-    console.log(`${C.gray}–  ${check.name} — 키없음 (${check.env})${C.reset}`);
-    continue;
-  }
-  if (check.manual) {
-    console.log(`${C.yellow}?  ${check.name} — 키 설정됨, ${check.manual}${C.reset}`);
-    continue;
-  }
+  if (!key) return { name: check.name, status: "missing-key", env: check.env };
+  const url = new URL(`https://apis.data.go.kr/${check.endpoint}`);
+  url.searchParams.set("serviceKey", key);
+  for (const [k, v] of Object.entries(check.params)) url.searchParams.set(k, String(v));
+  const started = performance.now();
   try {
-    const r = await check.probe(key);
-    console.log(`${r.ok ? C.green + "✓" : C.red + "✗"}  ${check.name} — ${r.msg}${C.reset}`);
-  } catch (e) {
-    console.log(`${C.red}✗  ${check.name} — ${e instanceof Error ? e.message : String(e)}${C.reset}`);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (text.trimStart().startsWith("<")) throw new Error("XML 오류 응답: 활용 승인·키 확인 필요");
+    const data = JSON.parse(text);
+    const code = data.response?.header?.resultCode;
+    if (code === undefined || !/^0+$/.test(String(code)))
+      throw new Error(`API resultCode=${String(code).slice(0, 12)}`);
+    return {
+      name: check.name,
+      status: "ok",
+      durationMs: Math.round(performance.now() - started),
+      ...check.inspect(data.response.body ?? {}),
+    };
+  } catch (error) {
+    return {
+      name: check.name,
+      status: "failed",
+      durationMs: Math.round(performance.now() - started),
+      error:
+        error instanceof SyntaxError
+          ? "JSON 파싱 오류"
+          : (error.message ?? "요청 실패").replaceAll(key, "[redacted]"),
+    };
   }
 }
-console.log("──────────────────────────────\n");
+async function probeHighways() {
+  const name = "한국도로공사 실시간 소통";
+  const key = process.env.EX_ROAD_SERVICE_KEY;
+  if (!key) return { name, status: "missing-key", env: "EX_ROAD_SERVICE_KEY" };
+  const url = new URL("https://data.ex.co.kr/openapi/odtraffic/trafficAmountByRealtime");
+  url.searchParams.set("key", key);
+  url.searchParams.set("type", "json");
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (data.code !== "SUCCESS" || !Array.isArray(data.list)) throw new Error("응답 형식 오류");
+    const rows = data.list.filter((x) => ["0500", "0600", "0650"].includes(x.routeNo));
+    if (!rows.length) throw new Error("강원 연결 노선 자료 없음");
+    return {
+      name,
+      status: "ok",
+      rows: rows.length,
+      observedAt: `${rows[0].stdDate}${rows[0].stdHour}`,
+    };
+  } catch {
+    return { name, status: "failed", error: "도로공사 호출·응답 실패" };
+  }
+}
+const results = await Promise.all([...checks.map(probe), probeHighways()]);
+console.log(JSON.stringify({ checkedAt: now.toISOString(), results }, null, 2));
+process.exitCode = results.some((r) => r.status === "failed")
+  ? 1
+  : results.some((r) => r.status === "missing-key")
+    ? 2
+    : 0;

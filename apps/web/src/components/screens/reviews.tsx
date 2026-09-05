@@ -46,9 +46,9 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
   };
 
   return (
-    <div className="screen-enter">
+    <div className="screen-enter reading-page">
       <div className="topbar elev">
-        <button className="icon-btn" onClick={back}>
+        <button className="icon-btn" onClick={back} aria-label="뒤로가기">
           <Icon.back />
         </button>
         <h1>{lang === "ko" ? "리뷰 · 방문 기록" : "Reviews & visits"}</h1>
@@ -56,14 +56,15 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
       </div>
 
       <div className="seg-tabs">
-        <button className={"seg" + (tab === "reviews" ? " on" : "")} onClick={() => setTab("reviews")}>
+        <button aria-pressed={tab === "reviews"} className={"seg" + (tab === "reviews" ? " on" : "")} onClick={() => setTab("reviews")}>
           {lang === "ko" ? "리뷰" : "Reviews"} <span className="seg-n">{reviewRows.length}</span>
         </button>
-        <button className={"seg" + (tab === "visits" ? " on" : "")} onClick={() => setTab("visits")}>
+        <button aria-pressed={tab === "visits"} className={"seg" + (tab === "visits" ? " on" : "")} onClick={() => setTab("visits")}>
           {lang === "ko" ? "방문 기록" : "Visits"} <span className="seg-n">{visitRows.length}</span>
         </button>
       </div>
 
+      {(tab === "reviews" ? reviewRows : visitRows).length === 0 && <div className="empty-state" style={{margin:"24px 20px"}}><Icon.pin /><h2>{tab === "reviews" ? "아직 남긴 리뷰가 없어요" : "아직 방문 기록이 없어요"}</h2><p>다녀온 장소의 상세 화면에서 첫 기록을 남겨보세요.</p><button className="btn btn-secondary" onClick={() => nav("discover")}>여행 장소 둘러보기</button></div>}
       {tab === "reviews" ? (
         <div className="desk-2" style={{ padding: "16px 20px 28px", display: "grid", gap: 10 }}>
           {reviewRows.map(({ review, spot }) => (
@@ -219,7 +220,7 @@ function EditableReviewCard({
                 <button className="link-sm" disabled={disabled} onClick={() => setEditing(true)}>
                   {lang === "ko" ? "수정" : "Edit"}
                 </button>
-                <button className="link-sm" disabled={disabled} onClick={() => onDelete(review)} style={{ color: "var(--busy)" }}>
+                <button className="link-sm" disabled={disabled} onClick={() => { if (window.confirm("이 리뷰를 삭제할까요? 삭제한 리뷰는 복구할 수 없어요.")) onDelete(review); }} style={{ color: "var(--busy)" }}>
                   {lang === "ko" ? "삭제" : "Delete"}
                 </button>
               </span>
@@ -299,7 +300,7 @@ function EditableVisitRow({
               <button className="link-sm" disabled={disabled || !visit.id} onClick={() => setEditing(true)}>
                 {lang === "ko" ? "수정" : "Edit"}
               </button>
-              <button className="link-sm" disabled={disabled || !visit.id} onClick={() => onDelete(visit)} style={{ color: "var(--busy)" }}>
+              <button className="link-sm" disabled={disabled || !visit.id} onClick={() => { if (window.confirm("이 방문 기록을 삭제할까요?")) onDelete(visit); }} style={{ color: "var(--busy)" }}>
                 {lang === "ko" ? "삭제" : "Delete"}
               </button>
             </>

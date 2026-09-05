@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
 test("홈에서 자연어로 코스까지 도달한다", async ({ page }) => {
   await page.goto("/");
 
-  const input = page.getByPlaceholder("예) 조용한 여행");
+  const input = page.getByRole("textbox", { name: "여행 목적" });
   await input.fill("바다 보고 힐링");
   await input.press("Enter");
 
@@ -20,7 +20,7 @@ test("홈에서 자연어로 코스까지 도달한다", async ({ page }) => {
 
   // 타임라인 렌더: 시간 표기(HH:MM) 항목이 1개 이상 + 저장 CTA 노출
   await expect(page.getByText(/^\d{2}:\d{2}$/).first()).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("button", { name: /내 여행에 저장|저장 해제/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /내 여행에 저장|저장 해제/ }).last()).toBeVisible();
 
   // §6.3 회귀: 코스→뒤로가기→테마→뒤로가기 시 /result 재진입("조회중" 루프) 없이 홈으로
   await page.goBack(); // → theme

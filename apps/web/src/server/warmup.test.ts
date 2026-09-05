@@ -41,7 +41,7 @@ describe("warmupRealtimeCaches", () => {
     const { deps, cachedKeys, counts } = makeDeps();
     const result = await warmupRealtimeCaches(deps);
 
-    const wxKeys = cachedKeys.filter((k) => k.startsWith("wx:g"));
+    const wxKeys = cachedKeys.filter((k) => k.startsWith("wx:v2:g"));
     const airKeys = cachedKeys.filter((k) => k.startsWith("air:"));
     // 스팟 수(9)보다 적은 유니크 격자만 — 같은 격자 스팟(속초시장/동명항)은 1회 공유
     expect(new Set(wxKeys)).toEqual(expectedGridKeys);
@@ -57,7 +57,7 @@ describe("warmupRealtimeCaches", () => {
     const { deps, cachedKeys } = makeDeps();
     await warmupRealtimeCaches(deps);
     // repository.ts: weatherCacheKey(lat,lon) / `air:${region}`
-    for (const key of cachedKeys) expect(key).toMatch(/^(wx:g-?\d+,-?\d+|air:[a-z]+)$/);
+    for (const key of cachedKeys) expect(key).toMatch(/^(wx:v2:g-?\d+,-?\d+|air:[a-z]+)$/);
   });
 
   it("개별 실패를 삼키고 성공/실패 건수만 보고한다 (기동에 영향 없음)", async () => {

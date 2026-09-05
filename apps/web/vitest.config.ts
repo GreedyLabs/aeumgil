@@ -35,9 +35,7 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.ts"],
     // 공공 API 클라이언트는 requireEnv 로 키를 요구 → 테스트용 더미 키 주입(fetch 는 목).
     env: {
-      TOUR_API_SERVICE_KEY: "test-key",
-      KMA_SERVICE_KEY: "test-key",
-      AIRKOREA_SERVICE_KEY: "test-key",
+      DATA_GO_KR_SERVICE_KEY: "test-key",
       // 실 캐시 파일과 격리 (위 주석 참고)
       EUMGIL_CACHE_DIR: TEST_CACHE_DIR,
     },

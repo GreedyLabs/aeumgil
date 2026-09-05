@@ -30,13 +30,16 @@ FROM base AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    EUMGIL_CACHE_DIR=/app/cache
 RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
 
 # standalone bundle keeps the monorepo layout (apps/web/server.js + traced node_modules).
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+
+RUN mkdir -p /app/cache && chown nextjs:nodejs /app/cache
 
 USER nextjs
 EXPOSE 3000

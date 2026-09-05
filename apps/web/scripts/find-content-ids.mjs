@@ -7,7 +7,7 @@
 //   (또는) node --env-file=.env apps/web/scripts/find-content-ids.mjs
 //
 // 출력:
-//   1) 9개 큐레이션 스팟별 TourAPI searchKeyword2(강원 areaCode=32) 후보
+//   1) 9개 큐레이션 스팟별 TourAPI searchKeyword2(강원 lDongRegnCd=51) 후보
 //      → contentId / title / addr / mapx(경도) / mapy(위도)
 //   2) 기상청 getVilageFcst 샘플 1건의 category 목록 (정규화 검증·테스트 픽스처용)
 //   3) 에어코리아 강원 측정정보 샘플 item 1건의 필드
@@ -15,9 +15,9 @@
 // 이 출력을 그대로 붙여주면 → spot-mapping.ts 시드 확정 + API 정규화 테스트(②) 작성.
 // ─────────────────────────────────────────────
 
-const TOUR = process.env.TOUR_API_SERVICE_KEY;
-const KMA = process.env.KMA_SERVICE_KEY;
-const AIR = process.env.AIRKOREA_SERVICE_KEY;
+const TOUR = process.env.DATA_GO_KR_SERVICE_KEY;
+const KMA = process.env.DATA_GO_KR_SERVICE_KEY;
+const AIR = process.env.DATA_GO_KR_SERVICE_KEY;
 
 // ── 격자 변환 (grid.ts 와 동일 표준식) ──
 const DEGRAD = Math.PI / 180;
@@ -82,13 +82,13 @@ const SPOTS = [
   ["jumunjin-cafe", ["주문진 카페", "주문진해변", "주문진"]],
 ];
 
-const TOUR_BASE = "http://apis.data.go.kr/B551011/KorService2";
+const TOUR_BASE = "https://apis.data.go.kr/B551011/KorService2";
 const COMMON = { MobileOS: "ETC", MobileApp: "eumgil", _type: "json" };
 
 async function searchOnce(keyword) {
   const url = buildUrl(
     `${TOUR_BASE}/searchKeyword2`,
-    { ...COMMON, areaCode: 32, keyword, numOfRows: 5, pageNo: 1, arrange: "C" },
+    { ...COMMON, lDongRegnCd: 51, keyword, numOfRows: 100, pageNo: 1, arrange: "C" },
     TOUR,
   );
   const data = await getJson(url);
@@ -150,7 +150,7 @@ async function main() {
     }
     const baseDate = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`;
     const url = buildUrl(
-      "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst",
+      "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst",
       { dataType: "JSON", MobileOS: "ETC", MobileApp: "eumgil", numOfRows: 60, pageNo: 1, base_date: baseDate, base_time: `${String(slot).padStart(2, "0")}00`, nx, ny },
       KMA,
     );
@@ -168,7 +168,7 @@ async function main() {
   console.log("\n══════════ 3) 에어코리아 강원 측정 샘플 ══════════");
   try {
     const url = buildUrl(
-      "http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
+      "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
       { returnType: "json", numOfRows: 5, pageNo: 1, sidoName: "강원", ver: "1.3" },
       AIR,
     );
@@ -188,7 +188,7 @@ async function main() {
   console.log("\n══════════ 4) 강원 측정소 전체 목록 ══════════");
   try {
     const url = buildUrl(
-      "http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
+      "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
       { returnType: "json", numOfRows: 100, pageNo: 1, sidoName: "강원", ver: "1.3" },
       AIR,
     );

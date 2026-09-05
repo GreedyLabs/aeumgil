@@ -37,8 +37,8 @@ function defaultDeps(): WarmupDeps {
     cached: apiCache.cached,
     weather: getWeatherByCoords,
     air: getAirForStation,
-    hasWeatherKey: Boolean(env.KMA_SERVICE_KEY),
-    hasAirKey: Boolean(env.AIRKOREA_SERVICE_KEY),
+    hasWeatherKey: Boolean(env.DATA_GO_KR_SERVICE_KEY),
+    hasAirKey: Boolean(env.DATA_GO_KR_SERVICE_KEY),
   };
 }
 

@@ -11,9 +11,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { DATA } from "@/design/data";
 import { Sidebar, TabBar } from "@/design/ui";
 import { urlForTab } from "@/lib/nav";
+import { safeReturnTo } from "@/lib/auth-return-to";
 
 // 프로토타입 발표용 고정 설정 (design-host 의 tweak 패널 대체)
 export const TWEAKS = {
@@ -28,17 +28,16 @@ type Lang = "ko" | "en";
 
 interface AuthState {
   member: boolean;
-  user: typeof DATA.USER;
+  user: { name: string; email: string; avatar: string };
 }
 
 interface AppState {
   lang: Lang;
   tweaks: typeof TWEAKS;
   auth: AuthState;
-  login: (providerId: string) => void;
+  login: (providerId: string, returnTo?: string) => Promise<void>;
   logout: () => void;
   requireAuth: (reason: string, onOk?: () => void) => boolean;
-  addToCourse: () => void;
   showToast: (msg: string) => void;
 }
 
@@ -50,31 +49,16 @@ export function useAppState(): AppState {
   return ctx;
 }
 
-const PROVIDER_NAMES: Record<string, string> = {
-  keycloak: "통합 계정",
-  kakao: "카카오",
-  naver: "네이버",
-  google: "Google",
-  apple: "Apple",
-};
-
-function userFromSession(sessionUser: { name?: string | null; email?: string | null; image?: string | null } | undefined): typeof DATA.USER {
-  if (!sessionUser) return DATA.USER;
-  const name = sessionUser.name || DATA.USER.name_ko;
-  return {
-    ...DATA.USER,
-    name_ko: name,
-    name_en: name,
-    email: sessionUser.email ?? DATA.USER.email,
-    avatar: sessionUser.image ?? "",
-  };
+function userFromSession(user: { name?: string | null; email?: string | null; image?: string | null } | undefined): AuthState["user"] {
+  return { name: user?.name || "여행자", email: user?.email ?? "", avatar: user?.image ?? "" };
 }
 
 function activeTabFor(pathname: string): string {
   if (pathname === "/" || pathname.startsWith("/result")) return "home";
+  if (pathname.startsWith("/map")) return "map";
   if (/^\/(discover|theme|course|spot|alternatives)/.test(pathname)) return "discover";
   if (pathname.startsWith("/saved")) return "saved";
-  if (/^\/(profile|reviews|settings|doc)/.test(pathname)) return "profile";
+  if (/^\/(profile|reviews|settings|doc|login)/.test(pathname)) return "profile";
   return "home";
 }
 
@@ -87,6 +71,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const palette = TWEAKS.palette;
 
   const [toast, setToast] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    try { setSidebarCollapsed(localStorage.getItem("eumgil.sidebar.collapsed") === "true"); } catch { /* 저장소 사용 불가 시 기본 폭 유지 */ }
+  }, []);
+  const toggleSidebar = () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try { localStorage.setItem("eumgil.sidebar.collapsed", String(next)); } catch { /* 현재 탭에서는 계속 사용 가능 */ }
+  };
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const auth = useMemo<AuthState>(
     () => ({
@@ -113,18 +106,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onOk?.();
         return true;
       }
-      router.push(`/login?reason=${encodeURIComponent(reason)}`);
+      const returnTo = safeReturnTo(window.location.pathname + window.location.search);
+      router.push(`/login?reason=${encodeURIComponent(reason)}&returnTo=${encodeURIComponent(returnTo)}`);
       return false;
     },
     [auth.member, router],
   );
 
   const login = useCallback(
-    (providerId: string) => {
-      showToast(`${PROVIDER_NAMES[providerId] ?? ""}로 로그인했어요`);
-      void signIn(providerId, { callbackUrl: "/profile" });
+    async (providerId: string, returnTo?: string) => {
+      await signIn(providerId, { callbackUrl: safeReturnTo(returnTo) }, { ui_locales: lang });
     },
-    [showToast],
+    [lang],
   );
 
   const logout = useCallback(async () => {
@@ -137,10 +130,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.location.assign(logoutUrl || "/api/auth/keycloak/logout");
   }, [showToast]);
 
-  const addToCourse = useCallback(() => {
-    requireAuth("course", () => showToast("내 코스에 담았어요"));
-  }, [requireAuth, showToast]);
-
   const ctx: AppState = {
     lang,
     tweaks: TWEAKS,
@@ -148,20 +137,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     login,
     logout,
     requireAuth,
-    addToCourse,
     showToast,
   };
 
   const activeTab = activeTabFor(pathname);
-  const showChrome = !/^\/(result|login|onboarding)/.test(pathname);
+  const showChrome = !/^\/(result|onboarding)/.test(pathname);
 
   const goTab = (id: string) => router.push(urlForTab(id));
 
   return (
     <AppStateContext.Provider value={ctx}>
-      <div className="app-shell">
+      <div className={`app-shell${showChrome ? (sidebarCollapsed ? " app-shell-collapsed" : "") : " app-shell-focus"}`}>
+        <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
         {showChrome && (
           <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={toggleSidebar}
             active={activeTab}
             onNav={goTab}
             lang={lang}
@@ -171,13 +162,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
         )}
         <div className="app-screen">
-          <div className="screen-body" key={pathname}>
+          <main className="screen-body" key={pathname} id="main-content">
             {children}
-          </div>
+          </main>
           {showChrome && <TabBar active={activeTab} onNav={goTab} lang={lang} />}
         </div>
         {toast && (
-          <div className="toast">
+          <div className="toast" role="status" aria-live="polite">
             <span style={{ display: "inline-flex" }}>✓</span>
             {toast}
           </div>

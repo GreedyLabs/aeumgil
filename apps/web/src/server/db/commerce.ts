@@ -21,6 +21,11 @@ export function mapEatRow(row: CommerceRow): Eat {
     price: row.priceKo,
     rating: row.rating,
     region: L(row.regionKo, row.regionEn ?? undefined),
+    imageUrl: row.imageUrl ?? undefined,
+    address: row.addr ?? undefined,
+    telephone: row.tel ?? undefined,
+    lat: row.lat ?? undefined,
+    lon: row.lon ?? undefined,
   };
 }
 
@@ -32,6 +37,11 @@ export function mapStayRow(row: CommerceRow): Stay {
     price: L(row.priceKo, row.priceEn ?? undefined),
     rating: row.rating,
     region: L(row.regionKo, row.regionEn ?? undefined),
+    imageUrl: row.imageUrl ?? undefined,
+    address: row.addr ?? undefined,
+    telephone: row.tel ?? undefined,
+    lat: row.lat ?? undefined,
+    lon: row.lon ?? undefined,
   };
 }
 

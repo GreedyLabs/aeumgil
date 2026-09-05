@@ -34,11 +34,29 @@ export interface Theme {
   spotCount: number;
   mood: LocalizedText[];
   blurb: LocalizedText;
+  /** 테마에 속한 실제 관광지의 대표 사진과 장소명. */
+  imageUrl?: string;
+
+  imageLabel?: LocalizedText;
 }
 
 /** 추천 예시 프롬프트 */
 export interface SamplePrompt {
   text: LocalizedText;
+}
+
+export interface Festival {
+  id: string;
+  name: LocalizedText;
+  startsOn: string;
+  endsOn: string;
+  address: string;
+  imageUrl?: string;
+}
+
+export interface FestivalListing {
+  status: "available" | "unavailable";
+  items: Festival[];
 }
 
 /** 자연어 매칭 결과 */
@@ -55,6 +73,21 @@ export interface Spot {
   type: LocalizedText;
   region: LocalizedText;
   congestion: Congestion;
+  /** DB 큐레이션 prior와 현재 추정을 분리한다. */
+  baselineCongestion?: Congestion;
+  themeIds?: string[];
+  environment?: "beach" | "mountain" | "inland";
+  crowdHourly?: { hour: number; index: number }[];
+  conditions?: {
+    weather: "available" | "unavailable";
+    air: "available" | "unavailable";
+    forecastAt?: string;
+    airObservedAt?: string;
+    airStation?: string;
+    airScope?: "station" | "province";
+    pm10?: number;
+    pm25?: number;
+  };
   /** 혼잡 분산 안내 — 가장 한산한 추천 방문 시간대 (Phase 3 동적 산출, 없으면 미표시) */
   crowdTip?: LocalizedText;
   /** 방문 적합성 점수 0~100 (Phase 3에서 실시간 산출 예정) */
@@ -74,6 +107,20 @@ export interface Spot {
   lon?: number;
   /** 실제 원천 이미지 URL. TourAPI firstimage 또는 운영 DB에 검증 저장된 URL만 사용한다. */
   imageUrl?: string;
+  /** 출처와 이용 조건을 보존한 원본 사진. */
+  photos?: { url: string; label: string; license: string }[];
+  visitInfo?: {
+    hours?: string;
+    closed?: string;
+    fees?: string;
+    parking?: string;
+    phone?: string;
+    address?: string;
+  };
+  /** 관광공사의 일별 방문 집중률 예측. 시간대별 자체 추정과 구분한다. */
+  highways?: HighwayStatus[];
+  uv?: { index: number; forecastAt: string; issuedAt: string };
+  crowdForecast?: { place: string; fetchedAt: string; days: { date: string; rate: number }[] };
 }
 
 // ── 음식점 / 숙박 ─────────────────────────
@@ -85,6 +132,11 @@ export interface Eat {
   price: string;
   rating: number;
   region: LocalizedText;
+  imageUrl?: string;
+  address?: string;
+  telephone?: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface Stay {
@@ -95,6 +147,11 @@ export interface Stay {
   price: LocalizedText;
   rating: number;
   region: LocalizedText;
+  imageUrl?: string;
+  address?: string;
+  telephone?: string;
+  lat?: number;
+  lon?: number;
 }
 
 // ── 코스 ──────────────────────────────────
@@ -108,6 +165,8 @@ export interface CourseItem {
   refId: string;
   /** spot/eat 의 권장 체류 시간(분) */
   durationMin?: number;
+  /** 이전 관광지에서의 예상 이동시간(분). 식사·숙박의 상세 이동은 별도 확인. */
+  travelMinutes?: number;
 }
 
 export interface Course {
@@ -202,4 +261,18 @@ export interface AuthProvider {
 export interface KeywordRule {
   keywords: string[];
   themeId: string;
+}
+
+/** 특정 공개 표본일의 시군구별 방문 규모. 실시간 인원·관광객 수와 다르다. */
+export interface RegionalVisitors {
+  date: string;
+  regions: { key: string; name: LocalizedText; domestic: number; foreign: number }[];
+}
+
+export interface HighwayStatus {
+  route: string;
+  segments: number;
+  slowSegments: number;
+  observedAt: string;
+  slow: { name: string; speed: number }[];
 }

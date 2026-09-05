@@ -65,7 +65,7 @@ interface NormalizedComposeOptions {
   maxSpotsPerDay: number;
 }
 
-const DEFAULT_TIMES = ["10:00", "14:00", "16:30"];
+const DEFAULT_TIMES = ["09:00", "11:00", "14:00", "16:30"];
 
 function congestionScore(spot: Spot): number {
   if (spot.congestion === "calm") return 24;
@@ -230,9 +230,9 @@ function pickSpotForSlot(
   routeContext: RouteContext = {},
 ): Spot | undefined {
   const candidates = uniqueById([...(original ? [original] : []), ...alternatives]).filter(
-    (s) => !used.has(s.id) || s.id === original?.id,
+    (s) => !used.has(s.id),
   );
-  if (candidates.length === 0) return original;
+  if (candidates.length === 0) return undefined;
   return candidates.sort((a, b) => scoreSpot(theme, b, original, options, routeContext) - scoreSpot(theme, a, original, options, routeContext))[0];
 }
 
@@ -298,20 +298,30 @@ function note(changedSpotIds: string[], changedCommerce: boolean): Course["altNo
   const koParts: string[] = [];
   const enParts: string[] = [];
   if (changedSpotIds.length > 0) {
-    koParts.push(`혼잡도가 높은 ${changedSpotIds.length}개 장소를 같은 테마의 후보지로 교체`);
+    koParts.push(`${changedSpotIds.length}개 장소를 여행 조건에 맞는 같은 테마 후보로 조정`);
     enParts.push(`swapped ${changedSpotIds.length} crowded stop(s) for same-theme alternatives`);
   }
   if (changedCommerce) {
     koParts.push("식사·숙박을 이동 권역에 맞춰 재배치");
     enParts.push("reselected meals/stays by route region");
   }
-  return L(`코스 생성 엔진: ${koParts.join(", ")}했어요.`, `Course composer ${enParts.join(" and ")}.`);
+  return L(`${koParts.join(", ")}했어요.`, `Course composer ${enParts.join(" and ")}.`);
 }
 
 function composeFromTemplate(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
   const base = input.baseCourse as Course;
   const targetDayCount = options.days ?? base.dayCount;
-  const templateItems = base.items.filter((it) => it.day <= targetDayCount);
+  // 연장 일정은 템플릿에 없는 날짜를 만들지 않고 후보 풀에서 다시 배치한다.
+  if (targetDayCount > base.dayCount) return composeFromScratch(input, { ...options, days: targetDayCount });
+  const daySpotCounts = new Map<number, number>();
+  const templateItems = sortItems(base.items).filter((it) => {
+    if (it.day > targetDayCount) return false;
+    if (it.kind === "stay" && it.day >= targetDayCount) return false;
+    if (it.kind !== "spot") return true;
+    const count = (daySpotCounts.get(it.day) ?? 0) + 1;
+    daySpotCounts.set(it.day, count);
+    return count <= options.maxSpotsPerDay;
+  });
   const spotsById = new Map(input.spots.map((s) => [s.id, s]));
   const baseSpotItemsByDay = new Map<number, CourseItem[]>();
   for (const it of templateItems) {
@@ -340,7 +350,7 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
       options,
       { prev, next, mode: options.transport, lookup: options.travelTimeLookup },
     );
-    if (!picked) return { ...it };
+    if (!picked) return { ...it, refId: "" };
     usedSpots.add(picked.id);
     if (!spotRegionByDay.has(it.day)) spotRegionByDay.set(it.day, localized(picked.region, "ko"));
     if (picked.id !== it.refId) changedSpotIds.push(it.refId);
@@ -371,21 +381,30 @@ function composeFromTemplate(input: ComposeCourseInput, options: NormalizedCompo
     ...base,
     dayCount: targetDayCount,
     altNote: note(changedSpotIds, changedCommerce) ?? base.altNote,
-    items: sortItems(items),
+    items: sortItems(items.filter((it) => {
+      if (it.kind === "spot") return Boolean(it.refId);
+      if (it.kind === "eat") return input.eats.some((e) => e.id === it.refId);
+      return input.stays.some((st) => st.id === it.refId);
+    })),
   };
 }
 
 function composeFromScratch(input: ComposeCourseInput, options: NormalizedComposeOptions): Course {
   const dayCount = options.days ?? input.dayCount ?? inferDayCount(input.theme);
-  const pickedSpots = pickScratchSpots(input, dayCount, options);
+  // 각 날짜에 적어도 한 장소를 배치한다. 부족한 후보로 빈 Day를 만들지 않는다.
+  const actualDays = Math.min(dayCount, uniqueById(input.spots).length);
+  const perDay = Math.min(options.maxSpotsPerDay, Math.max(1, Math.ceil(input.spots.length / actualDays)));
+  const pickedSpots = pickScratchSpots(input, actualDays, { ...options, maxSpotsPerDay: perDay });
 
   const usedEats = new Set<string>();
   const usedStays = new Set<string>();
   const items: CourseItem[] = [];
 
+  const slotsUsed = new Map<number, number>();
   for (let i = 0; i < pickedSpots.length; i++) {
-    const day = Math.floor(i / options.maxSpotsPerDay) + 1;
-    const slot = i % options.maxSpotsPerDay;
+    const day = Math.floor(i * actualDays / pickedSpots.length) + 1;
+    const slot = slotsUsed.get(day) ?? 0;
+    slotsUsed.set(day, slot + 1);
     const spot = pickedSpots[i]!;
     items.push({ kind: "spot", day, time: DEFAULT_TIMES[slot] ?? "16:30", refId: spot.id, durationMin: slot === 0 ? 90 : 60 });
     if (slot === 0) {
@@ -395,7 +414,7 @@ function composeFromScratch(input: ComposeCourseInput, options: NormalizedCompos
         items.push({ kind: "eat", day, time: "12:30", refId: eat.id });
       }
     }
-    if (day < dayCount && slot === options.maxSpotsPerDay - 1) {
+    if (day < actualDays && Math.floor((i + 1) * actualDays / pickedSpots.length) + 1 > day) {
       const stay = pickByRegion(input.stays, localized(spot.region, "ko"), usedStays);
       if (stay) {
         usedStays.add(stay.id);
@@ -407,8 +426,8 @@ function composeFromScratch(input: ComposeCourseInput, options: NormalizedCompos
   return {
     themeId: input.theme.id,
     title: L(`${localized(input.theme.title, "ko")} 맞춤 코스`, `${localized(input.theme.title, "en")} custom itinerary`),
-    dayCount,
-    altNote: L("코스 생성 엔진: 후보 POI·식사·숙박을 테마와 권역 기준으로 조합했어요.", "Course composer assembled stops, meals, and stays by theme and region."),
+    dayCount: Math.max(1, ...items.map((it) => it.day)),
+    altNote: L("관광지·식사·숙박을 테마와 권역에 맞춰 연결했어요.", "Course composer assembled stops, meals, and stays by theme and region."),
     items: sortItems(items),
   };
 }
@@ -425,7 +444,10 @@ export function composeCourse(input: ComposeCourseInput, options: ComposeCourseO
     maxSpotsPerDay: options.maxSpotsPerDay ?? spotsPerDayForPace(options.pace),
   };
 
-  if (input.baseCourse) return composeFromTemplate(input, normalized);
   if (input.spots.length === 0) return null;
+  if (input.baseCourse) {
+    const course = composeFromTemplate(input, normalized);
+    if (course.items.some((it) => it.kind === "spot")) return course;
+  }
   return composeFromScratch(input, normalized);
 }

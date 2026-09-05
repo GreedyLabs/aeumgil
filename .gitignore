@@ -46,3 +46,6 @@ _tmp_*
 
 # Keycloak 커스텀 IdP SPI jar (바이너리 — pnpm keycloak:providers 로 다운로드)
 infra/keycloak/providers/*.jar
+
+# 로컬 운영 realm 내보내기 (자격증명 포함 가능)
+infra/keycloak/import/eumgil-realm.prod.json

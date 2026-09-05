@@ -119,15 +119,13 @@ describe("LiveRepository.getCourse — DB 코스 카탈로그 배선", () => {
     expect(course!.items.some((item) => item.kind === "spot" && item.refId === "db-only-beach")).toBe(true);
   });
 
-  it("DB 후보가 빈 배열이면 baseCourse 템플릿만 유지하고 seed 후보로 폴백하지 않는다", async () => {
+  it("DB 후보가 빈 배열이면 존재하지 않는 장소의 코스를 만들지 않는다", async () => {
     mocks.fetchDefaultCourseTemplate.mockResolvedValue(dbTemplate);
     mocks.fetchSpotProfilesForTheme.mockResolvedValue([]);
 
     const course = await new LiveRepository().getCourse("east-sea-sunrise");
 
-    expect(course).not.toBeNull();
-    const spotRefs = course!.items.filter((item) => item.kind === "spot").map((item) => item.refId);
-    expect(spotRefs).toEqual(["db-template-spot"]);
+    expect(course).toBeNull();
   });
 
   it("Repository options 를 composer 로 전달해 startRegion 조건을 반영한다", async () => {

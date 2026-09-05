@@ -166,7 +166,7 @@ export function estimateCongestion(input: CongestionInput): CongestionEstimate {
     level === "busy"
       ? L(`지금 붐빔 — ${bestTxt}에 방문하면 비교적 한산`, `Busy now — visiting around ${bestTxt} is quieter`)
       : level === "moderate"
-        ? L(`보통 — ${bestTxt}이 가장 한산`, `Moderate — ${bestTxt} is the quietest`)
+        ? L(`보통 — ${bestTxt}에 가장 한산`, `Moderate — ${bestTxt} is the quietest`)
         : L("지금도 한산 — 방문하기 좋은 때", "Quiet now — a good time to visit");
 
   // 혼잡 가중 사유

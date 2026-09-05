@@ -1,0 +1,58 @@
+"use client";
+
+import type { FestivalListing } from "@/domain/types";
+import { UI, Icon } from "./_ui";
+
+export function FestivalList({ listing }: { listing: FestivalListing }) {
+  return (
+    <section className="festival-section" aria-label="다가오는 강원 행사">
+      <div className="results-heading">
+        <h2>
+          다가오는 강원 행사 <span>{listing.items.length}</span>
+        </h2>
+        <span>앞으로 30일 · 한국관광공사</span>
+      </div>
+      <p className="section-description">
+        오늘부터 30일 안에 시작하는 행사예요. 일정은 주최 측 사정에 따라 달라질 수 있어요.
+      </p>
+      {listing.items.length ? (
+        <div className="commerce-grid">
+          {listing.items.map((event) => (
+            <article className="card festival-card" key={event.id}>
+              <UI.Placeholder label={event.name.ko} src={event.imageUrl} h={190} />
+              <div className="commerce-body">
+                <span className="eyebrow">
+                  {event.startsOn.replaceAll("-", ".")} — {event.endsOn.replaceAll("-", ".")}
+                </span>
+                <h3>{event.name.ko}</h3>
+                <p>{event.address}</p>
+                <a
+                  className="text-link"
+                  href={`https://map.kakao.com/link/search/${encodeURIComponent(event.address || event.name.ko)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  행사장 위치 보기 <Icon.chevR />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <Icon.clock />
+          <h2>
+            {listing.status === "available"
+              ? "공개된 예정 행사가 없어요"
+              : "행사 정보를 불러오지 못했어요"}
+          </h2>
+          <p>
+            {listing.status === "available"
+              ? "현재 조회 기간에 등록된 강원 행사 정보가 없어요. 테마 코스에서 여행을 찾아보세요."
+              : "잠시 후 다시 확인해 주세요. 테마 코스는 계속 살펴볼 수 있어요."}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}

@@ -13,7 +13,6 @@ const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().u
 
 const schema = z.object({
   // 앱
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   /** 디버그 로그 네임스페이스 (예: "1"=전체, "http,cache"=일부). server/log.ts */
   EUMGIL_DEBUG: z.string().optional(),
   /** 응답 캐시 파일 디렉터리 (기본: OS 임시). server/cache.ts */
@@ -29,10 +28,7 @@ const schema = z.object({
   DATABASE_SCHEMA: z.string().optional(),
 
   // 공공데이터 OpenAPI
-  TOUR_API_SERVICE_KEY: z.string().optional(),
-  TOUR_BIGDATA_SERVICE_KEY: z.string().optional(),
-  KMA_SERVICE_KEY: z.string().optional(),
-  AIRKOREA_SERVICE_KEY: z.string().optional(),
+  DATA_GO_KR_SERVICE_KEY: z.string().optional(),
   EX_ROAD_SERVICE_KEY: z.string().optional(),
 
   // 길찾기/이동시간 API

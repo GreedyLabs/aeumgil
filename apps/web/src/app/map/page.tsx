@@ -5,7 +5,12 @@ import { getSpotMapping } from "@/data/live/spot-mapping";
 
 // 지도는 목록성 화면이라 enrich:false(§2.3) — 혼잡 등급은 시각·요일 기반 모델로
 // 서버에서 산출하고, 좌표는 스팟 프로필(없으면 큐레이션 매핑)에서 내려준다.
-export default async function MapPage() {
+export default async function MapPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ region?: string }>;
+}) {
+  const { region } = await searchParams;
   const spots = await getRepository().listSpots({ enrich: false });
   const at = nowKst();
 
@@ -14,8 +19,18 @@ export default async function MapPage() {
     const lat = s.lat ?? m?.lat;
     const lon = s.lon ?? m?.lon;
     if (lat === undefined || lon === undefined) return []; // 좌표 없는 스팟은 지도 미표시
-    return [{ id: s.id, name: s.name, lat, lon, congestion: congestionNow(s, at) }];
+    return [
+      {
+        id: s.id,
+        name: s.name,
+        region: s.region,
+        imageUrl: s.imageUrl,
+        lat,
+        lon,
+        congestion: congestionNow(s, at),
+      },
+    ];
   });
 
-  return <MapView pois={pois} />;
+  return <MapView key={region || "all"} pois={pois} initialRegion={region?.slice(0, 30)} />;
 }

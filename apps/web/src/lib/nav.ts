@@ -74,6 +74,7 @@ export function urlFor(name: string, params: NavParams = {}): string {
 const TAB_URL: Record<string, string> = {
   home: "/",
   discover: "/discover",
+  map: "/map",
   saved: "/saved",
   profile: "/profile",
 };

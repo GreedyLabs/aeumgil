@@ -37,18 +37,36 @@ const EXPECTED = {
   spot_profile: [
     "spot_id",
     "name_ko",
+    "name_en",
     "type_ko",
+    "type_en",
     "region_ko",
+    "region_en",
     "theme_ids",
     "tags_ko",
+    "tags_en",
     "baseline_congestion",
     "suitability",
+    "rating",
+    "review_count",
     "default_duration_min",
+    "lat",
+    "lon",
     "env",
+    "source",
+    "source_content_id",
     "image_url",
+    "description_ko",
+    "description_en",
+    "updated_at",
   ],
-  course_template: ["id", "theme_id", "title_ko", "day_count", "is_default", "updated_at"],
-  course_template_item: ["template_id", "seq", "kind", "day", "time", "ref_id"],
+  commerce_profile: [
+    "id", "kind", "name_ko", "name_en", "type_ko", "type_en", "region_ko", "region_en",
+    "price_ko", "price_en", "rating", "addr", "tel", "lat", "lon", "image_url",
+    "source", "source_content_id", "updated_at",
+  ],
+  course_template: ["id", "theme_id", "title_ko", "title_en", "day_count", "alt_note_ko", "alt_note_en", "is_default", "updated_at"],
+  course_template_item: ["template_id", "seq", "kind", "day", "time", "ref_id", "duration_min"],
 };
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
 const masked = URL.replace(/(:\/\/[^:]+:)[^@]+@/, "$1****@");
@@ -95,6 +113,7 @@ try {
         ? `${C.green}모든 테이블 존재 — 스키마 적용 완료.${C.reset}`
         : `${C.yellow}누락/불완전 ${missing.length}개 → ${C.cyan}pnpm --filter @eumgil/web db:apply${C.reset}${C.yellow} 로 보정하세요.${C.reset}`),
   );
+  if (missing.length > 0) process.exitCode = 1;
 } catch (e) {
   console.error(`${C.red}✗ 연결/쿼리 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);
   console.error(`  ${C.gray}호스트/포트/계정/SSL 설정과 DB 기동 여부를 확인하세요.${C.reset}`);

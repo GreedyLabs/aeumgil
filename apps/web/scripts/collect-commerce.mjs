@@ -19,7 +19,7 @@
 const C = { green: "\x1b[32m", red: "\x1b[31m", gray: "\x1b[90m", cyan: "\x1b[36m", yellow: "\x1b[33m", reset: "\x1b[0m" };
 const URL_DB = process.env.DATABASE_URL;
 const SCHEMA = (process.env.DATABASE_SCHEMA || "public").trim();
-const SERVICE_KEY = process.env.TOUR_API_SERVICE_KEY;
+const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY;
 const ROWS = Math.max(1, Math.min(50, Number(process.env.COLLECT_ROWS) || 10));
 
 if (!URL_DB) {
@@ -27,7 +27,7 @@ if (!URL_DB) {
   process.exit(1);
 }
 if (!SERVICE_KEY) {
-  console.error(`${C.red}✗ TOUR_API_SERVICE_KEY 가 비어 있습니다.${C.reset} 루트 .env 를 확인하세요.`);
+  console.error(`${C.red}✗ DATA_GO_KR_SERVICE_KEY 가 비어 있습니다.${C.reset} 루트 .env 를 확인하세요.`);
   process.exit(1);
 }
 if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(SCHEMA)) {
@@ -118,7 +118,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── 시군구 코드 조회: "강릉" ↔ "강릉시" 접두 매칭 ──
 async function resolveSigunguCodes() {
-  const rows = await callTour("areaCode2", { areaCode: 32, numOfRows: 50, pageNo: 1 });
+  const rows = await callTour("ldongCode2", { lDongRegnCd: 51, lDongListYn: "N", numOfRows: 50, pageNo: 1 });
   const resolved = [];
   for (const region of TARGET_REGIONS) {
     const hit = rows.find((r) => typeof r?.name === "string" && r.name.startsWith(region.ko));
@@ -138,19 +138,19 @@ const sql = postgres(URL_DB, { prepare: false, idle_timeout: 5, connect_timeout:
 
 try {
   const regions = await resolveSigunguCodes();
-  if (regions.length === 0) throw new Error("시군구 코드를 하나도 찾지 못했습니다 (areaCode2 응답 확인 필요).");
+  if (regions.length === 0) throw new Error("시군구 코드를 하나도 찾지 못했습니다 (ldongCode2 응답 확인 필요).");
 
   let total = 0;
   for (const region of regions) {
     for (const { kind, contentTypeId, typeOf } of KINDS) {
       await sleep(200); // 쿼터 완화용 직렬 호출
       const items = await callTour("areaBasedList2", {
-        areaCode: 32,
-        sigunguCode: region.sigunguCode,
+        lDongRegnCd: 51,
+        lDongSignguCd: region.sigunguCode,
         contentTypeId,
         numOfRows: ROWS,
         pageNo: 1,
-        arrange: "C", // 수정일순 + 대표이미지 있는 항목 우선
+        arrange: "C", // 수정일순 전체 항목
       });
 
       let n = 0;
@@ -191,7 +191,7 @@ try {
   console.log(`──────────────────────────────\n${C.green}✓ 수집 완료${C.reset} 이번 실행 ${total}건 upsert · 테이블 합계: ${counts.map((r) => `${r.kind} ${r.n}`).join(" · ")}\n`);
 } catch (e) {
   console.error(`${C.red}✗ 수집 실패 — ${e instanceof Error ? e.message : String(e)}${C.reset}`);
-  console.error(`${C.gray}선행 조건: pnpm db:apply (commerce_profile 테이블), TOUR_API_SERVICE_KEY(Decoding 원본 키).${C.reset}`);
+  console.error(`${C.gray}선행 조건: pnpm db:apply (commerce_profile 테이블), DATA_GO_KR_SERVICE_KEY(Decoding 원본 키).${C.reset}`);
   process.exitCode = 1;
 } finally {
   await sql.end({ timeout: 5 });

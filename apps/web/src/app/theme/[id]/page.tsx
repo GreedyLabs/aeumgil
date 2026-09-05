@@ -1,3 +1,4 @@
+import { congestionNow, nowKst } from "@/data/live/congestion-now";
 import { notFound } from "next/navigation";
 import { ThemeResultView } from "@/components/screens/theme-result";
 import { getRepository } from "@/data";
@@ -23,5 +24,6 @@ export default async function ThemePage({
     ? (await Promise.all(altIds.map((a) => repo.getTheme(a)))).filter((t): t is Theme => t !== null)
     : (await repo.listThemes()).filter((t) => t.id !== id);
 
-  return <ThemeResultView theme={theme} alts={alts} query={str(sp.q) ?? ""} />;
+  const spots = (await repo.listSpots({ enrich: false })).filter(spot => spot.themeIds?.includes(id)).map(spot => ({...spot, congestion: congestionNow(spot, nowKst())}));
+  return <ThemeResultView theme={theme} alts={alts} query={str(sp.q) ?? ""} spots={spots} />;
 }

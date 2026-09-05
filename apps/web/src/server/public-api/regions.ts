@@ -41,13 +41,55 @@ export interface RegionInfo {
 // (현재 9개 스팟은 gangneung/sokcho/pyeongchang 만 사용 — 나머지는 권역표 완성용.)
 /** 강원 주요 권역 좌표·측정소 (대표 1점) */
 export const REGIONS: Record<RegionKey, RegionInfo> = {
-  gangneung: { key: "gangneung", ko: "강릉", en: "Gangneung", lat: 37.7519, lon: 128.8761, station: "옥천동" },
-  sokcho: { key: "sokcho", ko: "속초", en: "Sokcho", lat: 38.207, lon: 128.5918, station: "중앙동" },
-  yangyang: { key: "yangyang", ko: "양양", en: "Yangyang", lat: 38.0754, lon: 128.6189, station: "양양읍" },
-  pyeongchang: { key: "pyeongchang", ko: "평창", en: "Pyeongchang", lat: 37.3705, lon: 128.3902, station: "평창읍" },
-  jeongseon: { key: "jeongseon", ko: "정선", en: "Jeongseon", lat: 37.3805, lon: 128.6608, station: "정선읍" },
+  gangneung: {
+    key: "gangneung",
+    ko: "강릉",
+    en: "Gangneung",
+    lat: 37.7519,
+    lon: 128.8761,
+    station: "옥천동",
+  },
+  sokcho: {
+    key: "sokcho",
+    ko: "속초",
+    en: "Sokcho",
+    lat: 38.207,
+    lon: 128.5918,
+    station: "중앙동",
+  },
+  yangyang: {
+    key: "yangyang",
+    ko: "양양",
+    en: "Yangyang",
+    lat: 38.0754,
+    lon: 128.6189,
+    station: "양양읍",
+  },
+  pyeongchang: {
+    key: "pyeongchang",
+    ko: "평창",
+    en: "Pyeongchang",
+    lat: 37.3705,
+    lon: 128.3902,
+    station: "평창읍",
+  },
+  jeongseon: {
+    key: "jeongseon",
+    ko: "정선",
+    en: "Jeongseon",
+    lat: 37.3805,
+    lon: 128.6608,
+    station: "정선읍",
+  },
   inje: { key: "inje", ko: "인제", en: "Inje", lat: 38.0697, lon: 128.1707, station: "인제읍" },
-  chuncheon: { key: "chuncheon", ko: "춘천", en: "Chuncheon", lat: 37.8813, lon: 127.7298, station: "온의동" },
+  chuncheon: {
+    key: "chuncheon",
+    ko: "춘천",
+    en: "Chuncheon",
+    lat: 37.8813,
+    lon: 127.7298,
+    station: "온의동",
+  },
   wonju: { key: "wonju", ko: "원주", en: "Wonju", lat: 37.3422, lon: 127.9202, station: "반곡동" },
 };
 
@@ -58,7 +100,22 @@ export function regionGrid(key: RegionKey): GridXY {
 }
 
 /** 위경도가 있으면 격자, 없으면 권역 대표 격자로 폴백. */
-export function gridForSpot(coords: { lat: number; lon: number } | null, fallback: RegionKey): GridXY {
+export function gridForSpot(
+  coords: { lat: number; lon: number } | null,
+  fallback: RegionKey,
+): GridXY {
   if (coords) return latLonToGrid(coords.lat, coords.lon);
   return regionGrid(fallback);
 }
+
+/** 2026 법정동 시군구 코드. 관광 빅데이터(5자리), 생활기상(10자리)의 공통 기준. */
+export const DISTRICT_CODES: Record<RegionKey, string> = {
+  gangneung: "51150",
+  sokcho: "51210",
+  yangyang: "51830",
+  pyeongchang: "51760",
+  jeongseon: "51770",
+  inje: "51810",
+  chuncheon: "51110",
+  wonju: "51130",
+};

@@ -15,5 +15,5 @@ export default async function SpotPage({ params }: { params: Promise<{ id: strin
     repo.listStays(),
   ]);
 
-  return <SpotView spot={spot} alts={alts} eats={eats.slice(0, 3)} stays={stays.slice(0, 2)} />;
+  return <SpotView spot={spot} alts={alts} eats={eats.filter((e) => e.region.ko === spot.region.ko).slice(0, 3)} stays={stays.filter((s) => s.region.ko === spot.region.ko).slice(0, 2)} />;
 }

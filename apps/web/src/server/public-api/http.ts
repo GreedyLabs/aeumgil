@@ -59,8 +59,11 @@ export async function callDataGoKr<T = unknown>(
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 8000);
 
   let res: Response;
+  let text: string;
   try {
     res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
+    // 헤더뿐 아니라 본문 수신까지 타임아웃으로 제한한다.
+    text = await res.text();
   } catch (e) {
     const reason = e instanceof Error && e.name === "AbortError" ? "타임아웃" : "네트워크 오류";
     log.error(`✗ ${op} ${reason} (${elapsed()}ms)`);
@@ -69,12 +72,10 @@ export async function callDataGoKr<T = unknown>(
     clearTimeout(timer);
   }
 
-  const text = await res.text();
   if (!res.ok) {
     log.error(`✗ ${op} HTTP ${res.status} (${elapsed()}ms)`);
     throw new PublicApiError(`공공API HTTP ${res.status}`, text.slice(0, 300));
   }
-  log.log(`✓ ${op} ${res.status} (${elapsed()}ms)`);
 
   // 키 오류 등은 JSON 을 요청해도 XML 에러 봉투로 오는 경우가 있다.
   const trimmed = text.trimStart();
@@ -88,9 +89,19 @@ export async function callDataGoKr<T = unknown>(
     );
   }
 
+  let data: unknown;
   try {
-    return JSON.parse(text) as T;
+    data = JSON.parse(text);
   } catch {
     throw new PublicApiError("공공API 응답 파싱 실패(JSON 아님)", text.slice(0, 300));
   }
+  // HTTP 200 안에도 인증·쿼터·데이터 없음 오류가 담긴다. 이를 빈 정상값으로 캐시하지 않는다.
+  const header = (data as { response?: { header?: { resultCode?: string | number } } } | null)?.response?.header;
+  if (header?.resultCode !== undefined && !/^0+$/.test(String(header.resultCode))) {
+    const code = String(header.resultCode);
+    log.warn(`✗ ${op} resultCode=${code} (${elapsed()}ms)`);
+    throw new PublicApiError(`공공API 응답 오류 (${code})`, op);
+  }
+  log.log(`✓ ${op} ${res.status} (${elapsed()}ms)`);
+  return data as T;
 }

@@ -1,135 +1,164 @@
 "use client";
 
-// AlternativeView — Phase 1b. 혼잡 분산형 대체지 제안.
 import { useState } from "react";
 import { localized, type LocalizedText } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import { NearbyPlaceCard } from "./nearby-place-card";
 import type { Spot } from "@/domain/types";
-
-const { TopBar, Signal, Placeholder } = UI;
 
 export interface LocalCommerceItem {
   id: string;
   name: LocalizedText;
   type: LocalizedText;
+  region: LocalizedText;
+  kind: "eat" | "stay";
+  imageUrl?: string;
+  address?: string;
 }
 
-interface Props {
+export function AlternativeView({
+  original,
+  alts,
+  localCommerce,
+}: {
   original: Spot;
   alts: Spot[];
   localCommerce: LocalCommerceItem[];
-}
-
-export function AlternativeView({ original, alts, localCommerce }: Props) {
+}) {
   const { lang } = useAppState();
   const { nav, back } = useAppNav();
   const [selected, setSelected] = useState(alts[0]?.id ?? "");
-
-  const alt = alts.find((a) => a.id === selected) ?? alts[0] ?? original;
-
+  const alt = alts.find((a) => a.id === selected) ?? alts[0];
+  const hasScore = (spot: Spot) =>
+    spot.conditions?.weather === "available" && spot.conditions?.air === "available";
+  const regionalCommerce = localCommerce.filter((it) => it.region.ko === alt?.region.ko);
+  const commerce = [
+    ...regionalCommerce.filter((it) => it.kind === "eat").slice(0, 3),
+    ...regionalCommerce.filter((it) => it.kind === "stay").slice(0, 3),
+  ];
   return (
-    <div className="screen-enter">
-      <TopBar title={lang === "ko" ? "대체지 제안" : "Alternatives"} onBack={back} right={<div />} />
-
-      <div style={{ padding: "4px 20px 16px" }}>
-        <div style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, marginBottom: 4, letterSpacing: "0.04em" }}>
-          ✦ {lang === "ko" ? "혼잡 분산 제안" : "Reroute suggestion"}
+    <div className="screen-enter alternative-page">
+      <UI.TopBar title="대체지 비교" onBack={back} right={<div />} />
+      <header className="page-heading">
+        <div>
+          <span className="eyebrow">비슷한 분위기, 새로운 여행</span>
+          <h1>
+            {localized(original.name, lang)} 대신
+            <br />
+            이런 곳은 어떠세요?
+          </h1>
+          <p>혼잡도와 방문 여건을 비교하고, 마음에 드는 장소를 선택하세요.</p>
         </div>
-        <h1 className="serif" style={{ fontSize: 26, margin: 0, lineHeight: 1.15 }}>
-          {lang === "ko" ? (
-            <>
-              <strong style={{ fontFamily: "Pretendard Variable", fontWeight: 700 }}>{localized(original.name, lang)}</strong> 대신
-              <br />
-              이런 곳은 어떠세요?
-            </>
-          ) : (
-            <>
-              Try these
-              <br />
-              instead of <em>{localized(original.name, lang)}</em>
-            </>
-          )}
-        </h1>
-      </div>
-
-      {/* 원래 계획 vs 대체 제안 */}
-      <div style={{ padding: "0 20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div className="card" style={{ padding: 12, opacity: 0.7 }}>
-            <div style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>
-              {lang === "ko" ? "원래 계획" : "Original"}
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{localized(original.name, lang)}</div>
-            <Signal level={original.congestion} lang={lang} />
-            <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 6, fontFamily: "SF Mono, monospace" }}>suitability {original.suitability}</div>
-          </div>
-          <div className="card" style={{ padding: 12, border: "2px solid var(--brand)", background: "var(--brand-soft)" }}>
-            <div style={{ fontSize: 10, color: "var(--brand)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>
-              {lang === "ko" ? "대체 제안" : "Alternative"}
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{localized(alt.name, lang)}</div>
-            <Signal level={alt.congestion} lang={lang} />
-            <div style={{ fontSize: 10, color: "var(--brand)", marginTop: 6, fontFamily: "SF Mono, monospace" }}>
-              suitability {alt.suitability} <span style={{ color: "var(--calm)" }}>↑{alt.suitability - original.suitability}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: "22px 20px 10px" }}>
-        <div className="section-label">{lang === "ko" ? "제안 장소" : "Suggested alternatives"}</div>
-      </div>
-      <div className="desk-2" style={{ padding: "0 20px", display: "grid", gap: 10 }}>
-        {alts.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setSelected(a.id)}
-            className="card"
-            style={{ padding: 10, textAlign: "left", display: "flex", gap: 12, border: selected === a.id ? "2px solid var(--brand)" : "1px solid var(--line)" }}
-          >
-            <Placeholder label={localized(a.name, lang)} src={a.imageUrl} h={70} style={{ width: 80, borderRadius: 10, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 600 }}>{localized(a.name, lang)}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>
-                {localized(a.type, lang)} · {localized(a.region, lang)}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Signal level={a.congestion} lang={lang} />
-                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                  {lang === "ko" ? "적합도" : "Fit"} {a.suitability}
-                </span>
-              </div>
-            </div>
+      </header>
+      {!alt ? (
+        <div className="empty-state">
+          <Icon.discover />
+          <h2>가까운 대체지를 찾지 못했어요</h2>
+          <p>다른 테마에서도 여행지를 찾아볼 수 있어요.</p>
+          <button className="btn btn-primary" onClick={() => nav("discover")}>
+            테마 둘러보기
           </button>
-        ))}
-      </div>
-
-      <div style={{ padding: "24px 20px 0" }}>
-        <div className="section-label">{lang === "ko" ? "인근 로컬 상권" : "Local commerce nearby"}</div>
-        <h2 className="section-title">{lang === "ko" ? "지역을 응원하는 선택" : "Support the area"}</h2>
-      </div>
-      <div className="hscroll">
-        {localCommerce.map((it) => (
-          <div key={it.id} className="card" style={{ width: 160, padding: 0 }}>
-            <Placeholder label="local" id={it.id} h={70} />
-            <div style={{ padding: "8px 12px 12px" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.25 }}>{localized(it.name, lang)}</div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>{localized(it.type, lang)}</div>
+        </div>
+      ) : (
+        <>
+          <div className="detail-layout">
+            <div className="detail-primary">
+              <div className="comparison-grid">
+                {[
+                  { spot: original, label: "살펴보던 장소" },
+                  { spot: alt, label: "선택한 대체지" },
+                ].map(({ spot, label }, i) => (
+                  <article
+                    className={`card comparison-card${i === 1 ? " chosen" : ""}`}
+                    key={label}
+                  >
+                    <UI.Placeholder
+                      label={localized(spot.name, lang)}
+                      src={spot.imageUrl}
+                      h={170}
+                    />
+                    <div>
+                      <span className="eyebrow">{label}</span>
+                      <h2>{localized(spot.name, lang)}</h2>
+                      <p>
+                        {localized(spot.region, lang)} · {localized(spot.type, lang)}
+                      </p>
+                      <UI.Signal level={spot.congestion} lang={lang} />
+                      <dl className="summary-facts">
+                        <div>
+                          <dt>방문 적합도</dt>
+                          <dd>{hasScore(spot) ? `${spot.suitability}/100` : "확인 중"}</dd>
+                        </div>
+                        <div>
+                          <dt>추천 체류</dt>
+                          <dd>
+                            {spot.durationText ? localized(spot.durationText, lang) : "자유롭게"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <p className="section-description">
+                혼잡도는 모델 추정치예요. 대체지가 항상 더 한산한 것은 아니므로 현재 등급과 날씨를
+                함께 확인해 주세요.
+              </p>
             </div>
+            <aside className="summary-panel detail-aside">
+              <h2>다른 후보 살펴보기</h2>
+              <div className="card-grid">
+                {alts.map((a) => (
+                  <button
+                    key={a.id}
+                    className={`alternative-choice${a.id === alt.id ? " selected" : ""}`}
+                    aria-pressed={a.id === alt.id}
+                    onClick={() => setSelected(a.id)}
+                  >
+                    <span>
+                      <strong>{localized(a.name, lang)}</strong>
+                      <small>{localized(a.region, lang)}</small>
+                    </span>
+                    <UI.Signal level={a.congestion} lang={lang} />
+                  </button>
+                ))}
+              </div>
+              <button
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 20 }}
+                onClick={() => nav("spot", { spotId: alt.id })}
+              >
+                선택한 대체지 보기 <Icon.chevR />
+              </button>
+            </aside>
           </div>
-        ))}
-      </div>
-
-      <div style={{ padding: "22px 20px 24px", display: "flex", gap: 10 }}>
-        <button className="btn btn-secondary" onClick={back}>
-          {lang === "ko" ? "취소" : "Cancel"}
-        </button>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => nav("spot", { spotId: selected })}>
-          <Icon.refresh /> {lang === "ko" ? "이 대체지로 바꾸기" : "Swap in"}
-        </button>
-      </div>
+          <section className="section-block">
+            <span className="eyebrow">선택한 대체지와 함께</span>
+            <h2>{localized(alt.region, lang)}의 음식점 · 숙박</h2>
+            {commerce.length ? (
+              <div className="commerce-grid">
+                {commerce.map((it) => (
+                  <NearbyPlaceCard
+                    key={it.id}
+                    imageLabel={it.name.ko}
+                    imageUrl={it.imageUrl}
+                    address={it.address}
+                    title={localized(it.name, lang)}
+                    category={localized(it.type, lang)}
+                    meta=""
+                    tone={it.kind === "eat" ? "accent" : "brand"}
+                    icon={it.kind === "eat" ? "utensils" : "bed"}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="empty-message">이 지역의 음식점·숙박 정보를 준비하고 있어요.</p>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

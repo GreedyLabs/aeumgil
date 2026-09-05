@@ -8,14 +8,14 @@ test("리뷰 작성이 reviews 화면에 반영된다", async ({ page, context }
   await context.addCookies([await sessionCookie()]);
 
   await page.goto("/spot/sokcho-market");
-  await expect(page.getByText("짧은 리뷰")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("main").getByText("짧은 리뷰")).toBeVisible({ timeout: 60_000 });
 
   const reviewText = `E2E 자동 리뷰 ${Date.now()}`;
   await page.getByRole("button", { name: "5점" }).click();
-  await page.getByPlaceholder("좋았던 점을 5자 이상 적어주세요").fill(reviewText);
+  await page.getByRole("main").getByPlaceholder("좋았던 점을 5자 이상 적어주세요").fill(reviewText);
   await page.getByRole("button", { name: "리뷰 저장·갱신" }).click();
-  await expect(page.getByText("리뷰를 저장했어요")).toBeVisible();
+  await expect(page.getByRole("status").getByText("리뷰를 저장했어요")).toBeVisible();
 
   await page.goto("/reviews");
-  await expect(page.getByText(reviewText)).toBeVisible();
+  await expect(page.getByRole("main").getByText(reviewText)).toBeVisible();
 });

@@ -1,68 +1,129 @@
 "use client";
 
-// DiscoverView — Phase 1b. 전체 테마 그리드.
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { localized } from "@/lib/i18n";
-import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { UI, Icon } from "./_ui";
+import { ThemeCard } from "./theme-card";
 import type { Theme } from "@/domain/types";
 
-const { TopBar, Signal, ThemeHueBg } = UI;
-
-export function DiscoverView({ themes }: { themes: Theme[] }) {
+export function DiscoverView({
+  themes,
+  festivals,
+  visitors,
+}: {
+  themes: Theme[];
+  festivals?: ReactNode;
+  visitors?: ReactNode;
+}) {
   const { lang } = useAppState();
-  const { nav } = useAppNav();
+  const [mode, setMode] = useState<"themes" | "festivals" | "visitors">("themes");
+  const [query, setQuery] = useState("");
+  const [region, setRegion] = useState("");
+  const regions = [...new Set(themes.flatMap((theme) => theme.region.ko.split(" · ")))];
+  const filtered = themes.filter((theme) => {
+    const text = [theme.title, theme.subtitle, theme.region, theme.tag, ...theme.mood]
+      .map((t) => localized(t, lang))
+      .join(" ")
+      .toLowerCase();
+    return (
+      text.includes(query.trim().toLowerCase()) &&
+      (!region || theme.region.ko.split(" · ").includes(region))
+    );
+  });
 
   return (
-    <div className="screen-enter">
-      <TopBar
-        title={lang === "ko" ? "탐색" : "Discover"}
+    <div className="screen-enter discover-page">
+      <UI.TopBar
+        title="탐색"
         right={
-          <button className="icon-btn">
-            <Icon.filter />
-          </button>
+          <Link className="icon-btn" aria-label="혼잡도 지도 보기" href="/map">
+            <Icon.map />
+          </Link>
         }
       />
-      <div style={{ padding: "4px 20px 14px" }}>
-        <h1 className="serif" style={{ fontSize: 28, margin: 0, lineHeight: 1.15 }}>
-          {lang === "ko" ? "강원도 특화 테마" : "Gangwon themes"}
-        </h1>
-        <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 6 }}>
-          {lang === "ko" ? `${themes.length}개 코스 · 혼잡도 실시간` : `${themes.length} curated courses`}
+      <header className="page-heading">
+        <div>
+          <span className="eyebrow">취향 따라 떠나는 강원</span>
+          <h1>어떤 여행을 찾고 있나요?</h1>
+          <p>바다부터 숲, 골목의 맛까지. 마음이 가는 테마로 시작하세요.</p>
         </div>
+        <Link href="/" className="btn btn-secondary">
+          <Icon.sparkle /> 나에게 맞는 여행 찾기
+        </Link>
+      </header>
+      <div className="browse-tabs" aria-label="탐색 종류">
+        <button aria-pressed={mode === "themes"} onClick={() => setMode("themes")}>
+          테마 코스
+        </button>
+        <button aria-pressed={mode === "festivals"} onClick={() => setMode("festivals")}>
+          다가오는 행사
+        </button>
+        <button aria-pressed={mode === "visitors"} onClick={() => setMode("visitors")}>
+          지역 방문 통계
+        </button>
       </div>
-      <div className="desk-2" style={{ padding: "0 20px 24px", display: "grid", gap: 12 }}>
-        {themes.map((th) => (
-          <button
-            key={th.id}
-            onClick={() => nav("theme", { themeId: th.id })}
-            className="card"
-            style={{ padding: 0, textAlign: "left", display: "flex", overflow: "hidden" }}
-          >
-            <div style={{ width: 120, flexShrink: 0, position: "relative" }}>
-              <ThemeHueBg hue={th.hue} h={106} themeId={th.id}>
-                <div
-                  style={{ position: "absolute", bottom: 8, left: 10, fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff", fontWeight: 700, background: "rgba(0,0,0,0.3)", padding: "3px 7px", borderRadius: 100 }}
+      {mode === "visitors" ? (
+        visitors
+      ) : mode === "festivals" ? (
+        festivals
+      ) : (
+        <>
+          <section className="explore-toolbar" aria-label="테마 검색과 지역 필터">
+            <div className="search-field">
+              <Icon.search />
+              <input
+                aria-label="테마 검색"
+                type="search"
+                placeholder="바다, 숲, 시장…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div className="filter-list" aria-label="여행 지역">
+              {["", ...regions].map((r) => (
+                <button
+                  key={r}
+                  className={`chip${region === r ? " active" : ""}`}
+                  aria-pressed={region === r}
+                  onClick={() => setRegion(r)}
                 >
-                  {localized(th.tag, lang)}
-                </div>
-              </ThemeHueBg>
+                  {r || "강원 전체"}
+                </button>
+              ))}
             </div>
-            <div style={{ padding: "12px 14px", flex: 1, minWidth: 0 }}>
-              <div className="serif" style={{ fontSize: 18, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {localized(th.title, lang)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {localized(th.subtitle, lang)}
-              </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center", fontSize: 10.5, color: "var(--ink-3)", flexWrap: "wrap" }}>
-                <Signal level={th.id === "mountain-trek" ? "moderate" : "calm"} lang={lang} />
-                <span style={{ whiteSpace: "nowrap" }}>· {localized(th.duration, lang)}</span>
-              </div>
+          </section>
+          <div className="results-heading">
+            <h2>
+              강원도 특화 테마 <span>{filtered.length}</span>
+            </h2>
+            <span>준비된 코스에 여행 조건을 더해보세요</span>
+          </div>
+          {filtered.length ? (
+            <div className="theme-grid">
+              {filtered.map((theme) => (
+                <ThemeCard key={theme.id} theme={theme} lang={lang} />
+              ))}
             </div>
-          </button>
-        ))}
-      </div>
+          ) : (
+            <div className="empty-state">
+              <Icon.search />
+              <h2>찾는 테마가 아직 없어요</h2>
+              <p>다른 검색어나 지역으로 살펴보세요.</p>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setQuery("");
+                  setRegion("");
+                }}
+              >
+                검색 초기화
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

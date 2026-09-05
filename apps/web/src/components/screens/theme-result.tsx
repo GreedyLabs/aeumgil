@@ -1,124 +1,152 @@
 "use client";
 
-// ThemeResultView — Phase 1b. 매칭된 테마 소개. 데이터는 서버에서 주입.
+import { shareCurrentPage } from "@/lib/share";
+import { inferCourseOptions } from "@/domain/course-options";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
+import { ThemeCard } from "./theme-card";
+import { SpotRow } from "./home";
 import { UI, Icon } from "./_ui";
-import type { Theme } from "@/domain/types";
+import type { Spot, Theme } from "@/domain/types";
 
-const { TopBar, Signal, Chip, ThemeHueBg } = UI;
-
-interface Props {
+export function ThemeResultView({
+  theme,
+  alts,
+  query,
+  spots,
+}: {
   theme: Theme;
   alts: Theme[];
   query: string;
-}
-
-export function ThemeResultView({ theme, alts, query }: Props) {
-  const { lang } = useAppState();
+  spots: Spot[];
+}) {
+  const { lang, showToast } = useAppState();
   const { nav, back } = useAppNav();
-
+  const options = inferCourseOptions(query);
   return (
-    <div className="screen-enter">
-      <TopBar
-        title={lang === "ko" ? "매칭 결과" : "Match"}
+    <div className="screen-enter theme-page">
+      <UI.TopBar
+        title={query ? "맞춤 테마 추천" : "테마 소개"}
         onBack={back}
         right={
-          <button className="icon-btn">
+          <button
+            className="icon-btn"
+            aria-label="테마 공유"
+            onClick={() => void shareCurrentPage(theme.title.ko, showToast)}
+          >
             <Icon.share />
           </button>
         }
       />
-
-      <div style={{ padding: "8px 20px 16px" }}>
-        <div style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, marginBottom: 6 }}>
-          {lang === "ko" ? "✦ 가장 잘 맞는 테마" : "✦ Best match"}
+      <header className="page-heading">
+        <div>
+          <span className="eyebrow">
+            {query ? "✦ 여행의 기분과 가장 가까운 테마" : localized(theme.tag, lang)} ·{" "}
+            {localized(theme.region, lang)}
+          </span>
+          <h1>{localized(theme.title, lang)}</h1>
+          <p>{localized(theme.subtitle, lang)}</p>
         </div>
-        {query && (
-          <div style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic", marginBottom: 10 }}>
-            {`"${query}"`}
+      </header>
+      {query && <blockquote className="query-quote">“{query}”</blockquote>}
+      <div className="detail-layout">
+        <div className="detail-primary">
+          <div className="theme-feature">
+            <UI.ThemeHueBg
+              hue={theme.hue}
+              h={360}
+              src={theme.imageUrl}
+              label={theme.imageLabel && localized(theme.imageLabel, lang)}
+            >
+              <div className="theme-feature-caption">
+                {theme.imageLabel
+                  ? `${localized(theme.imageLabel, lang)} · 테마에 포함된 장소`
+                  : localized(theme.region, lang)}
+                {theme.imageUrl?.includes("visitkorea.or.kr") ? " · 사진 제공: 한국관광공사" : ""}
+              </div>
+            </UI.ThemeHueBg>
           </div>
-        )}
-        <h1 className="serif" style={{ fontSize: 34, margin: 0, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-          {localized(theme.title, lang)}
-        </h1>
-        <div style={{ fontSize: 14, color: "var(--ink-2)", marginTop: 10, maxWidth: 360 }}>
-          {localized(theme.blurb, lang)}
-        </div>
-      </div>
-
-      <div style={{ padding: "0 20px" }}>
-        <ThemeHueBg hue={theme.hue} h={200} themeId={theme.id}>
-          <div
-            style={{ position: "absolute", inset: 0, padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between", color: "#fff" }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span
-                style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", background: "rgba(0,0,0,0.3)", padding: "4px 10px", borderRadius: 100, fontWeight: 600 }}
-              >
-                {localized(theme.tag, lang)}
-              </span>
-              <Signal level="calm" lang={lang} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, fontSize: 12 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ opacity: 0.7 }}>{lang === "ko" ? "기간" : "Duration"}</div>
-                <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap" }}>{localized(theme.duration, lang)}</div>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ opacity: 0.7 }}>{lang === "ko" ? "장소" : "Spots"}</div>
-                <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap" }}>{theme.spotCount}</div>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ opacity: 0.7 }}>{lang === "ko" ? "페이스" : "Pace"}</div>
-                <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {localized(theme.pace, lang)}
-                </div>
-              </div>
+          <div className="theme-intro">
+            <p>{localized(theme.blurb, lang)}</p>
+            <div className="mood-list">
+              {theme.mood.map((m) => (
+                <UI.Chip key={m.ko} brand>
+                  {localized(m, lang)}
+                </UI.Chip>
+              ))}
             </div>
           </div>
-        </ThemeHueBg>
-
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
-          {theme.mood.map((m) => (
-            <Chip key={m.ko} brand>
-              {localized(m, lang)}
-            </Chip>
-          ))}
+          <section className="section-block">
+            <h2>이 여행에서 만나는 곳</h2>
+            <div className="card-grid">
+              {spots.map((spot) => (
+                <SpotRow
+                  key={spot.id}
+                  spot={spot}
+                  lang={lang}
+                  onClick={() => nav("spot", { spotId: spot.id })}
+                />
+              ))}
+            </div>
+          </section>
         </div>
-
-        <button
-          className="btn btn-primary btn-block"
-          style={{ marginTop: 18 }}
-          onClick={() => nav("course", { themeId: theme.id })}
-        >
-          {lang === "ko" ? "코스 자세히 보기" : "See the course"} <Icon.chevR style={{ color: "currentColor" }} />
-        </button>
-      </div>
-
-      <div style={{ padding: "28px 20px 12px" }}>
-        <div className="section-label">{lang === "ko" ? "다른 테마도 볼까요" : "Other themes"}</div>
-        <h2 className="section-title">{lang === "ko" ? "비슷한 분위기" : "Similar moods"}</h2>
-      </div>
-      <div className="hscroll" style={{ paddingLeft: 20, paddingRight: 20, margin: 0 }}>
-        {alts.map((th) => (
+        <aside className="detail-aside summary-panel" aria-label="여행 요약">
+          <h2>이렇게 떠나보세요</h2>
+          <dl className="summary-facts">
+            <div>
+              <dt>여행 지역</dt>
+              <dd>{localized(theme.region, lang)}</dd>
+            </div>
+            <div>
+              <dt>여행 일정</dt>
+              <dd>{options.days ? `${options.days}일` : localized(theme.duration, lang)}</dd>
+            </div>
+            <div>
+              <dt>관광지 후보</dt>
+              <dd>{theme.spotCount}곳</dd>
+            </div>
+            <div>
+              <dt>여행 분위기</dt>
+              <dd>{localized(theme.pace, lang)}</dd>
+            </div>
+            {options.transport && (
+              <div>
+                <dt>이동수단</dt>
+                <dd>{{ car: "자동차", transit: "대중교통", walk: "도보" }[options.transport]}</dd>
+              </div>
+            )}
+          </dl>
+          <p>준비된 테마 코스를 바탕으로 일정과 이동수단에 맞춰 방문 순서를 살펴볼 수 있어요.</p>
           <button
-            key={th.id}
-            onClick={() => nav("theme", { themeId: th.id })}
-            className="card"
-            style={{ width: 200, textAlign: "left", padding: 0 }}
+            className="btn btn-primary btn-block"
+            onClick={() => nav("course", { themeId: theme.id, ...options })}
           >
-            <ThemeHueBg hue={th.hue} h={110} themeId={th.id} />
-            <div style={{ padding: "10px 14px 14px" }}>
-              <div className="serif" style={{ fontSize: 17 }}>
-                {localized(th.title, lang)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>{localized(th.duration, lang)}</div>
-            </div>
+            코스 자세히 보기 <Icon.chevR />
           </button>
-        ))}
+          <button className="btn btn-ghost btn-block" onClick={() => nav("home")}>
+            다른 여행으로 추천받기
+          </button>
+          <p className="summary-footnote">
+            혼잡도는 모델 추정치이며, 장소 상세에서 날씨와 대기질을 함께 확인해 주세요.
+          </p>
+        </aside>
       </div>
+      {alts.length > 0 && (
+        <section className="section-block">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">다른 테마도 볼까요</span>
+              <h2 className="section-title">비슷한 분위기</h2>
+            </div>
+          </div>
+          <div className="theme-grid">
+            {alts.slice(0, 3).map((th) => (
+              <ThemeCard key={th.id} theme={th} lang={lang} query={query} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

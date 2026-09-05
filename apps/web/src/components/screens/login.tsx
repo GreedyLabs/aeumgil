@@ -1,119 +1,128 @@
 "use client";
 
-// LoginView — Phase 4(부분). 소셜 로그인(mock). 실제 OAuth 는 Phase 4 본편(Auth.js).
+import Link from "next/link";
+import { useState } from "react";
 import { localized } from "@/lib/i18n";
-import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
-import { Brand as BrandMod } from "@/design/brand-logos";
-import { Icon } from "./_ui";
+import { Icon, UI } from "./_ui";
 import type { AuthProvider } from "@/domain/types";
 
-const Brand = BrandMod as Record<string, React.ComponentType>;
-
-const REASON_COPY: Record<string, { ko: string; en: string }> = {
-  save: { ko: "저장하려면 로그인이 필요해요", en: "Sign in to save places" },
-  course: { ko: "내 코스를 만들려면 로그인이 필요해요", en: "Sign in to build your course" },
-  review: { ko: "리뷰를 남기려면 로그인이 필요해요", en: "Sign in to write a review" },
-  onboarding: { ko: "관심사를 저장하려면 로그인이 필요해요", en: "Sign in to save your preferences" },
-  profile: { ko: "내 여행 기록을 보려면 로그인하세요", en: "Sign in to see your trips" },
+const REASON_COPY: Record<string, string> = {
+  save: "마음에 든 코스를 저장하려면 로그인해 주세요.",
+  course: "내 여행을 이어가려면 로그인해 주세요.",
+  review: "다녀온 곳의 이야기를 남기려면 로그인해 주세요.",
+  onboarding: "여행 취향을 기억하려면 로그인해 주세요.",
+  profile: "내 여행 기록을 확인하려면 로그인해 주세요.",
 };
 
-export function LoginView({ providers, reason }: { providers: AuthProvider[]; reason?: string }) {
+export function LoginView({
+  providers,
+  reason,
+  returnTo,
+  error,
+}: {
+  providers: AuthProvider[];
+  reason?: string;
+  returnTo?: string;
+  error?: string;
+}) {
   const { lang, login } = useAppState();
-  const { back } = useAppNav();
-  const reasonCopy = reason && REASON_COPY[reason] ? REASON_COPY[reason]![lang] : null;
-
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(Boolean(error));
+  const reasonCopy = reason ? REASON_COPY[reason] : undefined;
+  async function startLogin(providerId: string) {
+    setPending(true);
+    setFailed(false);
+    try {
+      await login(providerId, returnTo);
+    } catch {
+      setFailed(true);
+      setPending(false);
+    }
+  }
   return (
-    <div className="auth-hero">
-      <div
-        className="auth-hero-bg"
-        style={{
-          background: "radial-gradient(circle at 28% 18%, oklch(0.62 0.12 135) 0%, transparent 34%), linear-gradient(145deg, oklch(0.3 0.08 145) 0%, oklch(0.18 0.05 210) 72%)",
-        }}
-      />
-      <div className="auth-hero-scrim" />
-
-      <div className="auth-top">
-        <button className="icon-btn" style={{ color: "#fff" }} onClick={back} aria-label="close">
-          <Icon.close />
-        </button>
-        <div style={{ fontSize: 10.5, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
-          에움길
-        </div>
-        <div style={{ width: 36 }} />
-      </div>
-
-      <div className="auth-headline">
-        <div style={{ fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)", fontWeight: 700, marginBottom: 12 }}>
-          GANGWON
-        </div>
-        <h1 className="serif" style={{ fontSize: 40, lineHeight: 1.05, color: "#fff", margin: 0, letterSpacing: "-0.02em", textShadow: "0 2px 24px rgba(0,0,0,0.4)" }}>
-          {lang === "ko" ? (
-            <>
-              붐비지 않는
+    <div className="login-page screen-enter">
+      <UI.TopBar title="로그인" />
+      <div className="login-layout">
+        <section className="login-story">
+          <div>
+            <span className="eyebrow">나의 강원 여행</span>
+            <h1>
+              여행을 이어가요
+            </h1>
+            <p>
+              한적한 바다부터 초록빛 숲길까지.
               <br />
-              강원도를
-              <br />
-              저장하세요
-            </>
-          ) : (
-            <>
-              Save the
-              <br />
-              quiet side of
-              <br />
-              Gangwon
-            </>
-          )}
-        </h1>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.82)", marginTop: 14, lineHeight: 1.5, maxWidth: 300 }}>
-          {lang === "ko"
-            ? "관심 테마와 다녀온 곳을 기억하고, 혼잡도에 맞는 코스를 추천해 드려요."
-            : "We remember your themes and trips, and route around the crowds."}
-        </p>
-      </div>
-
-      <div className="auth-sheet">
-        {reasonCopy && (
-          <div className="auth-reason">
-            <Icon.sparkle style={{ width: 16, height: 16, color: "var(--brand)", flexShrink: 0 }} />
-            <span>{reasonCopy}</span>
+              가고 싶은 곳과 다녀온 순간을 모아보세요.
+            </p>
           </div>
-        )}
-
-        <div style={{ display: "grid", gap: 9 }}>
-          {providers.map((p) => {
-            const Logo = Brand[p.id];
-            return (
-              <button
-                key={p.id}
-                onClick={() => login(p.id)}
-                className="social-btn"
-                style={{ background: p.bg, color: p.fg, border: `1px solid ${p.border === "transparent" ? "transparent" : p.border}` }}
-              >
-                <span className="social-logo">{Logo && <Logo />}</span>
-                <span className="social-label">{localized(p.label, lang)}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button className="auth-skip" onClick={back}>
-          {lang === "ko" ? "로그인 없이 둘러보기" : "Browse without signing in"}
-        </button>
-
-        <p className="auth-terms">
-          {lang === "ko" ? (
-            <>
-              가입 시 <b>이용약관</b> 및 <b>개인정보처리방침</b>에<br />
-              동의하는 것으로 간주됩니다.
-            </>
-          ) : (
-            <>
-              By continuing you agree to our <b>Terms</b> and <b>Privacy Policy</b>.
-            </>
+          <div className="login-landscape" aria-hidden="true" />
+          <div className="login-story-caption">
+            <Icon.pin /> 강원에서 찾은, 나만의 에움길
+          </div>
+        </section>
+        <section className="login-card" aria-labelledby="login-title">
+          <span className="eyebrow">어서 오세요</span>
+          <h2 id="login-title">여행을 이어갈까요?</h2>
+          <p className="login-description">
+            계정 하나로 여행 코스와 기록을
+            <br className="desktop-only" /> 여러 기기에서 함께 볼 수 있어요.
+          </p>
+          {reasonCopy && (
+            <p className="login-reason">
+              <Icon.bookmark />
+              {reasonCopy}
+            </p>
           )}
-        </p>
+          <ul className="login-benefits">
+            <li>
+              <Icon.bookmark />
+              <span>마음에 드는 테마와 코스 저장</span>
+            </li>
+            <li>
+              <Icon.pin />
+              <span>방문 기록과 나만의 리뷰</span>
+            </li>
+            <li>
+              <Icon.leaf />
+              <span>관심 테마와 여행 취향 설정</span>
+            </li>
+          </ul>
+          {failed && (
+            <p className="login-error" role="alert">
+              로그인을 연결하지 못했어요. 잠시 후 다시 시도해 주세요.
+            </p>
+          )}
+          <div className="login-actions">
+            {providers.map((provider) => (
+              <button
+                className="btn btn-primary btn-block"
+                key={provider.id}
+                disabled={pending}
+                onClick={() => void startLogin(provider.id)}
+              >
+                {pending
+                  ? "로그인 화면으로 이동 중…"
+                  : provider.id === "keycloak"
+                    ? "로그인 / 회원가입"
+                    : localized(provider.label, lang)}
+                <Icon.chevR />
+              </button>
+            ))}
+            {!providers.length && (
+              <p role="status">로그인을 준비하고 있어요. 여행지는 바로 둘러볼 수 있어요.</p>
+            )}
+            <Link className="btn btn-secondary btn-block" href="/discover">
+              먼저 여행지 둘러보기
+            </Link>
+          </div>
+          <p className="login-account-hint">처음 오셨나요? 다음 화면에서 회원가입할 수 있어요.</p>
+          <footer className="login-policy">
+            <Link href="/doc?type=terms">이용약관</Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/doc?type=privacy">개인정보처리방침</Link>
+          </footer>
+        </section>
       </div>
     </div>
   );

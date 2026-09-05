@@ -1,6 +1,6 @@
 "use client";
 
-// SavedView — Phase 1b. 저장된 테마·최근 본 장소. (저장 목록은 Phase 4 에서 DB 연동)
+// SavedView — Phase 1b. 저장된 테마·추천 장소. (저장 목록은 Phase 4 에서 DB 연동)
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -29,24 +29,24 @@ export function SavedView({ saved, recentSpots }: Props) {
   const { nav } = useAppNav();
 
   return (
-    <div className="screen-enter">
+    <div className="screen-enter saved-page">
       <TopBar
         title={lang === "ko" ? "내 여행" : "My trips"}
         right={
-          <button className="icon-btn">
+          <button className="icon-btn" aria-label="새 여행 찾기" onClick={() => nav("discover")}>
             <Icon.plus />
           </button>
         }
       />
       <div style={{ padding: "4px 20px 12px" }}>
         <div className="section-label">{lang === "ko" ? "저장된 테마" : "Saved themes"}</div>
-        <h2 className="section-title">{lang === "ko" ? `${saved.length}개 코스` : `${saved.length} courses`}</h2>
+        <h1 className="section-title">저장한 여행 <span style={{color:"var(--brand)"}}>{saved.length}</span></h1>
       </div>
 
       <div className="desk-2" style={{ padding: "0 20px", display: "grid", gap: 14 }}>
         {saved.map(({ theme: th, course: cs, savedAt, congestion }) => (
           <button key={th.id} onClick={() => nav("theme", { themeId: th.id })} className="card" style={{ padding: 0, textAlign: "left" }}>
-            <ThemeHueBg hue={th.hue} h={130} themeId={th.id}>
+            <ThemeHueBg hue={th.hue} h={130} themeId={th.id} src={th.imageUrl} label={th.imageLabel && localized(th.imageLabel, lang)}>
               <div style={{ position: "absolute", top: 12, right: 12 }}>
                 <Icon.bookmarkFill style={{ color: "#fff" }} />
               </div>
@@ -78,7 +78,7 @@ export function SavedView({ saved, recentSpots }: Props) {
       </div>
 
       <div style={{ padding: "26px 20px 12px" }}>
-        <div className="section-label">{lang === "ko" ? "최근 본 장소" : "Recently viewed"}</div>
+        <div className="section-label">{lang === "ko" ? "추천 장소" : "Recently viewed"}</div>
       </div>
       <div className="desk-2" style={{ padding: "0 20px 24px", display: "grid", gap: 8 }}>
         {recentSpots.map((s) => (
