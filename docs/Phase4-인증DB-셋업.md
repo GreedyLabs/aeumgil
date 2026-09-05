@@ -46,7 +46,6 @@
 루트 `.env`:
 
 ```env
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 DATABASE_URL="postgresql://postgres:eumgil@localhost:5432/eumgil"
 DATABASE_SCHEMA=""
@@ -76,8 +75,7 @@ http://localhost:3000/api/auth/callback/keycloak
 https://서비스도메인/api/auth/callback/keycloak
 ```
 
-로그아웃 후 돌아올 주소는 `NEXT_PUBLIC_APP_URL` 이므로, 운영 배포에서는 `AUTH_URL` 과
-`NEXT_PUBLIC_APP_URL` 을 실제 서비스 URL 로 맞춘다.
+로그아웃 후 돌아올 주소는 `AUTH_URL`이다. 운영에서는 `https://xn--wk0bk16buua.xn--3e0b707e`로 설정한다.
 
 ## 3. 세션/JWT 정책
 

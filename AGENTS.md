@@ -2,6 +2,22 @@
 
 에움길(Eumgil) 작업 시 참고할 프로젝트 컨텍스트. 새 세션에서도 이 파일을 먼저 읽고 시작.
 
+## 개발 재개 현황 (2026-09-05)
+
+- API 부분 실패 분리·현재 시각 예보 선택·공유 캐시·오류 응답 검증, 자연어 조건 전달·일정 충돌 보정, 모바일/태블릿/데스크톱 UI 정비 완료. LLM은 사용자 요청에 따라 heuristic 유지.
+- **7종 API 실호출 확인**: 관광정보(강원 4,761건), 단기예보, 에어코리아(40곳), 관광지 일별 집중률(30일), 지역별 방문자수(2026-08-01 공개 표본), 생활기상 자외선(V5), 도로공사 실시간 소통. 일별 예측/지역 통계/시간대별 자체 혼잡 추정/실제 고속도로 관측은 화면에서 구분한다. 집중률·교통을 현재 코스의 정확한 경로·현장 혼잡도로 오인시키지 않는다.
+- **API 최신 명세**: TourAPI `lDongRegnCd=51`, `lDongSignguCd` 3자리로 전환. 예전 `areaCode=32` 기록은 과거 명세다. detailCommon2 + detailImage2 + detailIntro2로 개요·사진·이용 안내 보강. contentId 8곳 실검증·DB 반영, 특히 사천=585526 / 속초시장=1260275로 잘못된 POI 연결 수정. 주문진 일반 카페 명칭은 실제 POI 미확정으로 비워 둔다.
+- **캐시**: 메모리+파일 영속, 동일 요청 합치기, 정상 빈 응답·오류 재호출 제한. 날씨/대기질 10분, 교통 5분, 자외선/행사 1시간, 집중률 6시간, 관광상세/방문통계 24시간. Docker `/app/cache` named volume 사용.
+- **환경변수 정리**: 공공데이터 키 4개 → `DATA_GO_KR_SERVICE_KEY`, 도로공사 별도 `EX_ROAD_SERVICE_KEY`. URL은 `AUTH_URL`만 사용. `.env.example` 필수 8개로 축소. 비공개 `.env.dockhand.local`에 실제 배포 DB·인증 값과 새 API 키를 매칭해 준비했다. Git/이미지 컨텍스트 제외. [환경변수·배포](docs/환경변수-배포.md).
+- **운영 도메인**: 사용자 지정 `https://에움길.한국` (`https://xn--wk0bk16buua.xn--3e0b707e`). Gitops compose·예시·Keycloak 테마 공개 URL 기본값 수정. 원격 Keycloak 콜백의 잘못된 Punycode 수정, 새 콜백 HTTP 200·테마, 로그아웃 새 도메인 HTTP 302·DNS/HTTPS 확인. 로컬 AUTH_URL은 localhost 유지.
+- **DB**: macOS 앱 로컬 네트워크 권한 해소 후 실 eumgil_dev 조회·저장/리뷰 왕복. 누락 개요 컬럼 추가. 관광지 9·식당 75·숙소 78·테마 6·템플릿 항목 32건. 원격 앱은 shared-db 네트워크 postgres:5432/eumgil_dev 사용, 기존 deep health HTTP 200.
+- **UI**: 고정 100vh·880px 내부 스크롤 제거, 232px(중간 폭 200px) 사이드바+문서 스크롤. 76px 접기 상태 저장, 로그인도 공통 chrome 유지. 상세의 일별 예측·사진·이용 안내·교통, 탐색의 지역 통계와 지도 권역 연결. 자료 없는 사진은 다른 장소로 대체하지 않는다.
+- **인증 테마**: Keycloak 26.6.3 keycloak.v2 상속. Gitops b1bf387 main 푸시·Dockhand 배포 완료. 공식 이미지 + Dockhand external volume.subpath 읽기 전용 마운트로 빌드 없이 전달. 원격 realm 테마 선택·한국어/영어 활성화·기본 한국어 저장 후 커스텀 CSS·풍경·Google 버튼 실제 확인. 소셜 계정 전체 왕복·SMTP는 별도 검증 필요. [테마 문서](infra/keycloak/THEME.md).
+- **파비콘**: 앱 icon.svg/favicon.ico/apple-icon.png, Keycloak favicon.ico 추가·로컬 HTTP 200. Gitops 복사본 준비, 추가 아이콘과 새 도메인 compose는 아직 푸시·재배포 전이다.
+- **검증**: 유닛 174개 통과·실 LLM 1개 skip, TypeScript 통과, 운영 Docker 이미지 빌드·기동·Auth.js providers·DB deep health·신규 API 상세 화면 HTTP 200. UID 1001 캐시 쓰기·재시작 후 18개 캐시 로드, 동일 상세 2회 조회 시 재호출을 유발하는 캐시 갱신 0건 확인. 앱 E2E 21개 중 첫 실행 19개 통과 후 실패 2개 수정·재검증 통과, 후속 화면 4개 통과. 이전 6폭(320~1920px) 검사 및 인증/저장/리뷰 포함. 실제 운영 인증과 E2E 테스트용 Auth.js 쿠키는 구분한다. Keycloak 독립 컨테이너 E2E 5개 통과.
+- **배포 준비**: Gitops eumgil compose는 GHCR 이미지 pull + shared-db + 캐시 볼륨 + healthcheck. Build images OFF. 새 통합 키를 읽는 이미지와 새 env/compose를 함께 반영해야 한다. 원격 앱 재배포는 아직 수행하지 않았다.
+- 상세: [화면·기획 점검](docs/화면-기획-점검-2026-09-05.md), [개발 재개 검증](docs/개발-재개-검증-2026-09-05.md). 아래 과거 단계 기록과 다르면 이 현황이 우선한다.
+
 ## 서비스 개요
 
 - **에움길** — 강원도 특화 테마 관광 추천 서비스 (관광데이터 공모전 출품작).
@@ -45,7 +61,7 @@ Repository 는 항상 DB+실데이터 구현을 사용한다.
 ### 공공 API 연동 계층 (서버 전용)
 
 - [apps/web/src/server/public-api/http.ts](apps/web/src/server/public-api/http.ts) — data.go.kr 공통 fetch(serviceKey 주입·타임아웃·XML 에러 감지).
-- [apps/web/src/server/public-api/tourapi.ts](apps/web/src/server/public-api/tourapi.ts) — 국문관광정보(KorService2, 강원 areaCode=32). **유일하게 구현된 클라이언트.**
+- [apps/web/src/server/public-api/tourapi.ts](apps/web/src/server/public-api/tourapi.ts) — 국문관광정보(KorService2, 강원 lDongRegnCd=51). 현재 공공 API 7종 구현.
 - [apps/web/scripts/verify-public-api.mjs](apps/web/scripts/verify-public-api.mjs) — 키 연결 검증.
 - 환경변수: 루트 `.env` (next.config.mjs 가 dotenv 로 로드) → [apps/web/src/lib/env.ts](apps/web/src/lib/env.ts)(zod 검증). 템플릿 [.env.example](.env.example).
 - **API 신청 가이드(키 발급용)**: [docs/공공API-신청가이드.md](docs/공공API-신청가이드.md)
@@ -108,7 +124,7 @@ Repository 는 항상 DB+실데이터 구현을 사용한다.
 - **공공 API/서비스키는 서버에서만**. `server/public-api/*`, `lib/env.ts`를 클라이언트에서 import 금지.
 - **데이터 출처 디버그**: `EUMGIL_DEBUG`(=`1` 또는 `http,cache,repo`)로 서버 콘솔에 출처 로그. http=공공API 실호출(✓/✗·ms), cache=HIT/MISS/SET/FLUSH, repo=DB 카탈로그·스팟 보강·코스 재정렬. 구현 [server/log.ts](apps/web/src/server/log.ts). 기본 침묵.
 - env 키는 `lib/env.ts`에서 대부분 optional. 실제 필요한 기능 경로에선 `requireEnv("KEY")` 사용.
-- UI 텍스트·코드 주석은 **한국어**. 강원특별자치도 = TourAPI `areaCode` **32**.
+- UI 텍스트·코드 주석은 **한국어**. 강원특별자치도 = TourAPI `lDongRegnCd` **51**, 시군구 `lDongSignguCd` 3자리.
 - 확정된 방향: 전체 실연동 제출 / 자연어 매칭은 키워드 우선(후반 LLM 검토). 상세 [docs/구현-계획.md](docs/구현-계획.md).
 - **테스트 전략(단계적, 확정 2026-06-23)**: ① 지금 = 순수 함수 단위 테스트(matching/scoring/grid, Vitest) ② 키 실검증 직후 = API 정규화·LiveRepository 폴백(fetch 목) ③ Phase 4~5 = 화면 RTL + 핵심 플로우 E2E(Playwright). "구현 굳은 것부터" 원칙. 상세 [docs/구현-계획.md](docs/구현-계획.md) "5. 테스트 전략".
 - **이 문서를 최신으로 유지할 것**: 의미 있는 마일스톤(Phase 완료, 주요 모듈 완성, 블로커 발생·해소) 시 위의 **"진행 상태 / 현재 블로커"** 섹션을 별도 요청 없이 갱신한다. 문서 전체를 다시 쓰지 말고 해당 섹션만 국소 수정(상세 체크리스트는 [docs/구현-계획.md](docs/구현-계획.md)가 정본).
