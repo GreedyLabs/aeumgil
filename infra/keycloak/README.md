@@ -1,5 +1,7 @@
 # Local Keycloak
 
+에움길 로그인 테마와 공용 Keycloak 배포 적용은 [THEME.md](THEME.md)를 참고한다. 테마 변경에는 realm 초기화가 필요하지 않다.
+
 로컬 SSO 검증용 Keycloak 구성이다. 운영 배포용이 아니며, `start-dev`와 고정 secret/test user를 사용한다.
 
 ## 실행
@@ -46,7 +48,6 @@ AUTH_KEYCLOAK_ID="eumgil-web"
 AUTH_KEYCLOAK_SECRET="eumgil-local-dev-secret"
 AUTH_KEYCLOAK_ISSUER="http://localhost:8080/realms/eumgil"
 AUTH_URL="http://localhost:3000"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
 GreedyLabs 공용 Keycloak 을 쓰는 경우 issuer 만 원격 realm 으로 바꾼다. client secret 은 해당

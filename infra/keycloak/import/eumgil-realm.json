@@ -172,5 +172,12 @@
         }
       ]
     }
-  ]
+  ],
+  "loginTheme": "eumgil",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "ko",
+    "en"
+  ],
+  "defaultLocale": "ko"
 }

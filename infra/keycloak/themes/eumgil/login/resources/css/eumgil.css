@@ -1,0 +1,74 @@
+/* Keycloak 26.6.3 keycloak.v2 상속. 인증·검증·WebAuthn 스크립트와 폼은 기본 구현을 유지한다. */
+:root {
+  --pf-v5-global--FontFamily--text: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --pf-v5-global--FontFamily--heading: var(--pf-v5-global--FontFamily--text);
+  --pf-v5-global--primary-color--100: #236773;
+  --pf-v5-global--primary-color--200: #164f59;
+  --pf-v5-global--link--Color: #236773;
+  --pf-v5-global--link--Color--hover: #164f59;
+  --pf-v5-global--Color--100: #203c43;
+  --pf-v5-global--Color--200: #52696e;
+  --pf-v5-global--active-color--100: #236773;
+}
+html.login-pf, .login-pf body { min-width: 0; min-height: 100%; height: auto; }
+.login-pf body { background: #f2f5f4; font-family: var(--pf-v5-global--FontFamily--text); }
+.pf-v5-c-login { min-height: 100dvh; padding: 40px 24px; }
+.pf-v5-c-login__container { width: min(100%, 1056px); margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 480px); grid-template-areas: "header main"; gap: 0; background: #fff; border: 1px solid #dce5e2; border-radius: 26px; box-shadow: 0 16px 60px #18434c0d; overflow: hidden; }
+#kc-header { margin: 0; padding: 50px 40px 260px; min-width: 0; background: #e9f2ef url('../img/eumgil-landscape.svg') center bottom / 100% auto no-repeat; }
+#kc-header-wrapper { font-size: 34px; line-height: 1.4; color: #185e68 !important; text-align: left; font-weight: 750; letter-spacing: -.04em; text-transform: none; }
+.eumgil-tagline { display: block; margin-top: 10px; font-size: 14px; font-weight: 500; letter-spacing: -.01em; color: #42666b; }
+.pf-v5-c-login__main { min-width: 0; box-shadow: none; padding: 42px 36px 20px; background: #fff; }
+.pf-v5-c-login__main-header { border: 0; padding: 0 0 24px; gap: 18px; grid-template-columns: 1fr auto; }
+#kc-page-title { font: 650 27px/1.4 var(--pf-v5-global--FontFamily--text); letter-spacing: -.04em; word-break: keep-all; }
+.pf-v5-c-login__main-body { padding: 0; }
+.pf-v5-c-form { --pf-v5-c-form--GridGap: 20px; }
+.pf-v5-c-form__label { font-size: 14px; font-weight: 600; }
+.pf-v5-c-form-control { border-radius: 10px; --pf-v5-c-form-control--BorderBottomColor: #bfcfcc; --pf-v5-c-form-control--after--BorderBottomWidth: 0; }
+.pf-v5-c-form-control::before { border: 1px solid #bfcfcc; border-radius: 10px; }
+.pf-v5-c-form-control:focus-within::after { border: 2px solid #236773; border-radius: 10px; }
+.pf-v5-c-form-control.pf-m-error::before { border-color: #b23c37; }
+.pf-v5-c-form-control > input, .pf-v5-c-form-control > select { min-height: 48px; padding-inline: 13px; font-size: 16px; background: transparent; }
+.pf-v5-c-form-control > select { font-size: 13px; }
+.pf-v5-c-input-group__item .pf-v5-c-form-control { border-radius: 10px 0 0 10px; }
+.pf-v5-c-button { min-height: 46px; border-radius: 10px; font-weight: 600; }
+.pf-v5-c-button::after { border-radius: 10px; }
+.pf-v5-c-button.pf-m-primary { background: #236773; color: #fff; }
+.pf-v5-c-button.pf-m-primary:hover { background: #164f59; }
+.pf-v5-c-button.pf-m-control { color: #42666b; }
+.pf-v5-c-button.pf-m-control::after { border-color: #bfcfcc; }
+.pf-v5-c-check { align-items: center; min-height: 32px; }
+.pf-v5-c-check__input { width: 17px; height: 17px; accent-color: #236773; }
+.pf-v5-c-check__label { font-size: 13px; }
+#kc-form-options { flex-wrap: wrap; gap: 10px; }
+#kc-form-options a { font-size: 13px; display: inline-block; padding-block: 7px; }
+.pf-v5-c-login__main-footer { margin: 0; padding: 0; }
+.pf-v5-c-login__main-footer-band { margin: 24px 0 0; padding: 20px 0 0; background: transparent; border-top: 1px solid #e2e9e6; font-size: 14px; }
+#kc-registration { line-height: 1.8; }
+#kc-social-providers ul { list-style: none; }
+#kc-social-providers a { align-items: center; text-decoration: none; }
+#kc-social-providers a#social-kakao { background: #fee500; color: #181600; }
+#kc-social-providers a#social-naver { background: #03c75a; color: #fff; }
+#kc-social-providers a#social-google { background: #fff; color: #263238; }
+.eumgil-footer { margin-top: 26px; border-top: 1px solid #e2e9e6; padding-top: 18px; font-size: 13px; }
+.eumgil-footer > a { display: inline-block; padding: 8px 0; }
+.eumgil-footer nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; }
+.eumgil-footer nav a { color: #52696e; padding-block: 8px; }
+a:focus-visible, button:focus-visible { outline: 2px solid #236773; outline-offset: 4px; }
+.pf-v5-c-alert { border-radius: 8px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .pf-v5-c-login { padding: 20px 16px; }
+  .pf-v5-c-login__container { grid-template-columns: minmax(0, 1fr); grid-template-areas: "header" "main"; border-radius: 20px; max-width: 480px; }
+  #kc-header { padding: 28px 24px 72px; background-size: 100% auto; background-position: center 48%; }
+  #kc-header-wrapper { font-size: 28px; }
+  .eumgil-tagline { font-size: 12px; margin-top: 6px; }
+  .pf-v5-c-login__main { padding: 28px 24px 24px; }
+  #kc-page-title { font-size: 23px; }
+  .pf-v5-c-login__main-header { gap: 12px; grid-template-columns: 1fr; }
+  .pf-v5-c-login__main-header-utilities { margin: 0; justify-self: end; }
+  #login-select-toggle { min-height: 40px; padding-left: 8px; }
+}
+@media (max-width: 359px) { .pf-v5-c-login__main { padding-inline: 20px; } .pf-v5-c-login__main-header { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* PatternFly의 컨테이너 기본 안쪽 여백을 제거해 두 패널이 맞닿게 한다. */
+.pf-v5-c-login__container { padding: 0; }
+.pf-v5-c-button.pf-m-primary { border-radius: 25px; }
