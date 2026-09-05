@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FestivalDetail } from "@/domain/types";
 import { UI, Icon } from "./_ui";
 import { LocationMap } from "./location-map";
@@ -10,6 +10,8 @@ import { SpotPublicInfo } from "./spot-public-info";
 export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; today: string }) {
   const { event, place } = detail;
   const [expanded, setExpanded] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const longDescription = (place.description?.ko.length ?? 0) > 350;
   const status =
     event.endsOn && event.endsOn < today
@@ -107,6 +109,7 @@ export function FestivalDetailView({ detail, today }: { detail: FestivalDetail; 
                 className="text-link"
                 aria-expanded={expanded}
                 aria-controls="festival-description"
+                disabled={!ready}
                 onClick={() => setExpanded(!expanded)}
               >
                 {expanded ? "소개 접기" : "소개 더 보기"} <Icon.chevD />

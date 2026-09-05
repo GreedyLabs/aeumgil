@@ -111,6 +111,9 @@ test("행사 상세에서 위치·인근 장소를 확인하고 행사와 여행
   await page.goto("/festival/734219", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "동해 무릉제", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "함께 들를 여행지" })).toBeVisible();
+  await page.getByRole("button", { name: "소개 더 보기", exact: true }).click();
+  await expect(page.getByRole("button", { name: "소개 접기", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "소개 접기", exact: true }).click();
   await expect(page.locator('iframe[title="동해 무릉제 위치 지도"]')).toHaveAttribute(
     "src",
     /openstreetmap/,
