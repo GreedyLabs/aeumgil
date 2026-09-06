@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/components/language-context";
+import { uiText } from "@/lib/i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./infinite-scroll.module.css";
 
@@ -31,6 +33,8 @@ export function InfiniteScroll({
   children,
   id,
 }: InfiniteScrollProps) {
+  const lang = useLanguage();
+  const t = (text: string) => uiText(text, lang);
   const sentinel = useRef<HTMLDivElement>(null);
   const action = useRef(onLoadMore);
   const lock = useRef<{ key: string | number; token: symbol } | undefined>(undefined);
@@ -110,14 +114,14 @@ export function InfiniteScroll({
       <div className={styles.status} role="status" aria-live="polite" aria-atomic="true">
         {children && <div>{children}</div>}
         {loading ? (
-          <p>{label} 불러오는 중…</p>
+          <p>{t("불러오는 중…")}</p>
         ) : (
-          !hasMore && !failure && <p>목록을 모두 확인했어요.</p>
+          !hasMore && !failure && <p>{t("목록을 모두 확인했어요.")}</p>
         )}
       </div>
       {failure && (
         <p role="alert" className={styles.error}>
-          {failure}
+          {t(failure)}
         </p>
       )}
       {(hasMore || failure) && (
@@ -127,7 +131,11 @@ export function InfiniteScroll({
           className={`btn btn-secondary ${manual || failure ? "" : styles.keyboardAction}`}
           onClick={() => void retry()}
         >
-          {failure ? `${label} 다시 불러오기` : `다음 ${label} 불러오기`}
+          {lang === "ko"
+            ? failure
+              ? `${label} 다시 불러오기`
+              : `다음 ${label} 불러오기`
+            : t(failure ? "다시 시도" : "더 보기")}
         </button>
       )}
     </div>

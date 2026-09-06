@@ -1,4 +1,6 @@
 "use client";
+import { listProgress } from "@/lib/display-formats";
+import { useUiText } from "@/components/use-ui-text";
 import { Select } from "@/components/select";
 import { InfiniteScroll } from "@/components/infinite-scroll";
 import { searchPlacesAction } from "@/app/actions/search-places";
@@ -26,6 +28,7 @@ export function MapView({
   result: PlaceSearchResult;
   embedded?: boolean;
 }) {
+  const translateUi = useUiText();
   const ready = useHydrated();
   const { lang } = useAppState();
   const router = useRouter();
@@ -65,7 +68,8 @@ export function MapView({
   const composing = useRef(false);
   const previousQuery = useRef(result.query.q);
   const mapRef = useRef<HTMLElement>(null);
-  const searchKey = placeSearchParams(result.query).toString();
+  const filterKey = placeSearchParams(result.query).toString();
+  const searchKey = `${lang}:${filterKey}`;
   const activeSearchKey = useRef(searchKey);
   activeSearchKey.current = searchKey;
   const [loaded, setLoaded] = useState({ key: searchKey, result, complete: false });
@@ -88,7 +92,7 @@ export function MapView({
     previousQuery.current = result.query.q;
     setSelectedId(undefined);
     setShowMap(false);
-  }, [searchKey, result.query.q]);
+  }, [filterKey, result.query.q]);
   useEffect(
     () => () => {
       clearTimeout(timer.current);
@@ -118,7 +122,7 @@ export function MapView({
     draftFilters.current = { ...draftFilters.current, q: query, page: 1, ...changes };
     setDisplayFilters(draftFilters.current);
     const params = placeSearchParams(draftFilters.current);
-    if (params.toString() === searchKey) {
+    if (params.toString() === filterKey) {
       filterPending.current = false;
       setSearchWaiting(false);
       return;
@@ -198,10 +202,11 @@ export function MapView({
     <div className="screen-enter places-page">
       {!embedded && (
         <UI.TopBar
-          title="여행지 찾기"
+          title={translateUi("여행지 찾기")}
           right={
             <Link href="/discover" className="text-link">
-              테마 코스 <Icon.chevR />
+              {translateUi("테마 코스 ")}
+              <Icon.chevR />
             </Link>
           }
         />
@@ -209,9 +214,9 @@ export function MapView({
       {!embedded && (
         <header className="page-heading">
           <div>
-            <span className="eyebrow">강원 18개 시군의 여행지</span>
-            <h1>어디로 떠나볼까요?</h1>
-            <p>이름·지역·주소로 찾고, 마음에 드는 장소의 위치를 확인하세요.</p>
+            <span className="eyebrow">{translateUi("강원 18개 시군의 여행지")}</span>
+            <h1>{translateUi("어디로 떠나볼까요?")}</h1>
+            <p>{translateUi("이름·지역·주소로 찾고, 마음에 드는 장소의 위치를 확인하세요.")}</p>
           </div>
         </header>
       )}
@@ -227,9 +232,9 @@ export function MapView({
           <Icon.search />
           <input
             type="search"
-            aria-label="관광지 검색"
+            aria-label={translateUi("관광지 검색")}
             disabled={!ready}
-            placeholder="속초 해변, 박수근미술관, 정동진…"
+            placeholder={translateUi("속초 해변, 박수근미술관, 정동진…")}
             value={query}
             maxLength={100}
             onChange={(e) => search(e.target.value)}
@@ -245,20 +250,20 @@ export function MapView({
             }}
           />
           <button className="btn btn-primary btn-sm" disabled={!ready} type="submit">
-            검색
+            {translateUi("검색")}
           </button>
         </div>
         <label className="places-region">
-          <span>지역</span>
+          <span>{translateUi("지역")}</span>
           <Select
-            aria-label="여행지 지역"
+            aria-label={translateUi("여행지 지역")}
             value={displayFilters.region}
             onChange={(e) => navigate({ region: e.target.value })}
           >
-            <option value="">강원 전체</option>
+            <option value="">{translateUi("강원 전체")}</option>
             {GANGWON_REGIONS.map((r) => (
               <option key={r.key} value={r.ko}>
-                {r.ko}
+                {translateUi(r.ko)}
               </option>
             ))}
           </Select>
@@ -266,10 +271,11 @@ export function MapView({
       </form>
       <details className="places-extra-filters">
         <summary>
-          <Icon.filter /> 종류·무장애 조건
-          {displayFilters.category || displayFilters.accessibility ? " · 적용 중" : ""}
+          <Icon.filter />
+          {translateUi(" 종류·무장애 조건")}
+          {translateUi(displayFilters.category || displayFilters.accessibility ? " · 적용 중" : "")}
         </summary>
-        <div className="places-categories" aria-label="여행지 종류">
+        <div className="places-categories" aria-label={translateUi("여행지 종류")}>
           {[{ id: "", label: "전체" }, ...PLACE_CATEGORIES].map((c) => (
             <button
               disabled={!ready}
@@ -278,7 +284,7 @@ export function MapView({
               aria-pressed={displayFilters.category === c.id}
               onClick={() => navigate({ category: c.id })}
             >
-              {c.label}
+              {translateUi(c.label)}
             </button>
           ))}
         </div>
@@ -288,17 +294,22 @@ export function MapView({
             disabled={!ready}
             checked={displayFilters.accessibility === "info"}
             onChange={(e) => navigate({ accessibility: e.target.checked ? "info" : "" })}
-          />{" "}
-          무장애 안내 있는 곳
+          />
+          {translateUi(" ")}
+          {translateUi("무장애 안내 있는 곳")}
         </label>
       </details>
       <div className="results-heading">
         <h2 aria-live="polite">
           {pending || searchWaiting ? (
-            "여행지를 찾고 있어요…"
+            translateUi("여행지를 찾고 있어요…")
           ) : (
             <>
-              여행지 <span>{listing.total.toLocaleString()}곳</span>
+              {translateUi("여행지 ")}
+              <span>
+                {listing.total.toLocaleString(lang)}
+                {lang === "ko" ? "곳" : ""}
+              </span>
             </>
           )}
         </h2>
@@ -314,12 +325,12 @@ export function MapView({
               navigate({ q: "", region: "", category: "", accessibility: "" });
             }}
           >
-            검색 초기화
+            {translateUi("검색 초기화")}
           </button>
         )}
       </div>
       <div className="places-layout" aria-busy={pending || searchWaiting}>
-        <section className="places-results" aria-label="관광지 검색 결과">
+        <section className="places-results" aria-label={translateUi("관광지 검색 결과")}>
           {listing.items.length ? (
             <>
               <div className="places-grid">
@@ -336,7 +347,7 @@ export function MapView({
                     <button
                       className="place-card-select"
                       disabled={!ready}
-                      aria-label={`${localized(p.name, lang)} 지도 보기`}
+                      aria-label={translateUi(`${localized(p.name, lang)} 지도 보기`)}
                       aria-pressed={selected?.id === p.id}
                       onClick={(e) => {
                         lastMapButton.current = e.currentTarget;
@@ -349,24 +360,32 @@ export function MapView({
                       }}
                     >
                       <span className="place-card-photo">
-                        <UI.Placeholder h={148} label={localized(p.name, lang)} src={p.imageUrl} />
+                        <UI.Placeholder
+                          h={148}
+                          label={translateUi(localized(p.name, lang))}
+                          src={p.imageUrl}
+                        />
                       </span>
                       <span className="place-card-body">
                         <span className="eyebrow">
-                          {localized(p.region, lang)} · {localized(p.type, lang)}
+                          {translateUi(localized(p.region, lang))} ·{" "}
+                          {translateUi(localized(p.type, lang))}
                         </span>
-                        <strong className="place-card-title">{localized(p.name, lang)}</strong>
+                        <strong className="place-card-title">
+                          {translateUi(localized(p.name, lang))}
+                        </strong>
                         {p.hasAccessibilityInfo && (
-                          <span className="accessibility-badge">무장애 안내</span>
+                          <span className="accessibility-badge">{translateUi("무장애 안내")}</span>
                         )}
                         <span className="place-card-address">
-                          {p.address || `${localized(p.region, lang)}의 여행 명소`}
+                          {translateUi(p.address || `${localized(p.region, lang)}의 여행 명소`)}
                         </span>
                       </span>
                     </button>
                     <div className="place-card-actions">
                       <Link href={`/spot/${p.id}`} className="text-link">
-                        상세 보기 <Icon.chevR />
+                        {translateUi("상세 보기 ")}
+                        <Icon.chevR />
                       </Link>
                     </div>
                   </article>
@@ -380,20 +399,17 @@ export function MapView({
                 disabled={!ready || pending || searchWaiting || mapBlocksLoading}
                 onLoadMore={loadMore}
                 onRetry={loadMore}
-                label="여행지"
+                label={translateUi("여행지")}
                 resetKey={searchKey}
                 progressKey={`${listing.page}:${listing.items.length}`}
               >
-                <span>
-                  {listing.total.toLocaleString()}곳 중 {listing.items.length.toLocaleString()}곳을
-                  보고 있어요.
-                </span>
+                <span>{listProgress(listing.items.length, listing.total, "places", lang)}</span>
                 {result.page > 1 && (
                   <Link
                     className="text-link"
                     href={`/discover?tab=places&${placeSearchParams({ ...result.query, page: 1 })}`}
                   >
-                    첫 여행지부터 보기
+                    {translateUi("첫 여행지부터 보기")}
                   </Link>
                 )}
               </InfiniteScroll>
@@ -401,8 +417,8 @@ export function MapView({
           ) : (
             <div className="empty-state">
               <Icon.search />
-              <h2>검색 결과가 없어요</h2>
-              <p>장소 이름을 짧게 입력하거나 지역·종류 필터를 풀어보세요.</p>
+              <h2>{translateUi("검색 결과가 없어요")}</h2>
+              <p>{translateUi("장소 이름을 짧게 입력하거나 지역·종류 필터를 풀어보세요.")}</p>
               <button
                 className="btn btn-secondary"
                 disabled={!ready}
@@ -411,26 +427,27 @@ export function MapView({
                   navigate({ q: "", region: "", category: "", accessibility: "" });
                 }}
               >
-                전체 여행지 보기
+                {translateUi("전체 여행지 보기")}
               </button>
             </div>
           )}
           <p className="section-description">
-            관광정보·사진 제공: 한국관광공사 TourAPI. 방문 전 상세 화면에서 운영·예약 안내를
-            확인하세요.
+            {translateUi(
+              "관광정보·사진 제공: 한국관광공사 TourAPI. 방문 전 상세 화면에서 운영·예약 안내를 확인하세요.",
+            )}
           </p>
         </section>
         <aside
           ref={mapRef}
           className={`places-map${showMap ? " is-open" : ""}`}
-          aria-label="선택한 여행지 위치"
+          aria-label={translateUi("선택한 여행지 위치")}
         >
           {selected && (
             <>
               <div className="places-map-heading">
                 <div>
-                  <span className="eyebrow">선택한 여행지</span>
-                  <h2>{localized(selected.name, lang)}</h2>
+                  <span className="eyebrow">{translateUi("선택한 여행지")}</span>
+                  <h2>{translateUi(localized(selected.name, lang))}</h2>
                 </div>
                 <button
                   className="btn btn-sm btn-secondary places-map-close"
@@ -442,7 +459,7 @@ export function MapView({
                     });
                   }}
                 >
-                  지도 닫기
+                  {translateUi("지도 닫기")}
                 </button>
               </div>
               {selected.lat !== undefined && selected.lon !== undefined ? (
@@ -452,11 +469,12 @@ export function MapView({
                   name={localized(selected.name, lang)}
                 />
               ) : (
-                <p>위치 정보를 준비하고 있어요.</p>
+                <p>{translateUi("위치 정보를 준비하고 있어요.")}</p>
               )}
-              <p>{selected.address}</p>
+              <p>{translateUi(selected.address)}</p>
               <Link className="btn btn-primary" href={`/spot/${selected.id}`}>
-                사진·이용 안내 보기 <Icon.chevR />
+                {translateUi("사진·이용 안내 보기 ")}
+                <Icon.chevR />
               </Link>
             </>
           )}

@@ -20,20 +20,31 @@ import React, {
 import { signIn, useSession } from "next-auth/react";
 import { logoutAction } from "@/app/actions/logout";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Sidebar, TabBar } from "@/design/ui";
 import { urlForTab } from "@/lib/nav";
 import { safeReturnTo } from "@/lib/auth-return-to";
+import { languageFromCookie } from "@/lib/language-cookie";
+import {
+  DEFAULT_LANG,
+  isLang,
+  keycloakUiLocales,
+  LANGUAGE_COOKIE,
+  uiText,
+  type Lang,
+} from "@/lib/i18n";
+import { LanguageContext } from "./language-context";
+import { LanguagePicker } from "./language-picker";
+import languageStyles from "./language-picker.module.css";
 
 // 프로토타입 발표용 고정 설정 (design-host 의 tweak 패널 대체)
 export const TWEAKS = {
   palette: "ocean",
   homeLayout: "themes-first",
   themeVariant: "default",
-  lang: "ko" as const,
+  lang: DEFAULT_LANG,
   mypageVariant: "stats",
 };
-
-type Lang = "ko" | "en";
 
 interface AuthState {
   member: boolean;
@@ -42,6 +53,7 @@ interface AuthState {
 
 interface AppState {
   lang: Lang;
+  setLang: (lang: Lang) => void;
   tweaks: typeof TWEAKS;
   auth: AuthState;
   login: (providerId: string, returnTo?: string) => Promise<void>;
@@ -73,13 +85,56 @@ function activeTabFor(pathname: string): string {
   return "home";
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  initialLang = DEFAULT_LANG,
+}: {
+  children: React.ReactNode;
+  initialLang?: Lang;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
 
-  const lang = TWEAKS.lang;
+  const [lang, setCurrentLang] = useState<Lang>(initialLang);
+  // 진행 중인 전환이 있어도 마지막 요청 언어를 유지해 중복 새로고침을 막는다.
+  const currentLanguage = useRef(lang);
   const palette = TWEAKS.palette;
+  const applyLanguage = useCallback(
+    (next: Lang) => {
+      if (next === currentLanguage.current) return;
+      // focus와 visibilitychange가 연속 발생해도 같은 언어로 중복 refresh하지 않는다.
+      currentLanguage.current = next;
+      setCurrentLang(next);
+      router.refresh();
+    },
+    [router],
+  );
+  const setLang = useCallback(
+    (next: Lang) => {
+      if (!isLang(next)) return;
+      document.cookie = `${LANGUAGE_COOKIE}=${encodeURIComponent(next)}; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+      applyLanguage(next);
+    },
+    [applyLanguage],
+  );
+  useEffect(() => {
+    const syncLanguage = () => {
+      if (document.visibilityState === "hidden") return;
+      const next = languageFromCookie(document.cookie);
+      if (next) applyLanguage(next);
+    };
+    syncLanguage();
+    window.addEventListener("focus", syncLanguage);
+    document.addEventListener("visibilitychange", syncLanguage);
+    return () => {
+      window.removeEventListener("focus", syncLanguage);
+      document.removeEventListener("visibilitychange", syncLanguage);
+    };
+  }, [applyLanguage]);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const [toast, setToast] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -105,9 +160,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useMemo<AuthState>(
     () => ({
       member: status === "authenticated",
-      user: userFromSession(session?.user),
+      user: {
+        ...userFromSession(session?.user),
+        name: session?.user?.name || uiText("여행자", lang),
+      },
     }),
-    [session?.user, status],
+    [session?.user, status, lang],
   );
 
   const showToast = useCallback((msg: string) => {
@@ -138,7 +196,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (providerId: string, returnTo?: string) => {
-      await signIn(providerId, { callbackUrl: safeReturnTo(returnTo) }, { ui_locales: lang });
+      await signIn(
+        providerId,
+        { callbackUrl: safeReturnTo(returnTo) },
+        { ui_locales: keycloakUiLocales(lang) },
+      );
     },
     [lang],
   );
@@ -158,7 +220,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const ctx: AppState = {
     lang,
-    tweaks: TWEAKS,
+    setLang,
+    tweaks: { ...TWEAKS, lang },
     auth,
     login,
     logout,
@@ -172,34 +235,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppStateContext.Provider value={ctx}>
-      <div className={`app-shell${sidebarCollapsed ? " app-shell-collapsed" : ""}`}>
-        <a className="skip-link" href="#main-content">
-          본문으로 건너뛰기
-        </a>
-        <Sidebar
-          ready={sidebarReady}
-          collapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
-          active={activeTab}
-          onNav={goTab}
-          lang={lang}
-          isMember={auth.member}
-          user={auth.user}
-          onLogin={() => router.push("/login?reason=profile")}
-        />
-        <div className="app-screen">
-          <main className="screen-body" key={pathname} id="main-content">
-            {children}
-          </main>
-          <TabBar ready={sidebarReady} active={activeTab} onNav={goTab} lang={lang} />
-        </div>
-        {toast && (
-          <div className="toast" role="status" aria-live="polite">
-            <span style={{ display: "inline-flex" }}>✓</span>
-            {toast}
+      <LanguageContext.Provider value={lang}>
+        <div className={`app-shell${sidebarCollapsed ? " app-shell-collapsed" : ""}`}>
+          <a className="skip-link" href="#main-content">
+            {uiText("본문으로 건너뛰기", lang)}
+          </a>
+          <Sidebar
+            ready={sidebarReady}
+            collapsed={sidebarCollapsed}
+            onToggle={toggleSidebar}
+            active={activeTab}
+            onNav={goTab}
+            lang={lang}
+            onLanguageChange={setLang}
+            isMember={auth.member}
+            user={auth.user}
+            onLogin={() => router.push("/login?reason=profile")}
+          />
+          <div className="app-screen">
+            <div className={languageStyles.mobileHeader}>
+              <Link href="/" aria-label={uiText("에움길 홈", lang)}>
+                에움길
+              </Link>
+              <LanguagePicker lang={lang} onChange={setLang} hideLabel />
+            </div>
+            {lang !== "ko" && (
+              <aside className={languageStyles.notice} aria-label={uiText("제공 언어", lang)}>
+                <p>{uiText("일부 관광 정보와 안내는 원문 또는 영어로 표시됩니다.", lang)}</p>
+                <Link href="/settings">{uiText("언어 설정", lang)}</Link>
+              </aside>
+            )}
+            <main className="screen-body" key={pathname} id="main-content">
+              {children}
+            </main>
+            <TabBar ready={sidebarReady} active={activeTab} onNav={goTab} lang={lang} />
           </div>
-        )}
-      </div>
+          {toast && (
+            <div className="toast" role="status" aria-live="polite">
+              <span style={{ display: "inline-flex" }}>✓</span>
+              {uiText(toast, lang)}
+            </div>
+          )}
+        </div>
+      </LanguageContext.Provider>
     </AppStateContext.Provider>
   );
 }

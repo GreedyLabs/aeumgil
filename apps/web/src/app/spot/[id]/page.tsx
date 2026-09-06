@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { SpotMediaSection } from "@/components/spot-media-section";
 import { notFound } from "next/navigation";
 import { SpotView } from "@/components/screens/spot";
 import { getRepository } from "@/data";
@@ -15,5 +17,17 @@ export default async function SpotPage({ params }: { params: Promise<{ id: strin
     repo.listStays(),
   ]);
 
-  return <SpotView spot={spot} alts={alts} eats={eats.filter((e) => e.region.ko === spot.region.ko).slice(0, 3)} stays={stays.filter((s) => s.region.ko === spot.region.ko).slice(0, 2)} />;
+  return (
+    <SpotView
+      media={
+        <Suspense fallback={null}>
+          <SpotMediaSection spot={spot} />
+        </Suspense>
+      }
+      spot={spot}
+      alts={alts}
+      eats={eats.filter((e) => e.region.ko === spot.region.ko).slice(0, 3)}
+      stays={stays.filter((s) => s.region.ko === spot.region.ko).slice(0, 2)}
+    />
+  );
 }

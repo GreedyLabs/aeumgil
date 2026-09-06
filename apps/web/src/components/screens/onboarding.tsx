@@ -1,5 +1,5 @@
 "use client";
-
+import { useUiText } from "@/components/use-ui-text";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ interface Props {
 }
 
 export function OnboardingView({ preference, paces, companions }: Props) {
+  const translateUi = useUiText();
   const { lang, showToast } = useAppState();
   const router = useRouter();
   const ready = useHydrated();
@@ -59,27 +60,31 @@ export function OnboardingView({ preference, paces, companions }: Props) {
 
   return (
     <div className={`screen-enter ${styles.page}`}>
-      <UI.TopBar title="여행 취향 설정" onBack={() => router.push("/profile")} />
+      <UI.TopBar title={translateUi("여행 취향 설정")} onBack={() => router.push("/profile")} />
       <header className="page-heading">
         <div>
-          <span className="eyebrow">이번 여행의 조건이 먼저예요</span>
-          <h1>나에게 맞는 여행의 기본값</h1>
+          <span className="eyebrow">{translateUi("이번 여행의 조건이 먼저예요")}</span>
+          <h1>{translateUi("나에게 맞는 여행의 기본값")}</h1>
           <p>
-            평소 좋아하는 여행을 기억해 둘게요. 모든 항목은 선택 사항이고, 언제든 바꿀 수 있어요.
+            {translateUi(
+              "평소 좋아하는 여행을 기억해 둘게요. 모든 항목은 선택 사항이고, 언제든 바꿀 수 있어요.",
+            )}
           </p>
         </div>
       </header>
       <div className={styles.effect}>
         <Icon.sparkle />
         <div>
-          <strong>이렇게 반영돼요</strong>
+          <strong>{translateUi("이렇게 반영돼요")}</strong>
           <p>
-            관심 분야는 검색 조건이 같은 후보의 순서를 정할 때 참고해요. 페이스와 동행은 추천
-            코스에서 따로 지정하지 않은 경우에만 적용해요.
+            {translateUi(
+              "관심 분야는 검색 조건이 같은 후보의 순서를 정할 때 참고해요. 페이스와 동행은 추천 코스에서 따로 지정하지 않은 경우에만 적용해요.",
+            )}
           </p>
           <p>
-            검색에 적은 조건과 코스에서 직접 바꾼 값이 항상 우선해요. 혼잡도·이용 가능 여부를
-            보장하는 설정은 아니에요.
+            {translateUi(
+              "검색에 적은 조건과 코스에서 직접 바꾼 값이 항상 우선해요. 혼잡도·이용 가능 여부를 보장하는 설정은 아니에요.",
+            )}
           </p>
         </div>
       </div>
@@ -91,9 +96,11 @@ export function OnboardingView({ preference, paces, companions }: Props) {
         className={styles.form}
       >
         <fieldset disabled={!ready || isPending} className={styles.fieldset}>
-          <legend>관심 있는 여행</legend>
+          <legend>{translateUi("관심 있는 여행")}</legend>
           <p className={styles.help}>
-            지역별 코스를 하나씩 고를 필요 없이 좋아하는 분야를 선택하세요. 복수 선택할 수 있어요.
+            {translateUi(
+              "지역별 코스를 하나씩 고를 필요 없이 좋아하는 분야를 선택하세요. 복수 선택할 수 있어요.",
+            )}
           </p>
           <div className={styles.interestGrid}>
             {TRAVEL_INTERESTS.map((interest) => {
@@ -115,8 +122,8 @@ export function OnboardingView({ preference, paces, companions }: Props) {
                     {on ? <Icon.check /> : null}
                   </span>
                   <span>
-                    <strong>{localized(interest.label, lang)}</strong>
-                    <small>{localized(interest.description, lang)}</small>
+                    <strong>{translateUi(localized(interest.label, lang))}</strong>
+                    <small>{translateUi(localized(interest.description, lang))}</small>
                   </span>
                 </button>
               );
@@ -124,59 +131,65 @@ export function OnboardingView({ preference, paces, companions }: Props) {
           </div>
         </fieldset>
         <fieldset disabled={!ready || isPending} className={styles.fieldset}>
-          <legend>코스를 만들 때 참고할 조건</legend>
+          <legend>{translateUi("코스를 만들 때 참고할 조건")}</legend>
           <div className={styles.options}>
             <label>
-              여행 페이스
+              {translateUi("여행 페이스")}
               <Select
-                aria-label="여행 페이스"
+                aria-label={translateUi("여행 페이스")}
                 value={pace}
                 onChange={(event) => {
                   setPace(event.target.value);
                   setMessage("");
                 }}
               >
-                <option value="">그때그때 정할게요</option>
+                <option value="">{translateUi("그때그때 정할게요")}</option>
                 {paces.map((item) => (
                   <option value={item.id} key={item.id}>
-                    {localized(item.name, lang)}
+                    {translateUi(localized(item.name, lang))}
                   </option>
                 ))}
               </Select>
               <small>
-                {paces.find((item) => item.id === pace)?.desc
-                  ? localized(paces.find((item) => item.id === pace)!.desc!, lang)
-                  : "코스마다 장소 수와 이동 여유를 조절할 수 있어요."}
+                {translateUi(
+                  paces.find((item) => item.id === pace)?.desc
+                    ? localized(paces.find((item) => item.id === pace)!.desc!, lang)
+                    : "코스마다 장소 수와 이동 여유를 조절할 수 있어요.",
+                )}
               </small>
             </label>
             <label>
-              주로 함께 여행하는 사람
+              {translateUi("주로 함께 여행하는 사람")}
               <Select
-                aria-label="주로 함께 여행하는 사람"
+                aria-label={translateUi("주로 함께 여행하는 사람")}
                 value={companion}
                 onChange={(event) => {
                   setCompanion(event.target.value);
                   setMessage("");
                 }}
               >
-                <option value="">그때그때 정할게요</option>
+                <option value="">{translateUi("그때그때 정할게요")}</option>
                 {companions.map((item) => (
                   <option value={item.id} key={item.id}>
-                    {localized(item.name, lang)}
+                    {translateUi(localized(item.name, lang))}
                   </option>
                 ))}
               </Select>
-              <small>이번 여행에 다른 동행이 있다면 검색이나 코스 조건에 적어 주세요.</small>
+              <small>
+                {translateUi("이번 여행에 다른 동행이 있다면 검색이나 코스 조건에 적어 주세요.")}
+              </small>
             </label>
           </div>
         </fieldset>
         <div className={styles.footer}>
           <div>
             <p className={styles.help}>
-              {selected.length
-                ? `선택한 관심 분야 ${selected.length}개`
-                : "관심 분야를 지정하지 않았어요."}
-              {dirty ? " · 저장 전" : preference ? " · 저장한 설정" : ""}
+              {translateUi(
+                selected.length
+                  ? `선택한 관심 분야 ${selected.length}개`
+                  : "관심 분야를 지정하지 않았어요.",
+              )}
+              {translateUi(dirty ? " · 저장 전" : preference ? " · 저장한 설정" : "")}
             </p>
             <button
               type="button"
@@ -189,7 +202,7 @@ export function OnboardingView({ preference, paces, companions }: Props) {
                 setMessage("");
               }}
             >
-              선택 비우기
+              {translateUi("선택 비우기")}
             </button>
           </div>
           <button
@@ -197,22 +210,23 @@ export function OnboardingView({ preference, paces, companions }: Props) {
             className="btn btn-primary"
             disabled={!ready || isPending || (!dirty && Boolean(preference))}
           >
-            {isPending ? "저장 중…" : "여행 취향 저장"}
+            {translateUi(isPending ? "저장 중…" : "여행 취향 저장")}
           </button>
         </div>
         {error && (
           <p role="alert" className={styles.error}>
-            {error}
+            {translateUi(error)}
           </p>
         )}
         {message && (
           <p role="status" className={styles.success}>
-            {message}
+            {translateUi(message)}
           </p>
         )}
       </form>
       <Link className="text-link" href="/profile">
-        프로필로 돌아가기 <Icon.chevR />
+        {translateUi("프로필로 돌아가기 ")}
+        <Icon.chevR />
       </Link>
     </div>
   );

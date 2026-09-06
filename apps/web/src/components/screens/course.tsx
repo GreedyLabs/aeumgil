@@ -1,4 +1,5 @@
 "use client";
+import { useUiText } from "@/components/use-ui-text";
 import { ExternalLink, ExternalLinkIndicator } from "@/components/external-link";
 import Link from "next/link";
 import { Select } from "@/components/select";
@@ -60,6 +61,7 @@ export function CourseView({
   initiallySaved,
   onSaveTheme,
 }: Props) {
+  const translateUi = useUiText();
   const { lang, requireAuth, showToast } = useAppState();
   const { nav } = useAppNav();
   const [day, setDay] = useState(1);
@@ -109,13 +111,7 @@ export function CourseView({
     Boolean(options.companion) ||
     Boolean(options.transport) ||
     Boolean(options.startRegion);
-  const saveLabel = isSaved
-    ? lang === "ko"
-      ? "테마 보관 해제"
-      : "Remove theme"
-    : lang === "ko"
-      ? "테마 보관"
-      : "Keep theme";
+  const saveLabel = isSaved ? "테마 보관 해제" : "테마 보관";
 
   const toggleSave = () => {
     requireAuth("save", () => {
@@ -163,12 +159,12 @@ export function CourseView({
   return (
     <div className="screen-enter course-page">
       <TopBar
-        title="코스 상세"
+        title={translateUi("코스 상세")}
         onBack={() => nav("theme", { themeId: theme.id })}
         right={
           <button
             className="icon-btn"
-            aria-label="코스 공유"
+            aria-label={translateUi("코스 공유")}
             onClick={() => void shareCurrentPage(theme.title.ko, showToast)}
           >
             <Icon.share />
@@ -178,18 +174,23 @@ export function CourseView({
       <header className="page-heading">
         <div>
           <span className="eyebrow">
-            {localized(theme.tag, lang)} · {localized(theme.region, lang)}
+            {translateUi(localized(theme.tag, lang))} · {translateUi(localized(theme.region, lang))}
           </span>
-          <h1>{localized(theme.title, lang)}</h1>
+          <h1>{translateUi(localized(theme.title, lang))}</h1>
           <p>
-            {course.dayCount}일 ·{" "}
-            {paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko} · 관광지{" "}
-            {course.items.filter((it) => it.kind === "spot").length}곳
+            {translateUi(course.dayCount)}
+            {translateUi("일 ·")}
+            {translateUi(" ")}
+            {translateUi(paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko)}
+            {translateUi(" · 관광지")}
+            {translateUi(" ")}
+            {translateUi(course.items.filter((it) => it.kind === "spot").length)}
+            {translateUi("곳")}
           </p>
         </div>
         <button
           className="icon-btn filled"
-          aria-label={isSaved ? "테마 보관 해제" : "테마 보관"}
+          aria-label={translateUi(isSaved ? "테마 보관 해제" : "테마 보관")}
           onClick={toggleSave}
           disabled={isPending}
         >
@@ -200,8 +201,12 @@ export function CourseView({
         <div className="detail-primary">
           {busy && (
             <div className="course-note caution">
-              <strong>조금 더 여유로운 여행을 원한다면</strong>
-              <p>혼잡한 장소가 포함되어 있어요. 같은 분위기의 다른 장소를 비교해 보세요.</p>
+              <strong>{translateUi("조금 더 여유로운 여행을 원한다면")}</strong>
+              <p>
+                {translateUi(
+                  "혼잡한 장소가 포함되어 있어요. 같은 분위기의 다른 장소를 비교해 보세요.",
+                )}
+              </p>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() =>
@@ -213,26 +218,27 @@ export function CourseView({
                   })
                 }
               >
-                <Icon.refresh /> 대체지 보기
+                <Icon.refresh />
+                {translateUi(" 대체지 보기")}
               </button>
             </div>
           )}
           {course.preferenceNote && (
-            <p className="course-note">{localized(course.preferenceNote, lang)}</p>
+            <p className="course-note">{translateUi(localized(course.preferenceNote, lang))}</p>
           )}
           {course.reorderNote && (
             <div className="course-note">
-              <Icon.clock /> {localized(course.reorderNote, lang)}
+              <Icon.clock /> {translateUi(localized(course.reorderNote, lang))}
             </div>
           )}
           {course.altNote && (
             <details className="course-note">
-              <summary>코스 추천 이유</summary>
-              <p>{localized(course.altNote, lang)}</p>
+              <summary>{translateUi("코스 추천 이유")}</summary>
+              <p>{translateUi(localized(course.altNote, lang))}</p>
             </details>
           )}
           <ThemePlanningInfo theme={theme} lang={lang} />
-          <div className="course-tabs" aria-label="여행 날짜">
+          <div className="course-tabs" aria-label={translateUi("여행 날짜")}>
             {Array.from({ length: course.dayCount }, (_, i) => i + 1).map((d) => (
               <button
                 key={d}
@@ -240,7 +246,7 @@ export function CourseView({
                 aria-pressed={day === d}
                 className={`chip${day === d ? " active" : ""}`}
               >
-                Day {d}
+                Day {translateUi(d)}
               </button>
             ))}
             <button
@@ -249,10 +255,13 @@ export function CourseView({
               aria-expanded={showTune}
               onClick={() => setShowTune((v) => !v)}
             >
-              <Icon.filter /> 조건
+              <Icon.filter />
+              {translateUi(" 조건")}
             </button>
           </div>
-          {isTuning && <p role="status">선택한 조건으로 코스를 조정하고 있어요…</p>}
+          {isTuning && (
+            <p role="status">{translateUi("선택한 조건으로 코스를 조정하고 있어요…")}</p>
+          )}
           <CourseMap stops={mapStops} legs={mapLegs} day={day} />
           <div className="course-timeline">
             {items.map((it, i) => (
@@ -269,11 +278,15 @@ export function CourseView({
             ))}
           </div>
           <p className="section-description">
-            같은 날 관광지·식당·숙소 사이의 이동은 좌표로 추정해요. 첫 장소까지의 이동과 날짜 사이
-            이동·귀가 시간은 별도로 잡아주세요. 실제 영업시간과 교통편은 출발 전에 확인해 주세요.
+            {translateUi(
+              "같은 날 관광지·식당·숙소 사이의 이동은 좌표로 추정해요. 첫 장소까지의 이동과 날짜 사이 이동·귀가 시간은 별도로 잡아주세요. 실제 영업시간과 교통편은 출발 전에 확인해 주세요.",
+            )}
           </p>
         </div>
-        <aside className="detail-aside summary-panel mobile-first" aria-label="코스 조건과 저장">
+        <aside
+          className="detail-aside summary-panel mobile-first"
+          aria-label={translateUi("코스 조건과 저장")}
+        >
           {showTune ? (
             <CourseTunePanel
               lang={lang}
@@ -293,42 +306,59 @@ export function CourseView({
           ) : (
             <>
               <Link className="btn btn-primary btn-block" href={`/my-courses/new?${copyQuery}`}>
-                <Icon.plus /> 내 코스로 편집
+                <Icon.plus />
+                {translateUi(" 내 코스로 편집")}
               </Link>
-              <p>장소·방문 순서를 바꾸고 이 일정을 저장하세요.</p>
+              <p>{translateUi("장소·방문 순서를 바꾸고 이 일정을 저장하세요.")}</p>
               <details className="trip-facts">
                 <summary>
-                  {course.dayCount}일 ·{" "}
-                  {transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko}
-                  <span>여행 조건</span>
+                  {translateUi(course.dayCount)}
+                  {translateUi("일 ·")}
+                  {translateUi(" ")}
+                  {translateUi(
+                    transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko,
+                  )}
+                  <span>{translateUi("여행 조건")}</span>
                 </summary>
                 <dl className="summary-facts">
                   <div>
-                    <dt>일정</dt>
-                    <dd>{course.dayCount}일</dd>
-                  </div>
-                  <div>
-                    <dt>이동수단</dt>
+                    <dt>{translateUi("일정")}</dt>
                     <dd>
-                      {transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko}
+                      {translateUi(course.dayCount)}
+                      {translateUi("일")}
                     </dd>
                   </div>
                   <div>
-                    <dt>여행 페이스</dt>
-                    <dd>{paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko}</dd>
+                    <dt>{translateUi("이동수단")}</dt>
+                    <dd>
+                      {translateUi(
+                        transportChoices.find((t) => t.id === (options.transport ?? "car"))?.ko,
+                      )}
+                    </dd>
                   </div>
                   <div>
-                    <dt>동행</dt>
+                    <dt>{translateUi("여행 페이스")}</dt>
                     <dd>
-                      {options.companion
-                        ? companionChoices.find((c) => c.id === options.companion)?.ko
-                        : "자유롭게"}
+                      {translateUi(
+                        paceChoices.find((p) => p.id === (options.pace ?? "balanced"))?.ko,
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{translateUi("동행")}</dt>
+                    <dd>
+                      {translateUi(
+                        options.companion
+                          ? companionChoices.find((c) => c.id === options.companion)?.ko
+                          : "자유롭게",
+                      )}
                     </dd>
                   </div>
                 </dl>
               </details>
               <button className="btn btn-secondary btn-block" onClick={() => setShowTune(true)}>
-                <Icon.filter /> 여행 조건 바꾸기
+                <Icon.filter />
+                {translateUi(" 여행 조건 바꾸기")}
               </button>
               <button
                 className="btn btn-ghost btn-block"
@@ -337,10 +367,12 @@ export function CourseView({
                 disabled={isPending}
               >
                 {isSaved ? <Icon.bookmarkFill /> : <Icon.bookmark />}
-                {isPending ? "저장 중…" : saveLabel}
+                {translateUi(isPending ? "저장 중…" : saveLabel)}
               </button>
               <p className="summary-footnote">
-                테마 보관은 테마만 기억해요. 지금 일정을 남기려면 내 코스로 편집하세요.
+                {translateUi(
+                  "테마 보관은 테마만 기억해요. 지금 일정을 남기려면 내 코스로 편집하세요.",
+                )}
               </p>
             </>
           )}
@@ -381,6 +413,7 @@ function CourseTunePanel({
   onApply,
   onReset,
 }: TunePanelProps) {
+  const translateUi = useUiText();
   return (
     <div
       className="course-tune"
@@ -396,25 +429,17 @@ function CourseTunePanel({
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>
-            {lang === "ko" ? "코스 조건" : "Trip options"}
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>{translateUi("코스 조건")}</div>
           <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2 }}>
-            {lang === "ko"
-              ? "선택값으로 후보 장소와 동선을 다시 조합해요."
-              : "Regenerate stops and route with these choices."}
+            {translateUi("선택값으로 후보 장소와 동선을 다시 조합해요.")}
           </div>
         </div>
-        <button
-          className="icon-btn"
-          onClick={onReset}
-          aria-label={lang === "ko" ? "조건 초기화" : "Reset options"}
-        >
+        <button className="icon-btn" onClick={onReset} aria-label={translateUi("조건 초기화")}>
           <Icon.refresh />
         </button>
       </div>
 
-      <TuneGroup label={lang === "ko" ? "일정" : "Days"}>
+      <TuneGroup label={translateUi("일정")}>
         {dayChoices.map((d) => (
           <button
             key={d}
@@ -422,12 +447,12 @@ function CourseTunePanel({
             className={"chip" + (days === d ? " active" : "")}
             onClick={() => onDays(d)}
           >
-            {lang === "ko" ? `${d}일` : `${d}d`}
+            {translateUi(lang === "ko" ? `${d}일` : `${d}d`)}
           </button>
         ))}
       </TuneGroup>
 
-      <TuneGroup label={lang === "ko" ? "페이스" : "Pace"}>
+      <TuneGroup label={translateUi("페이스")}>
         {paceChoices.map((p) => (
           <button
             key={p.id}
@@ -435,12 +460,12 @@ function CourseTunePanel({
             className={"chip" + (pace === p.id ? " active" : "")}
             onClick={() => onPace(p.id)}
           >
-            {lang === "ko" ? p.ko : p.en}
+            {translateUi(p.ko)}
           </button>
         ))}
       </TuneGroup>
 
-      <TuneGroup label={lang === "ko" ? "동행" : "With"}>
+      <TuneGroup label={translateUi("동행")}>
         {companionChoices.map((c) => (
           <button
             key={c.id}
@@ -448,12 +473,12 @@ function CourseTunePanel({
             className={"chip" + (companion === c.id ? " active" : "")}
             onClick={() => onCompanion(c.id)}
           >
-            {lang === "ko" ? c.ko : c.en}
+            {translateUi(c.ko)}
           </button>
         ))}
       </TuneGroup>
 
-      <TuneGroup label={lang === "ko" ? "이동수단" : "Transport"}>
+      <TuneGroup label={translateUi("이동수단")}>
         {transportChoices.map((t) => (
           <button
             key={t.id}
@@ -461,38 +486,39 @@ function CourseTunePanel({
             className={"chip" + (transport === t.id ? " active" : "")}
             onClick={() => onTransport(t.id)}
           >
-            {lang === "ko" ? t.ko : t.en}
+            {translateUi(t.ko)}
           </button>
         ))}
       </TuneGroup>
 
-      <TuneGroup label={lang === "ko" ? "시작 권역" : "Start"}>
+      <TuneGroup label={translateUi("시작 권역")}>
         <Select
           className="input"
-          aria-label="시작 권역"
+          aria-label={translateUi("시작 권역")}
           value={startRegion}
           onChange={(e) => onRegion(e.target.value)}
         >
-          <option value="">코스 기본 권역</option>
+          <option value="">{translateUi("코스 기본 권역")}</option>
           {regionChoices.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {translateUi(r)}
             </option>
           ))}
         </Select>
       </TuneGroup>
 
       <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={onApply}>
-        <Icon.refresh /> {lang === "ko" ? "조건 적용" : "Apply"}
+        <Icon.refresh /> {translateUi("조건 적용")}
       </button>
     </div>
   );
 }
 
 function TuneGroup({ label, children }: { label: string; children: ReactNode }) {
+  const translateUi = useUiText();
   return (
     <div style={{ marginTop: 13 }}>
-      <div className="course-tune-label">{label}</div>
+      <div className="course-tune-label">{translateUi(label)}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>{children}</div>
     </div>
   );
@@ -509,6 +535,7 @@ interface ItemProps {
 }
 
 function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot }: ItemProps) {
+  const translateUi = useUiText();
   const pad = { paddingBottom: isLast ? 0 : 16 };
 
   if (item.kind === "spot") {
@@ -528,7 +555,9 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
             zIndex: 1,
           }}
         >
-          <div style={{ fontFamily: "SF Mono, monospace", fontWeight: 600 }}>{item.time}</div>
+          <div style={{ fontFamily: "SF Mono, monospace", fontWeight: 600 }}>
+            {translateUi(item.time)}
+          </div>
           <div
             style={{
               width: 14,
@@ -546,7 +575,7 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
           style={{ flex: 1, minWidth: 0, padding: 12, textAlign: "left", display: "flex", gap: 12 }}
         >
           <Placeholder
-            label={localized(s.name, lang)}
+            label={translateUi(localized(s.name, lang))}
             src={s.imageUrl}
             h={68}
             style={{ width: 80, borderRadius: 10, flexShrink: 0 }}
@@ -561,16 +590,20 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
             }}
           >
             <div>
-              <div style={{ fontSize: 14.5, fontWeight: 600 }}>{localized(s.name, lang)}</div>
+              <div style={{ fontSize: 14.5, fontWeight: 600 }}>
+                {translateUi(localized(s.name, lang))}
+              </div>
               <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
-                {localized(s.type, lang)}
-                {item.durationMin ? ` · ${item.durationMin} ${lang === "ko" ? "분" : "min"}` : ""}
+                {translateUi(localized(s.type, lang))}
+                {translateUi(item.durationMin ? ` · ${item.durationMin} ${"분"}` : "")}
               </div>
             </div>
             <Signal level={s.congestion} lang={lang} />
             {item.travelMinutes && (
               <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                이전 관광지에서 약 {item.travelMinutes}분 이동
+                {translateUi("이전 관광지에서 약 ")}
+                {translateUi(item.travelMinutes)}
+                {translateUi("분 이동")}
               </span>
             )}
           </div>
@@ -587,7 +620,7 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
   return (
     <div className="itinerary-row" style={{ display: "flex", gap: 16, ...pad }}>
       <div className="itinerary-time">
-        <span className="mono">{item.time}</span>
+        <span className="mono">{translateUi(item.time)}</span>
         <span className={`itinerary-kind${isEat ? " meal" : ""}`}>
           {isEat ? <Icon.utensils /> : <Icon.bed />}
         </span>
@@ -597,20 +630,21 @@ function CourseTimelineItem({ item, lang, spots, eats, stays, isLast, onNavSpot 
         href={`https://map.kakao.com/link/search/${encodeURIComponent(`${name} ${place.address ?? place.region.ko}`)}`}
         indicatorPlacement="within"
         lang={lang}
-        aria-label={`${name} ${lang === "ko" ? "카카오맵 지도·영업정보" : "map and business information on KakaoMap"}`}
+        aria-label={translateUi(`${name} ${"카카오맵 지도·영업정보"}`)}
       >
         <Placeholder
           src={place.imageUrl}
-          label={name}
+          label={translateUi(name)}
           h={84}
           style={{ width: 90, borderRadius: 10, flexShrink: 0 }}
         />
         <div>
-          <span className="eyebrow">{isEat ? "식사" : "숙박"}</span>
-          <h3>{name}</h3>
-          <p>{[localized(place.type, lang), price].filter(Boolean).join(" · ")}</p>
+          <span className="eyebrow">{translateUi(isEat ? "식사" : "숙박")}</span>
+          <h3>{translateUi(name)}</h3>
+          <p>{translateUi([localized(place.type, lang), price].filter(Boolean).join(" · "))}</p>
           <span className="text-link">
-            {lang === "ko" ? "카카오맵 · 영업정보" : "KakaoMap · Business info"}{" "}
+            {translateUi("카카오맵 · 영업정보")}
+            {translateUi(" ")}
             <ExternalLinkIndicator />
           </span>
         </div>

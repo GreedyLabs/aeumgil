@@ -87,8 +87,7 @@ export function filterCourseCommerce(
     .filter((place) => {
       if (query.region && place.region.ko !== query.region) return false;
       const text = [
-        place.name.ko,
-        place.name.en,
+        ...Object.values(place.name),
         place.type.ko,
         place.type.en,
         place.region.ko,

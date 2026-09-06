@@ -1,4 +1,7 @@
 "use client";
+import { localized } from "@/lib/i18n";
+import { mergePlaceLabels } from "@/lib/place-labels";
+import { useUiText } from "@/components/use-ui-text";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ExternalLink, NewTabLink } from "@/components/external-link";
@@ -56,10 +59,11 @@ export function PersonalCourseEditor({
   ownerId: string;
   draftKey: string;
 }) {
+  const translateUi = useUiText();
   const [ready, setReady] = useState(false);
 
   const router = useRouter();
-  const { showToast } = useAppState();
+  const { lang, showToast } = useAppState();
   const [draft, setDraft] = useState(initial);
   const [places, setPlaces] = useState(initialPlaces);
   const [dirty, setDirty] = useState(false);
@@ -114,7 +118,7 @@ export function PersonalCourseEditor({
         setDay(
           saved.draft.items.length ? Math.min(...saved.draft.items.map((item) => item.day)) : 1,
         );
-        setPlaces({ ...initialPlaces, ...saved.places });
+        setPlaces(mergePlaceLabels(saved.places, initialPlaces));
         setRecoverySourceKey(saved.recoverySourceKey);
         setRecoverySourceVersion(saved.recoverySourceVersion);
         setDirty(true);
@@ -138,6 +142,9 @@ export function PersonalCourseEditor({
     // 같은 코스의 초기 버전을 기준으로 한 번만 복원한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
+  useEffect(() => {
+    setPlaces((current) => mergePlaceLabels(current, initialPlaces));
+  }, [initialPlaces]);
   useEffect(() => {
     if (!ready || !dirty) return;
     try {
@@ -195,10 +202,16 @@ export function PersonalCourseEditor({
         : calendarDateAt(startDate, duration);
     update({ startDate, endDate });
   };
-  const mapData = useMemo(
-    () => schedulePersonalCourseDay(draft, places, day),
-    [draft, places, day],
-  );
+  const mapData = useMemo(() => {
+    const scheduled = schedulePersonalCourseDay(draft, places, day);
+    return {
+      ...scheduled,
+      stops: scheduled.stops.map((stop) => ({
+        ...stop,
+        name: places[stop.id] ? localized(places[stop.id]!.name, lang) : stop.name,
+      })),
+    };
+  }, [draft, places, day, lang]);
   const add = (spot: CourseSearchPlace) => {
     if (selectedDayProblem) {
       showToast(selectedDayProblem);
@@ -260,26 +273,29 @@ export function PersonalCourseEditor({
   return (
     <div className="screen-enter personal-course-page">
       <UI.TopBar
-        title="나만의 코스"
+        title={translateUi("나만의 코스")}
         right={
           <Link href="/saved" className="text-link">
-            내 여행 <Icon.chevR />
+            {translateUi("내 여행 ")}
+            <Icon.chevR />
           </Link>
         }
       />
       <fieldset className={`editor-controls editor-panel-${panel}`} disabled={!ready || saving}>
         <header className="page-heading">
           <div>
-            <span className="eyebrow">장소를 담고, 나만의 순서로</span>
-            <h1>{draft.id ? "내 여행을 다듬어볼까요?" : "나만의 여행 만들기"}</h1>
+            <span className="eyebrow">{translateUi("장소를 담고, 나만의 순서로")}</span>
+            <h1>{translateUi(draft.id ? "내 여행을 다듬어볼까요?" : "나만의 여행 만들기")}</h1>
             <p>
-              추천 코스를 바꾸거나 빈 일정부터 시작하세요. 저장한 코스는 내 계정에서만 볼 수 있어요.
+              {translateUi(
+                "추천 코스를 바꾸거나 빈 일정부터 시작하세요. 저장한 코스는 내 계정에서만 볼 수 있어요.",
+              )}
             </p>
           </div>
         </header>
         {draftNotice && (
           <p className="notice" role="status">
-            {draftNotice}
+            {translateUi(draftNotice)}
           </p>
         )}
         {olderDraft && (
@@ -303,7 +319,7 @@ export function PersonalCourseEditor({
                 }
               }}
             >
-              이전 초안을 새 코스로 복구
+              {translateUi("이전 초안을 새 코스로 복구")}
             </button>
             <button
               className="btn btn-ghost"
@@ -317,29 +333,29 @@ export function PersonalCourseEditor({
                 }
               }}
             >
-              이전 초안 삭제
+              {translateUi("이전 초안 삭제")}
             </button>
           </div>
         )}
         <div className="personal-course-meta card">
           <label>
-            코스 이름
+            {translateUi("코스 이름")}
             <input
               className="input"
               maxLength={60}
-              placeholder="부모님과 여유로운 양구 여행"
+              placeholder={translateUi("부모님과 여유로운 양구 여행")}
               disabled={!ready}
               value={draft.title}
               onChange={(e) => update({ title: e.target.value })}
             />
           </label>
           <label>
-            여행 메모
+            {translateUi("여행 메모")}
             <textarea
               className="input"
               maxLength={500}
               rows={2}
-              placeholder="함께 가는 사람, 챙길 것, 예약할 곳…"
+              placeholder={translateUi("함께 가는 사람, 챙길 것, 예약할 곳…")}
               disabled={!ready}
               value={draft.note}
               onChange={(e) => update({ note: e.target.value })}
@@ -347,11 +363,12 @@ export function PersonalCourseEditor({
           </label>
           <fieldset className="personal-date-range" disabled={!ready}>
             <legend>
-              여행 날짜 <span>미정이면 비워 두세요</span>
+              {translateUi("여행 날짜 ")}
+              <span>{translateUi("미정이면 비워 두세요")}</span>
             </legend>
             <div className="personal-date-fields">
               <label>
-                여행 시작일
+                {translateUi("여행 시작일")}
                 <input
                   className="input"
                   type="date"
@@ -362,7 +379,7 @@ export function PersonalCourseEditor({
                 />
               </label>
               <label>
-                여행 종료일
+                {translateUi("여행 종료일")}
                 <input
                   className="input"
                   type="date"
@@ -375,8 +392,8 @@ export function PersonalCourseEditor({
             </div>
             <div className="personal-date-summary">
               <p>
-                {dateCount ? `${dateCount}일 여행 · ` : "날짜 미정 · "}출발일을 바꾸면 장소의 일차와
-                방문 순서는 그대로 유지돼요.
+                {translateUi(dateCount ? `${dateCount}일 여행 · ` : "날짜 미정 · ")}
+                {translateUi("출발일을 바꾸면 장소의 일차와 방문 순서는 그대로 유지돼요.")}
               </p>
               {(draft.startDate || draft.endDate) && (
                 <button
@@ -384,33 +401,33 @@ export function PersonalCourseEditor({
                   className="text-link"
                   onClick={() => update({ startDate: undefined, endDate: undefined })}
                 >
-                  날짜 미정으로
+                  {translateUi("날짜 미정으로")}
                 </button>
               )}
             </div>
             {dateProblem && (
               <p role="alert" className="notice">
-                {dateProblem}
+                {translateUi(dateProblem)}
               </p>
             )}
           </fieldset>
           <div className="personal-plan-options">
             <label>
-              이동수단
+              {translateUi("이동수단")}
               <Select
-                aria-label="내 코스 이동수단"
+                aria-label={translateUi("내 코스 이동수단")}
                 value={draft.transport}
                 onChange={(e) =>
                   update({ transport: e.target.value as PersonalCourseInput["transport"] })
                 }
               >
-                <option value="car">자동차</option>
-                <option value="transit">대중교통</option>
-                <option value="walk">도보</option>
+                <option value="car">{translateUi("자동차")}</option>
+                <option value="transit">{translateUi("대중교통")}</option>
+                <option value="walk">{translateUi("도보")}</option>
               </Select>
             </label>
             <label>
-              하루 출발 시간
+              {translateUi("하루 출발 시간")}
               <input
                 className="input"
                 type="time"
@@ -421,8 +438,10 @@ export function PersonalCourseEditor({
           </div>
           <div className="personal-save-row desktop-plan-save">
             <span role="status">
-              {dirty || !draft.id ? "아직 저장하지 않은 변경사항" : "저장된 코스"} ·{" "}
-              {draft.items.length}/30곳
+              {translateUi(dirty || !draft.id ? "아직 저장하지 않은 변경사항" : "저장된 코스")} ·
+              {translateUi(" ")}
+              {translateUi(draft.items.length)}
+              {translateUi("/30곳")}
             </span>
             <button
               className="btn btn-primary"
@@ -435,29 +454,34 @@ export function PersonalCourseEditor({
               }
               onClick={save}
             >
-              {saving ? "저장 중…" : "내 코스 저장"}
+              {translateUi(saving ? "저장 중…" : "내 코스 저장")}
             </button>
           </div>
-          {error && <p role="alert">{error}</p>}
+          {error && <p role="alert">{translateUi(error)}</p>}
         </div>
-        <div className="editor-mobile-tabs" role="tablist" aria-label="코스 편집 화면">
+        <div
+          className="editor-mobile-tabs"
+          role="tablist"
+          aria-label={translateUi("코스 편집 화면")}
+        >
           <button
             role="tab"
             aria-selected={panel === "itinerary"}
             onClick={() => setPanel("itinerary")}
           >
-            일정 <span>{draft.items.length}</span>
+            {translateUi("일정 ")}
+            <span>{translateUi(draft.items.length)}</span>
           </button>
           <button role="tab" aria-selected={panel === "search"} onClick={() => setPanel("search")}>
-            + 장소 추가
+            {translateUi("+ 장소 추가")}
           </button>
         </div>
         <div className="personal-course-layout">
-          <section className="personal-itinerary" aria-label="내 코스 일정">
+          <section className="personal-itinerary" aria-label={translateUi("내 코스 일정")}>
             <div className="section-heading">
-              <h2>방문 순서</h2>
+              <h2>{translateUi("방문 순서")}</h2>
               <CourseDayInput
-                label="편집할 날짜"
+                label={translateUi("편집할 날짜")}
                 value={day}
                 onChange={setDay}
                 startDate={draft.startDate}
@@ -466,9 +490,11 @@ export function PersonalCourseEditor({
                 disabled={!ready}
               />
             </div>
-            <p className="personal-day-label">{courseDayLabel(day, draft.startDate)}</p>
+            <p className="personal-day-label">
+              {translateUi(courseDayLabel(day, draft.startDate))}
+            </p>
             {scheduledDays.length > 1 && (
-              <div className="personal-day-shortcuts" aria-label="장소가 있는 날짜">
+              <div className="personal-day-shortcuts" aria-label={translateUi("장소가 있는 날짜")}>
                 {scheduledDays.map((value) => (
                   <button
                     type="button"
@@ -477,14 +503,14 @@ export function PersonalCourseEditor({
                     aria-pressed={value === day}
                     onClick={() => setDay(value)}
                   >
-                    {courseDayLabel(value, draft.startDate)}
+                    {translateUi(courseDayLabel(value, draft.startDate))}
                   </button>
                 ))}
               </div>
             )}
             <fieldset className={dayTimeStyles.panel} disabled={!ready}>
               <label>
-                이 날짜 출발 시간
+                {translateUi("이 날짜 출발 시간")}
                 <input
                   className="input"
                   type="time"
@@ -499,22 +525,27 @@ export function PersonalCourseEditor({
                 disabled={!hasDayStartTime}
                 onClick={() => changeDayStartTime("")}
               >
-                기본 시간 사용
+                {translateUi("기본 시간 사용")}
               </button>
               <p id="personal-day-start-help">
-                {hasDayStartTime
-                  ? "이 날짜에만 따로 정한 시간이 있어요. 다른 날짜에는 영향을 주지 않아요."
-                  : `따로 정하지 않아 하루 출발 시간 ${draft.startTime}을 사용해요.`}
+                {translateUi(
+                  hasDayStartTime
+                    ? "이 날짜에만 따로 정한 시간이 있어요. 다른 날짜에는 영향을 주지 않아요."
+                    : `따로 정하지 않아 하루 출발 시간 ${draft.startTime}을 사용해요.`,
+                )}
               </p>
             </fieldset>
             <p className="section-description">
-              {selectedStartTime} 출발 ·{" "}
-              {{ car: "자동차", transit: "대중교통", walk: "도보" }[draft.transport]} 이동
-              추정이에요. 실제 길찾기·운행 시간은 출발 전 확인해 주세요.
+              {translateUi(selectedStartTime)}
+              {translateUi(" 출발 ·")}
+              {translateUi(" ")}
+              {translateUi({ car: "자동차", transit: "대중교통", walk: "도보" }[draft.transport])}
+              {translateUi(" 이동 추정이에요. 실제 길찾기·운행 시간은 출발 전 확인해 주세요.")}
             </p>
             <p className={dayTimeStyles.scheduleHint}>
-              방문 예정 시각이 있으면 그때까지 여유를 두고, 이동이 늦어지면 도착도 늦춰요. 출발을
-              앞당길 때는 각 장소의 예정 시각도 바꾸거나 비워 주세요.
+              {translateUi(
+                "방문 예정 시각이 있으면 그때까지 여유를 두고, 이동이 늦어지면 도착도 늦춰요. 출발을 앞당길 때는 각 장소의 예정 시각도 바꾸거나 비워 주세요.",
+              )}
             </p>
             <ol className="personal-stop-list">
               {items.map(
@@ -523,12 +554,20 @@ export function PersonalCourseEditor({
                     <li key={`${item.day}:${item.kind}:${item.refId}`}>
                       <div className="personal-stop-heading">
                         <span className="route-order">
-                          {items.slice(0, index + 1).filter((i) => i.day === day).length}
+                          {translateUi(
+                            items.slice(0, index + 1).filter((i) => i.day === day).length,
+                          )}
                         </span>
-                        <strong>{places[item.refId]?.name.ko ?? "정보를 찾을 수 없는 장소"}</strong>
+                        <strong>
+                          {places[item.refId]
+                            ? localized(places[item.refId]!.name, lang)
+                            : translateUi("정보를 찾을 수 없는 장소")}
+                        </strong>
                         <button
                           className="icon-btn"
-                          aria-label={`${places[item.refId]?.name.ko ?? item.refId} 제거`}
+                          aria-label={translateUi(
+                            `${places[item.refId]?.name.ko ?? item.refId} 제거`,
+                          )}
                           onClick={() => update({ items: items.filter((_, i) => i !== index) })}
                         >
                           <Icon.close />
@@ -539,19 +578,19 @@ export function PersonalCourseEditor({
                           className="text-link"
                           href={`/festival/${item.refId.replace(/^festival-/, "")}`}
                         >
-                          행사 일정·상세 확인
+                          {translateUi("행사 일정·상세 확인")}
                         </NewTabLink>
                       )}
                       {places[item.refId]?.hasAccessibilityInfo && (
                         <NewTabLink className="text-link" href={`/spot/${item.refId}`}>
-                          무장애 시설 안내 확인
+                          {translateUi("무장애 시설 안내 확인")}
                         </NewTabLink>
                       )}
                       <div className="personal-stop-controls">
                         <label>
-                          방문 날짜
+                          {translateUi("방문 날짜")}
                           <CourseDayInput
-                            label={`${places[item.refId]?.name.ko} 날짜`}
+                            label={translateUi(`${places[item.refId]?.name.ko} 날짜`)}
                             value={item.day}
                             onChange={(next) => patchItem(index, { day: next })}
                             startDate={draft.startDate}
@@ -560,7 +599,7 @@ export function PersonalCourseEditor({
                           />
                         </label>
                         <label>
-                          머무는 시간
+                          {translateUi("머무는 시간")}
                           <input
                             type="number"
                             min={15}
@@ -571,12 +610,12 @@ export function PersonalCourseEditor({
                               patchItem(index, { durationMin: Number(e.target.value) })
                             }
                           />
-                          분
+                          {translateUi("분")}
                         </label>
                         <div className="personal-order-buttons">
                           <button
                             className="icon-btn"
-                            aria-label={`${places[item.refId]?.name.ko} 위로`}
+                            aria-label={translateUi(`${places[item.refId]?.name.ko} 위로`)}
                             disabled={items[index - 1]?.day !== day}
                             onClick={() => move(index, -1)}
                           >
@@ -584,7 +623,7 @@ export function PersonalCourseEditor({
                           </button>
                           <button
                             className="icon-btn"
-                            aria-label={`${places[item.refId]?.name.ko} 아래로`}
+                            aria-label={translateUi(`${places[item.refId]?.name.ko} 아래로`)}
                             disabled={items[index + 1]?.day !== day}
                             onClick={() => move(index, 1)}
                           >
@@ -594,11 +633,13 @@ export function PersonalCourseEditor({
                       </div>
                       <div className={dayTimeStyles.visitTime}>
                         <label>
-                          방문 예정 시각(선택)
+                          {translateUi("방문 예정 시각(선택)")}
                           <input
                             className="input"
                             type="time"
-                            aria-label={`${places[item.refId]?.name.ko ?? item.refId} 방문 예정 시각`}
+                            aria-label={translateUi(
+                              `${places[item.refId]?.name.ko ?? item.refId} 방문 예정 시각`,
+                            )}
                             value={item.notBeforeTime ?? ""}
                             onChange={(event) =>
                               patchItem(index, { notBeforeTime: event.target.value || undefined })
@@ -608,11 +649,13 @@ export function PersonalCourseEditor({
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
-                          aria-label={`${places[item.refId]?.name.ko ?? item.refId} 예정 시각 해제`}
+                          aria-label={translateUi(
+                            `${places[item.refId]?.name.ko ?? item.refId} 예정 시각 해제`,
+                          )}
                           disabled={!item.notBeforeTime}
                           onClick={() => patchItem(index, { notBeforeTime: undefined })}
                         >
-                          시각 해제
+                          {translateUi("시각 해제")}
                         </button>
                       </div>
                     </li>
@@ -622,25 +665,30 @@ export function PersonalCourseEditor({
             {!items.some((item) => item.day === day) && (
               <div className="empty-state">
                 <Icon.pin />
-                <h3>{courseDayLabel(day, draft.startDate)}에 가볼 곳을 담아보세요</h3>
-                <p>장소 추가에서 여행지를 찾아 일정을 채워보세요.</p>
+                <h3>
+                  {translateUi(courseDayLabel(day, draft.startDate))}
+                  {translateUi("에 가볼 곳을 담아보세요")}
+                </h3>
+                <p>{translateUi("장소 추가에서 여행지를 찾아 일정을 채워보세요.")}</p>
                 <button className="btn btn-primary mobile-only" onClick={() => setPanel("search")}>
-                  가볼 곳 추가
+                  {translateUi("가볼 곳 추가")}
                 </button>
               </div>
             )}
             {mapData.tooLong && (
               <p role="status" className="notice">
-                이 날의 일정이 길어요. 장소를 다음 날로 옮기거나 체류 시간을 줄여보세요.
+                {translateUi(
+                  "이 날의 일정이 길어요. 장소를 다음 날로 옮기거나 체류 시간을 줄여보세요.",
+                )}
               </p>
             )}
             <CourseMap stops={mapData.stops} legs={mapData.legs} day={day} />
           </section>
-          <section className="personal-search card" aria-label="코스에 장소 추가">
+          <section className="personal-search card" aria-label={translateUi("코스에 장소 추가")}>
             <div className="section-heading">
-              <h2>가볼 곳 추가</h2>
+              <h2>{translateUi("가볼 곳 추가")}</h2>
               <CourseDayInput
-                label="장소를 추가할 날짜"
+                label={translateUi("장소를 추가할 날짜")}
                 value={day}
                 onChange={setDay}
                 startDate={draft.startDate}
@@ -649,14 +697,17 @@ export function PersonalCourseEditor({
                 disabled={!ready}
               />
             </div>
-            <p className="personal-day-label">{courseDayLabel(day, draft.startDate)}에 추가해요</p>
+            <p className="personal-day-label">
+              {translateUi(courseDayLabel(day, draft.startDate))}
+              {translateUi("에 추가해요")}
+            </p>
             {selectedDayProblem && (
               <p role="alert" className="notice">
-                {selectedDayProblem}
+                {translateUi(selectedDayProblem)}
               </p>
             )}
             <Select
-              aria-label="추가할 장소 종류"
+              aria-label={translateUi("추가할 장소 종류")}
               value={searchKind}
               onChange={(e) => {
                 search.changeFilters({
@@ -666,9 +717,9 @@ export function PersonalCourseEditor({
                 });
               }}
             >
-              <option value="spot">여행지</option>
-              <option value="eat">음식점</option>
-              <option value="stay">숙소</option>
+              <option value="spot">{translateUi("여행지")}</option>
+              <option value="eat">{translateUi("음식점")}</option>
+              <option value="stay">{translateUi("숙소")}</option>
             </Select>
             <form
               role="search"
@@ -681,26 +732,28 @@ export function PersonalCourseEditor({
                 <Icon.search />
                 <input
                   type="search"
-                  aria-label="내 코스 여행지 검색"
+                  aria-label={translateUi("내 코스 여행지 검색")}
                   disabled={!ready}
                   maxLength={100}
-                  placeholder={`${{ spot: "여행지", eat: "음식점", stay: "숙소" }[searchKind]} 이름이나 지역 검색`}
+                  placeholder={translateUi(
+                    `${{ spot: "여행지", eat: "음식점", stay: "숙소" }[searchKind]} 이름이나 지역 검색`,
+                  )}
                   value={query}
                   onChange={(e) => search.changeFilters({ q: e.target.value })}
                 />
                 <button className="btn btn-primary btn-sm" type="submit">
-                  검색
+                  {translateUi("검색")}
                 </button>
               </div>
               <Select
-                aria-label="추가할 여행지 지역"
+                aria-label={translateUi("추가할 여행지 지역")}
                 value={region}
                 onChange={(e) => search.changeFilters({ region: e.target.value })}
               >
-                <option value="">강원 전체</option>
+                <option value="">{translateUi("강원 전체")}</option>
                 {GANGWON_REGIONS.map((r) => (
                   <option key={r.key} value={r.ko}>
-                    {r.ko}
+                    {translateUi(r.ko)}
                   </option>
                 ))}
               </Select>
@@ -713,14 +766,16 @@ export function PersonalCourseEditor({
                       search.changeFilters({ accessibility: e.target.checked ? "info" : "" })
                     }
                   />
-                  무장애 안내 있는 곳
+                  {translateUi("무장애 안내 있는 곳")}
                 </label>
               )}
             </form>
             <p className="data-caption" aria-live="polite">
-              {searching
-                ? "장소를 찾고 있어요…"
-                : `${results.total.toLocaleString()}곳 · Day ${day}에 추가`}
+              {translateUi(
+                searching
+                  ? "장소를 찾고 있어요…"
+                  : `${results.total.toLocaleString()}곳 · Day ${day}에 추가`,
+              )}
             </p>
             <div className="personal-search-results" aria-busy={searching} ref={searchResults}>
               {results.kind === searchKind &&
@@ -731,31 +786,31 @@ export function PersonalCourseEditor({
                   return (
                     <article key={spot.id}>
                       <div>
-                        <strong>{spot.name.ko}</strong>
+                        <strong>{localized(spot.name, lang)}</strong>
                         <small>
-                          {spot.region.ko} · {spot.type.ko}
-                          {spot.hasAccessibilityInfo ? " · 무장애 안내" : ""}
+                          {localized(spot.region, lang)} · {localized(spot.type, lang)}
+                          {translateUi(spot.hasAccessibilityInfo ? " · 무장애 안내" : "")}
                         </small>
                         {spot.kind === "spot" ? (
                           <NewTabLink href={`/spot/${spot.id}`} className="text-link">
-                            상세 보기
+                            {translateUi("상세 보기")}
                           </NewTabLink>
                         ) : (
                           <ExternalLink
                             href={`https://map.kakao.com/link/search/${encodeURIComponent(`${spot.region.ko} ${spot.name.ko}`)}`}
                             className="text-link"
                           >
-                            카카오맵 · 영업·예약 정보
+                            {translateUi("카카오맵 · 영업·예약 정보")}
                           </ExternalLink>
                         )}
                       </div>
                       <button
                         className="btn btn-secondary btn-sm"
                         disabled={!ready || added || saving || Boolean(selectedDayProblem)}
-                        aria-label={`${spot.name.ko} 추가`}
+                        aria-label={translateUi(`${spot.name.ko} 추가`)}
                         onClick={() => add(spot)}
                       >
-                        {added ? "추가됨" : "+ 추가"}
+                        {translateUi(added ? "추가됨" : "+ 추가")}
                       </button>
                     </article>
                   );
@@ -768,15 +823,17 @@ export function PersonalCourseEditor({
                 disabled={!searchVisible}
                 onLoadMore={search.loadMore}
                 onRetry={search.retry}
-                label="가볼 곳 추가 검색 결과"
+                label={translateUi("가볼 곳 추가 검색 결과")}
                 resetKey={search.resetKey}
                 progressKey={search.progressKey}
               >
-                {results.items.length.toLocaleString()} / {results.total.toLocaleString()}곳
+                {translateUi(results.items.length.toLocaleString())} /{" "}
+                {translateUi(results.total.toLocaleString())}
+                {translateUi("곳")}
               </InfiniteScroll>
             </div>
             {!searching && !searchError && !results.items.length && (
-              <p>검색 결과가 없어요. 검색어나 지역 조건을 바꿔보세요.</p>
+              <p>{translateUi("검색 결과가 없어요. 검색어나 지역 조건을 바꿔보세요.")}</p>
             )}
           </section>
         </div>
@@ -784,9 +841,9 @@ export function PersonalCourseEditor({
           <div className="personal-delete">
             {confirmDelete ? (
               <>
-                <p>이 개인 코스를 삭제할까요?</p>
+                <p>{translateUi("이 개인 코스를 삭제할까요?")}</p>
                 <button className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>
-                  취소
+                  {translateUi("취소")}
                 </button>
                 <button
                   className="btn btn-danger"
@@ -802,26 +859,30 @@ export function PersonalCourseEditor({
                     })
                   }
                 >
-                  삭제 확인
+                  {translateUi("삭제 확인")}
                 </button>
               </>
             ) : (
               <button className="text-link" onClick={() => setConfirmDelete(true)}>
-                이 코스 삭제
+                {translateUi("이 코스 삭제")}
               </button>
             )}
           </div>
         )}
         <div className="mobile-plan-save">
           <span>
-            {draft.items.length}곳 ·{" "}
-            {dirty
-              ? draftCached
-                ? "이 탭에 임시 저장됨"
-                : "저장 전 변경사항"
-              : draft.id
-                ? "저장된 코스"
-                : "새 코스"}
+            {translateUi(draft.items.length)}
+            {translateUi("곳 ·")}
+            {translateUi(" ")}
+            {translateUi(
+              dirty
+                ? draftCached
+                  ? "이 탭에 임시 저장됨"
+                  : "저장 전 변경사항"
+                : draft.id
+                  ? "저장된 코스"
+                  : "새 코스",
+            )}
           </span>
           <button
             className="btn btn-primary"
@@ -830,7 +891,7 @@ export function PersonalCourseEditor({
             }
             onClick={save}
           >
-            {saving ? "저장 중…" : "내 코스 저장"}
+            {translateUi(saving ? "저장 중…" : "내 코스 저장")}
           </button>
         </div>
       </fieldset>

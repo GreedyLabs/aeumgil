@@ -1,3 +1,10 @@
+import { localizeRegionalThemes } from "@/server/tourism/localized-themes";
+import { requestLanguage } from "@/server/request-language";
+import {
+  localizePlaces,
+  localizeSpotDetail,
+  matchingLocalizedPlaceIds,
+} from "@/server/tourism/international";
 import { fetchFestivalDetail } from "@/server/tourism/festival";
 import { GANGWON_REGIONS } from "@/domain/place-search";
 import { getHighways } from "@/server/public-api/highway";
@@ -91,7 +98,7 @@ import {
   listGangwonFestivals,
 } from "@/server/public-api/tourapi";
 import { REGIONS, type RegionKey } from "@/server/public-api/regions";
-import { apiCache } from "@/server/cache";
+import { apiCache, createCache } from "@/server/cache";
 import { createLogger } from "@/server/log";
 import { env } from "@/lib/env";
 import { buildTravelTimeLookup } from "@/server/routing/travel-time";
@@ -106,6 +113,8 @@ import { getCrowdForecast } from "@/server/public-api/tourism-demand";
 import { nowKst } from "./congestion-now";
 
 const log = createLogger("repo");
+// 공개 검색 후보만 메모리에 보관한다. 언어와 사용자 검색어는 키/값에 섞지 않는다.
+const publicCatalogCache = createCache({ load: async () => ({}), save: async () => {} });
 
 // ── 영속 TTL 캐시 (메모리+파일, server/cache.ts) ──
 // 30분: KMA 단기예보는 3시간 주기 발표, 에어코리아는 1시간 단위 측정이라
@@ -398,11 +407,31 @@ export class LiveRepository implements Repository {
   }
 
   async listThemes() {
-    return fetchThemes(requireDb());
+    const themes = await fetchThemes(requireDb());
+    const lang = await requestLanguage();
+    if (lang === "ko") return themes;
+    return localizeRegionalThemes(
+      themes,
+      await publicCatalogCache.cached("spots", 5 * 60 * 1000, () => fetchSpotProfiles(requireDb())),
+      lang,
+    );
   }
 
   async getTheme(id: string) {
-    return fetchTheme(requireDb(), id);
+    const theme = await fetchTheme(requireDb(), id);
+    const lang = await requestLanguage();
+    if (!theme || lang === "ko") return theme;
+    return (
+      (
+        await localizeRegionalThemes(
+          [theme],
+          await publicCatalogCache.cached("spots", 5 * 60 * 1000, () =>
+            fetchSpotProfiles(requireDb()),
+          ),
+          lang,
+        )
+      )[0] ?? theme
+    );
   }
 
   async getSamplePrompts(): Promise<SamplePrompt[]> {
@@ -416,17 +445,35 @@ export class LiveRepository implements Repository {
   async getSpot(id: string, options: SpotQueryOptions = {}): Promise<Spot | null> {
     const base = await fetchSpotProfile(requireDb(), id);
     if (!base) return null;
-    return options.enrich === false ? base : this.enrich(base);
+    const lang = await requestLanguage();
+    if (options.enrich === false) return (await localizePlaces([base], lang))[0] ?? base;
+    return localizeSpotDetail(await this.enrich(base), lang);
   }
 
   async searchSpots(query: import("@/domain/place-search").PlaceSearchQuery = {}) {
-    return searchSpotProfiles(requireDb(), query);
+    const lang = await requestLanguage();
+    const candidates =
+      lang !== "ko" && query.q?.trim()
+        ? await localizePlaces(
+            await publicCatalogCache.cached("spots", 5 * 60 * 1000, () =>
+              fetchSpotProfiles(requireDb()),
+            ),
+            lang,
+          )
+        : [];
+    const result = await searchSpotProfiles(
+      requireDb(),
+      query,
+      matchingLocalizedPlaceIds(candidates, query.q ?? "", lang),
+    );
+    return { ...result, items: await localizePlaces(result.items, lang) };
   }
 
   async listSpots(options: SpotQueryOptions = {}): Promise<Spot[]> {
     const base = await fetchSpotProfiles(requireDb());
-    if (options.enrich !== true) return base;
-    return Promise.all(base.map((s) => this.enrich(s)));
+    const lang = await requestLanguage();
+    if (options.enrich !== true) return localizePlaces(base, lang);
+    return localizePlaces(await Promise.all(base.map((s) => this.enrich(s))), lang);
   }
 
   async getAlternatives(spotId: string, options: SpotQueryOptions = {}): Promise<Spot[]> {
@@ -445,11 +492,15 @@ export class LiveRepository implements Repository {
             : spot.type.ko === base.type.ko),
       )
       .slice(0, 6);
-    if (options.enrich === false) return candidates;
+    if (options.enrich === false) return localizePlaces(candidates, await requestLanguage());
     const enriched = await Promise.all(candidates.map((s) => this.enrich(s)));
     const crowdRank = { calm: 0, moderate: 1, busy: 2 };
-    return enriched.sort(
-      (a, b) => crowdRank[a.congestion] - crowdRank[b.congestion] || b.suitability - a.suitability,
+    return localizePlaces(
+      enriched.sort(
+        (a, b) =>
+          crowdRank[a.congestion] - crowdRank[b.congestion] || b.suitability - a.suitability,
+      ),
+      await requestLanguage(),
     );
   }
 
@@ -707,7 +758,21 @@ export class LiveRepository implements Repository {
   }
 
   async getFestival(id: string) {
-    return fetchFestivalDetail(id);
+    const detail = await fetchFestivalDetail(id);
+    if (!detail) return null;
+    const lang = await requestLanguage();
+    const [place, nearbySpots, nearbyEats] = await Promise.all([
+      localizeSpotDetail(detail.place, lang),
+      localizePlaces(detail.nearbySpots, lang),
+      localizePlaces(detail.nearbyEats, lang),
+    ]);
+    return {
+      ...detail,
+      place,
+      event: { ...detail.event, name: place.name, address: place.address || detail.event.address },
+      nearbySpots,
+      nearbyEats,
+    };
   }
   async getTravelTraffic() {
     try {
@@ -895,19 +960,21 @@ export class LiveRepository implements Repository {
   }
 
   async getEat(id: string): Promise<Eat | null> {
-    return fetchEat(requireDb(), id);
+    const place = await fetchEat(requireDb(), id);
+    return place ? ((await localizePlaces([place], await requestLanguage()))[0] ?? place) : null;
   }
 
   async getStay(id: string): Promise<Stay | null> {
-    return fetchStay(requireDb(), id);
+    const place = await fetchStay(requireDb(), id);
+    return place ? ((await localizePlaces([place], await requestLanguage()))[0] ?? place) : null;
   }
 
   async listEats(): Promise<Eat[]> {
-    return fetchEats(requireDb());
+    return localizePlaces(await fetchEats(requireDb()), await requestLanguage());
   }
 
   async listStays(): Promise<Stay[]> {
-    return fetchStays(requireDb());
+    return localizePlaces(await fetchStays(requireDb()), await requestLanguage());
   }
 
   async listGrades(): Promise<Grade[]> {

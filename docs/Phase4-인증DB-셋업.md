@@ -23,7 +23,7 @@ OAuth Client Secret은 앱이 Keycloak에 자신의 신원을 증명하는 값�
 | Google 브로커 Callback | `https://auth.greedylabs.kr/realms/eumgil/broker/google/endpoint` |
 | 앱 세션                | 암호화 JWT 쿠키, 최대 8시간                                       |
 
-운영 Keycloak은 26.6.3이며 에움길 테마·한국어/영어·Google 버튼을 확인했다. 실제 Google 계정 왕복과 SMTP는 [검증 기록](검증.md)에서 별도로 추적한다. 로컬 앱도 위 issuer와 Client ID를 사용하며 별도 Keycloak 컨테이너·초기 realm import는 제공하지 않는다.
+운영 Keycloak은 26.6.3이며 에움길 테마·7개 언어(한국어·영어·중문 간체/번체·일본어·독일어·프랑스어)·Google 버튼을 확인했다. 앱의 선택 언어는 `ui_locales`로 전달하고 로그인·회원가입·재설정 화면까지 유지한다. 실제 Google 계정 왕복과 SMTP는 [검증 기록](검증.md)에서 별도로 추적한다. 로컬 앱도 위 issuer와 Client ID를 사용하며 별도 Keycloak 컨테이너·초기 realm import는 제공하지 않는다.
 
 개발 앱의 `AUTH_URL`은 `http://localhost:3000`으로 두고 `AUTH_KEYCLOAK_SECRET`에는 기존 Client의 실제 값을 설정한다. Keycloak Client의 Valid redirect URIs에 `http://localhost:3000/api/auth/callback/keycloak`, Valid post logout redirect URIs에 `http://localhost:3000`이 허용되어야 한다. 앱 주소가 달라지면 해당 앱의 정확한 주소도 등록한다. Google 자격증명을 로컬 앱에 복사할 필요는 없다.
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/components/language-context";
 import { useEffect, useRef, useState } from "react";
 import { searchCoursePlacesAction } from "@/app/actions/personal-course";
 import type { CoursePlaceSearchResult, CourseSearchKind } from "@/domain/course-place-search";
@@ -10,11 +11,14 @@ interface SearchFilters {
   accessibility: "" | "info";
   kind: CourseSearchKind;
 }
-const keyOf = (filters: SearchFilters) => JSON.stringify(filters);
 const message = "장소 검색을 불러오지 못했어요. 다시 시도해 주세요.";
 
 /** 개인 검색의 공개 DB 페이지를 누적한다. 검색 조건·요청 번호가 지난 응답은 사용하지 않는다. */
 export function useCoursePlaceSearch(initial: CoursePlaceSearchResult, enabled: boolean) {
+  const lang = useLanguage();
+  const language = useRef(lang);
+  language.current = lang;
+  const keyOf = (filters: SearchFilters) => `${language.current}:${JSON.stringify(filters)}`;
   const [filters, setFilters] = useState<SearchFilters>(() => ({
     q: initial.query.q,
     region: initial.query.region,
@@ -125,9 +129,14 @@ export function useCoursePlaceSearch(initial: CoursePlaceSearchResult, enabled: 
   };
   useEffect(() => {
     active.current = enabled;
+    // 언어 변경도 검색 조건 변경이다. 이전 요청이 새 언어의 첫 요청을 잠그지 않게 한다.
+    cancel();
+    setLoading(false);
+    if (failed.current && failed.current.key !== key) {
+      failed.current = null;
+      setError("");
+    }
     if (!enabled) {
-      cancel();
-      setLoading(false);
       return;
     }
     if (currentSnapshot.current.key !== key && failed.current?.key !== key) {

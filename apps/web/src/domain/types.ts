@@ -6,7 +6,7 @@
 // 모든 다국어 텍스트는 LocalizedText 로 보관한다.
 // ─────────────────────────────────────────────
 
-import type { LocalizedText } from "@/lib/i18n";
+import type { Lang, LocalizedText } from "@/lib/i18n";
 
 /** 혼잡도 수준 */
 export type Congestion = "calm" | "moderate" | "busy";
@@ -95,6 +95,13 @@ export interface ThemeMatch {
 
 // ── 관광지 / POI ──────────────────────────
 export interface Spot {
+  /** 공식 외국어 안내의 제공 범위. 원문 안내를 자동 번역처럼 표시하지 않는다. */
+  translation?: {
+    language: Lang;
+    status: "official" | "partial" | "original";
+    source?: string;
+    contentId?: string;
+  };
   sourceContentId?: string;
   address?: string;
   category?: string;

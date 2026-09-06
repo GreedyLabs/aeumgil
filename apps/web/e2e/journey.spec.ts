@@ -52,7 +52,7 @@ test("모바일 검색은 제외 조건을 설명하고 무관 입력에서 임�
   await page.goto(`/result?q=${encodeURIComponent("강릉 바다 말고 숲 산책")}`, {
     waitUntil: "domcontentloaded",
   });
-  await expect(page.getByLabel("찾은 키워드")).toContainText("제외 · 바다");
+  await expect(page.locator('[aria-label="찾은 키워드"]:visible')).toContainText("제외 · 바다");
   await expect(page.getByRole("link", { name: "이 조건으로 코스 보기" })).toHaveAttribute(
     "href",
     /\/course\/gangwon-gangneung-forest/,

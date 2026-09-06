@@ -1,5 +1,5 @@
 "use client";
-
+import { useUiText } from "@/components/use-ui-text";
 import Link from "next/link";
 import { NewTabLink } from "@/components/external-link";
 import { useEffect, useState, useTransition } from "react";
@@ -30,6 +30,7 @@ export function AddToCourseView({
   places: AdditionPlace[];
   newCourseHref: string;
 }) {
+  const translateUi = useUiText();
   const router = useRouter();
   const { showToast } = useAppState();
   const [ready, setReady] = useState(false);
@@ -66,34 +67,42 @@ export function AddToCourseView({
   };
   return (
     <div className="screen-enter add-to-course-page">
-      <UI.TopBar title="내 여행에 담기" />
+      <UI.TopBar title={translateUi("내 여행에 담기")} />
       <header className="page-heading">
         <div>
-          <span className="eyebrow">찾아둔 장소를 하나의 여행으로</span>
-          <h1>어느 코스에 담을까요?</h1>
-          <p>선택한 날짜의 마지막에 추가해요. 다음 화면에서 방문 순서를 바꿀 수 있어요.</p>
+          <span className="eyebrow">{translateUi("찾아둔 장소를 하나의 여행으로")}</span>
+          <h1>{translateUi("어느 코스에 담을까요?")}</h1>
+          <p>
+            {translateUi(
+              "선택한 날짜의 마지막에 추가해요. 다음 화면에서 방문 순서를 바꿀 수 있어요.",
+            )}
+          </p>
         </div>
       </header>
       <div className="detail-layout">
-        <section className="card summary-panel" aria-label="추가할 장소">
-          <h2>함께 담을 {places.length}곳</h2>
+        <section className="card summary-panel" aria-label={translateUi("추가할 장소")}>
+          <h2>
+            {translateUi("함께 담을 ")}
+            {translateUi(places.length)}
+            {translateUi("곳")}
+          </h2>
           <div className="add-course-preview-list">
             {places.map((place) => (
               <article key={`${place.kind}:${place.refId}`} className="add-course-preview">
                 <UI.Placeholder
                   src={place.imageUrl}
-                  label={place.name}
+                  label={translateUi(place.name)}
                   h={72}
                   style={{ width: 84, flexShrink: 0, borderRadius: 12 }}
                 />
                 <div>
-                  <strong>{place.name}</strong>
+                  <strong>{translateUi(place.name)}</strong>
                   <p>
-                    {place.region} · {place.note}
+                    {translateUi(place.region)} · {translateUi(place.note)}
                   </p>
                   {place.detailUrl && (
                     <NewTabLink href={place.detailUrl} className="text-link">
-                      상세 확인
+                      {translateUi("상세 확인")}
                     </NewTabLink>
                   )}
                   {selected?.items.some(
@@ -101,7 +110,8 @@ export function AddToCourseView({
                       item.kind === place.kind && item.refId === place.refId && item.day === day,
                   ) && (
                     <span className="accessibility-badge">
-                      {courseDayLabel(day, selected?.startDate)}에 이미 포함
+                      {translateUi(courseDayLabel(day, selected?.startDate))}
+                      {translateUi("에 이미 포함")}
                     </span>
                   )}
                 </div>
@@ -109,13 +119,13 @@ export function AddToCourseView({
             ))}
           </div>
         </section>
-        <section className="card summary-panel" aria-label="추가할 내 코스 선택">
-          <h2>내 여행 선택</h2>
+        <section className="card summary-panel" aria-label={translateUi("추가할 내 코스 선택")}>
+          <h2>{translateUi("내 여행 선택")}</h2>
           <fieldset className="add-course-controls" disabled={!ready || pending}>
             <label>
-              코스
+              {translateUi("코스")}
               <Select
-                aria-label="추가할 내 코스"
+                aria-label={translateUi("추가할 내 코스")}
                 value={courseId}
                 onChange={(event) => {
                   setCourseId(event.target.value);
@@ -125,15 +135,16 @@ export function AddToCourseView({
               >
                 {courses.map((course) => (
                   <option key={course.id} value={course.id}>
-                    {course.title} · {course.items.length}곳
+                    {course.title} · {translateUi(course.items.length)}
+                    {translateUi("곳")}
                   </option>
                 ))}
               </Select>
             </label>
             <label>
-              추가할 날짜
+              {translateUi("추가할 날짜")}
               <CourseDayInput
-                label="추가할 날짜"
+                label={translateUi("추가할 날짜")}
                 value={day}
                 onChange={(value) => {
                   setDay(value);
@@ -146,33 +157,41 @@ export function AddToCourseView({
               />
             </label>
             <p className="personal-day-label">
-              {courseDayLabel(day, selected?.startDate)} ·{" "}
-              {selected?.startDate && selected.endDate
-                ? `${selected.startDate} ~ ${selected.endDate} 여행`
-                : "날짜 미정 여행"}
+              {translateUi(courseDayLabel(day, selected?.startDate))} ·{translateUi(" ")}
+              {translateUi(
+                selected?.startDate && selected.endDate
+                  ? `${selected.startDate} ~ ${selected.endDate} 여행`
+                  : "날짜 미정 여행",
+              )}
             </p>
-            {dateProblem && <p role="alert">{dateProblem}</p>}
+            {dateProblem && <p role="alert">{translateUi(dateProblem)}</p>}
             <p role="status">
-              {next.added
-                ? `${next.added}곳 추가 · 코스 전체 ${next.items.length}/30곳`
-                : "선택한 날짜에 이미 모두 담겨 있어요."}
-              {next.skipped > 0 && next.added > 0 ? ` (${next.skipped}곳은 이미 포함)` : ""}
+              {translateUi(
+                next.added
+                  ? `${next.added}곳 추가 · 코스 전체 ${next.items.length}/30곳`
+                  : "선택한 날짜에 이미 모두 담겨 있어요.",
+              )}
+              {translateUi(
+                next.skipped > 0 && next.added > 0 ? ` (${next.skipped}곳은 이미 포함)` : "",
+              )}
             </p>
             {tooMany && (
-              <p role="alert">30곳을 넘어요. 다른 코스를 선택하거나 새 코스를 만들어 주세요.</p>
+              <p role="alert">
+                {translateUi("30곳을 넘어요. 다른 코스를 선택하거나 새 코스를 만들어 주세요.")}
+              </p>
             )}
-            {error && <p role="alert">{error}</p>}
+            {error && <p role="alert">{translateUi(error)}</p>}
             <button
               type="button"
               className="btn btn-primary btn-block"
               disabled={!selected || !next.added || tooMany || Boolean(dateProblem)}
               onClick={add}
             >
-              <Icon.plus /> {pending ? "담는 중…" : `이 코스에 ${next.added}곳 담기`}
+              <Icon.plus /> {translateUi(pending ? "담는 중…" : `이 코스에 ${next.added}곳 담기`)}
             </button>
           </fieldset>
           <Link className="btn btn-secondary btn-block" href={newCourseHref}>
-            새 코스로 만들기
+            {translateUi("새 코스로 만들기")}
           </Link>
         </section>
       </div>

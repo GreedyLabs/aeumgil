@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getRepository } from "@/data";
+import { localized } from "@/lib/i18n";
+import { requestLanguage } from "@/server/request-language";
 import { AddToCourseView, type AdditionPlace } from "@/components/screens/add-to-course";
 
 export default async function AddToCoursePage({
@@ -20,6 +22,7 @@ export default async function AddToCoursePage({
   const repo = getRepository();
   if (!(await repo.getCurrentUser()))
     redirect(`/login?reason=save&returnTo=${encodeURIComponent(`/my-courses/add?${query}`)}`);
+  const lang = await requestLanguage();
 
   const places: AdditionPlace[] = [];
   const festivalId = query.get("festival");
@@ -29,8 +32,8 @@ export default async function AddToCoursePage({
     places.push({
       kind: "festival",
       refId: festival.place.id,
-      name: festival.event.name.ko,
-      region: festival.place.region.ko,
+      name: localized(festival.event.name, lang),
+      region: localized(festival.place.region, lang),
       imageUrl: festival.place.imageUrl,
       detailUrl: `/festival/${encodeURIComponent(festival.event.id)}`,
       note:
@@ -46,11 +49,11 @@ export default async function AddToCoursePage({
     places.push({
       kind: "spot",
       refId: spot.id,
-      name: spot.name.ko,
-      region: spot.region.ko,
+      name: localized(spot.name, lang),
+      region: localized(spot.region, lang),
       imageUrl: spot.imageUrl,
       detailUrl: `/spot/${encodeURIComponent(spot.id)}`,
-      note: spot.type.ko,
+      note: localized(spot.type, lang),
     });
   }
   const eatId = query.get("eat");
@@ -60,10 +63,10 @@ export default async function AddToCoursePage({
     places.push({
       kind: "eat",
       refId: eat.id,
-      name: eat.name.ko,
-      region: eat.region.ko,
+      name: localized(eat.name, lang),
+      region: localized(eat.region, lang),
       imageUrl: eat.imageUrl,
-      note: eat.type.ko,
+      note: localized(eat.type, lang),
     });
   }
   const courses = await repo.listPersonalCourses();

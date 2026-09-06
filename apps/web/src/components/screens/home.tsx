@@ -1,4 +1,5 @@
 "use client";
+import { useUiText } from "@/components/use-ui-text";
 import { Select } from "@/components/select";
 import { ThemeQueryInput } from "@/components/theme-query-input";
 
@@ -27,6 +28,7 @@ export function HomeView({
   bestSpots: Spot[];
   traffic: ReactNode;
 }) {
+  const translateUi = useUiText();
   const ready = useHydrated();
   const { lang } = useAppState();
   const { nav } = useAppNav();
@@ -41,30 +43,37 @@ export function HomeView({
     <div className="screen-enter home-page">
       <header className="home-heading">
         <Link href="/" className="mobile-brand">
-          에움길
+          {translateUi("에움길")}
         </Link>
-        <span>강원에서 찾는 나만의 여유</span>
+        <span>{translateUi("강원에서 찾는 나만의 여유")}</span>
         <Link href="/discover?tab=places" className="text-link">
-          <Icon.search /> 여행지 찾기
+          <Icon.search />
+          {translateUi(" 여행지 찾기")}
         </Link>
       </header>
       <section className="home-hero">
         {hero && (
           <div className="home-hero-image">
-            <Placeholder priority src={hero.imageUrl} label={localized(hero.name, lang)} h="100%" />
+            <Placeholder
+              priority
+              src={hero.imageUrl}
+              label={translateUi(localized(hero.name, lang))}
+              h="100%"
+            />
           </div>
         )}
         <div className="home-hero-shade" />
         <div className="home-hero-content">
-          <div className="hero-eyebrow">조금 돌아가도, 더 좋은 여행</div>
+          <div className="hero-eyebrow">{translateUi("조금 돌아가도, 더 좋은 여행")}</div>
           <h1 className="serif">
-            오늘은 어떤
+            {translateUi("오늘은 어떤")}
             <br />
-            강원도가 좋으세요?
+            {translateUi("강원도가 좋으세요?")}
           </h1>
           <p>
-            여행의 기분을 알려주세요.
-            <br className="mobile-only" /> 어울리는 테마와 동선을 찾아드려요.
+            {translateUi("여행의 기분을 알려주세요.")}
+            <br className="mobile-only" />
+            {translateUi(" 어울리는 테마와 동선을 찾아드려요.")}
           </p>
           <form
             className="intent-search"
@@ -75,20 +84,21 @@ export function HomeView({
           >
             <Icon.sparkle />
             <ThemeQueryInput
-              aria-label="여행 목적"
+              aria-label={translateUi("여행 목적")}
               disabled={!ready}
               value={prompt}
               maxLength={INTENT_QUERY_MAX_LENGTH}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="예) 속초에서 부모님과 바다 보고 시장 구경"
+              placeholder={translateUi("예) 속초에서 부모님과 바다 보고 시장 구경")}
             />
             <button
               type="submit"
               className="btn btn-primary"
-              aria-label="여행 추천 받기"
+              aria-label={translateUi("여행 추천 받기")}
               disabled={!ready || !prompt.trim()}
             >
-              테마 찾기 <Icon.chevR />
+              {translateUi("테마 찾기 ")}
+              <Icon.chevR />
             </button>
           </form>
           <div className="prompt-chips">
@@ -98,26 +108,29 @@ export function HomeView({
                 key={p.text.ko}
                 onClick={() => submit(localized(p.text, lang))}
               >
-                {localized(p.text, lang)}
+                {translateUi(localized(p.text, lang))}
               </button>
             ))}
           </div>
         </div>
         {hero && (
           <div className="hero-caption">
-            {localized(hero.name, lang)}
-            {hero.imageUrl?.includes("visitkorea.or.kr") ? " · 사진 제공: 한국관광공사" : ""}
+            {translateUi(localized(hero.name, lang))}
+            {translateUi(
+              hero.imageUrl?.includes("visitkorea.or.kr") ? " · 사진 제공: 한국관광공사" : "",
+            )}
           </div>
         )}
       </section>
       <section className="page-section">
         <div className="section-heading">
           <div>
-            <div className="section-label">어디부터 시작할지 고민된다면</div>
-            <h2 className="section-title">먼저 만나볼 세 가지 여행</h2>
+            <div className="section-label">{translateUi("어디부터 시작할지 고민된다면")}</div>
+            <h2 className="section-title">{translateUi("먼저 만나볼 세 가지 여행")}</h2>
           </div>
           <button className="btn btn-sm btn-ghost" onClick={() => nav("discover")}>
-            전체 보기 <Icon.chevR />
+            {translateUi("전체 보기 ")}
+            <Icon.chevR />
           </button>
         </div>
         <div className="theme-grid">
@@ -126,25 +139,29 @@ export function HomeView({
           ))}
         </div>
         {themes.length === 0 && (
-          <p className="empty-message">추천 테마를 준비하고 있어요. 잠시 후 다시 방문해 주세요.</p>
+          <p className="empty-message">
+            {translateUi("추천 테마를 준비하고 있어요. 잠시 후 다시 방문해 주세요.")}
+          </p>
         )}
       </section>
       <section className="page-section home-region-entry">
         <div>
-          <h2 className="section-title">가고 싶은 지역이 있나요?</h2>
-          <p className="section-description">지역을 고르면 명소와 위치를 함께 살펴볼 수 있어요.</p>
+          <h2 className="section-title">{translateUi("가고 싶은 지역이 있나요?")}</h2>
+          <p className="section-description">
+            {translateUi("지역을 고르면 명소와 위치를 함께 살펴볼 수 있어요.")}
+          </p>
         </div>
         <div className="home-region-controls">
           <Select
             className="input"
-            aria-label="가보고 싶은 지역"
+            aria-label={translateUi("가보고 싶은 지역")}
             value={region}
             onChange={(e) => setRegion(e.target.value)}
           >
-            <option value="">강원 전체</option>
+            <option value="">{translateUi("강원 전체")}</option>
             {GANGWON_REGIONS.map((r) => (
               <option key={r.key} value={r.ko}>
-                {r.ko}
+                {translateUi(r.ko)}
               </option>
             ))}
           </Select>
@@ -152,16 +169,17 @@ export function HomeView({
             className="btn btn-secondary"
             href={`/discover?tab=places${region ? `&region=${encodeURIComponent(region)}` : ""}`}
           >
-            여행지 탐색 <Icon.chevR />
+            {translateUi("여행지 탐색 ")}
+            <Icon.chevR />
           </Link>
         </div>
       </section>
       {traffic}
       <footer className="page-section home-footer">
-        <span>에움길 · 강원특별자치도 테마 여행</span>
+        <span>{translateUi("에움길 · 강원특별자치도 테마 여행")}</span>
         <div>
-          <Link href="/doc?type=sources">데이터 출처</Link>
-          <Link href="/doc?type=privacy">개인정보처리방침</Link>
+          <Link href="/doc?type=sources">{translateUi("데이터 출처")}</Link>
+          <Link href="/doc?type=privacy">{translateUi("개인정보처리방침")}</Link>
         </div>
       </footer>
     </div>
@@ -169,18 +187,19 @@ export function HomeView({
 }
 
 export function SpotRow({ spot, lang, onClick }: { spot: Spot; lang: Lang; onClick: () => void }) {
+  const translateUi = useUiText();
   return (
     <button onClick={onClick} className="card spot-row">
       <Placeholder
-        label={localized(spot.name, lang)}
+        label={translateUi(localized(spot.name, lang))}
         src={spot.imageUrl}
         h={80}
         style={{ width: 90, borderRadius: 12, flexShrink: 0 }}
       />
       <div className="spot-row-body">
-        <strong>{localized(spot.name, lang)}</strong>
+        <strong>{translateUi(localized(spot.name, lang))}</strong>
         <span>
-          {localized(spot.type, lang)} · {localized(spot.region, lang)}
+          {translateUi(localized(spot.type, lang))} · {translateUi(localized(spot.region, lang))}
         </span>
         <Signal level={spot.congestion} lang={lang} />
       </div>

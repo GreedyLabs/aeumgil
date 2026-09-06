@@ -1,3 +1,6 @@
+"use client";
+import { useLanguage } from "@/components/language-context";
+import { uiText } from "@/lib/i18n";
 import Link from "next/link";
 import type { ComponentPropsWithoutRef } from "react";
 import type { Lang } from "@/lib/i18n";
@@ -35,14 +38,14 @@ type ExternalLinkProps = Omit<ComponentPropsWithoutRef<"a">, "target" | "rel" | 
 
 export function ExternalLink({
   children,
-  lang = "ko",
+  lang,
   indicatorPlacement = "end",
   "aria-label": label,
   title,
   ...props
 }: ExternalLinkProps) {
-  const notice =
-    lang === "ko" ? "외부 사이트, 새 탭에서 열림" : "External site, opens in a new tab";
+  const selected = useLanguage();
+  const notice = uiText("외부 사이트, 새 탭에서 열림", lang ?? selected);
   return (
     <a
       {...props}
@@ -65,12 +68,13 @@ type NewTabLinkProps = Omit<ComponentPropsWithoutRef<typeof Link>, "target" | "r
 /** 편집 중인 화면을 유지하면서 서비스 내부의 상세를 여는 링크다. */
 export function NewTabLink({
   children,
-  lang = "ko",
+  lang,
   "aria-label": label,
   title,
   ...props
 }: NewTabLinkProps) {
-  const notice = lang === "ko" ? "새 탭에서 열림" : "Opens in a new tab";
+  const selected = useLanguage();
+  const notice = uiText("새 탭에서 열림", lang ?? selected);
   return (
     <Link
       {...props}

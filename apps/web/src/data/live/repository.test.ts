@@ -23,7 +23,10 @@ vi.mock("@/server/db/course-catalog", async (importOriginal) => {
   };
 });
 
-vi.mock("@/server/cache", () => ({ apiCache: { cached: async (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn() } }));
+vi.mock("@/server/cache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/cache")>()),
+  apiCache: { cached: async (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn() },
+}));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -111,7 +114,11 @@ describe("LiveRepository 보강(성공)", () => {
         match: "getCtprvnRltmMesureDnsty",
         payload: {
           response: {
-            body: { items: [{ stationName: "중앙동(강원)", khaiGrade: "1", pm10Value: "20", pm25Value: "8" }] },
+            body: {
+              items: [
+                { stationName: "중앙동(강원)", khaiGrade: "1", pm10Value: "20", pm25Value: "8" },
+              ],
+            },
           },
         },
       },
@@ -119,7 +126,11 @@ describe("LiveRepository 보강(성공)", () => {
         match: "detailCommon2",
         payload: {
           response: {
-            body: { items: { item: [{ contentid: "129454", title: "동명항", overview: "속초 동명항 설명" }] } },
+            body: {
+              items: {
+                item: [{ contentid: "129454", title: "동명항", overview: "속초 동명항 설명" }],
+              },
+            },
           },
         },
       },
@@ -141,8 +152,20 @@ describe("LiveRepository 보강(성공)", () => {
 
 it("날씨가 실패해도 정상 대기질과 관광 개요는 유지한다", async () => {
   routeFetch([
-    { match: "getCtprvnRltmMesureDnsty", payload: { response: { body: { items: [{ stationName: "중앙동", khaiGrade: "2", pm10Value: "31" }] } } } },
-    { match: "detailCommon2", payload: { response: { body: { items: { item: [{ contentid: "129454", overview: "실제 관광 개요" }] } } } } },
+    {
+      match: "getCtprvnRltmMesureDnsty",
+      payload: {
+        response: { body: { items: [{ stationName: "중앙동", khaiGrade: "2", pm10Value: "31" }] } },
+      },
+    },
+    {
+      match: "detailCommon2",
+      payload: {
+        response: {
+          body: { items: { item: [{ contentid: "129454", overview: "실제 관광 개요" }] } },
+        },
+      },
+    },
   ]);
   mocks.requireDb.mockReturnValue({});
   mocks.fetchSpotProfile.mockResolvedValue(dbSpot("dongmyeong-port"));

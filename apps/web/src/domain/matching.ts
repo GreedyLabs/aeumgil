@@ -1,3 +1,4 @@
+import { internationalIntentQuery } from "./international-intent";
 import { L } from "@/lib/i18n";
 import { GANGWON_REGIONS } from "./place-search";
 import { inferCourseOptions } from "./course-options";
@@ -94,7 +95,7 @@ function unique(values: string[]): string[] {
 
 /** 기존 규칙 호출부도 부정·단어 경계를 동일하게 적용한다. */
 export function matchThemeIdsByKeyword(query: string, rules: KeywordRule[]): string[] {
-  const q = normalizeIntentQuery(query);
+  const q = internationalIntentQuery(normalizeIntentQuery(query));
   const excluded = new Set(
     rules
       .filter((r) => r.keywords.some((k) => occurrences(q, k).some((o) => o.negative)))
@@ -207,7 +208,9 @@ export function rankCatalogThemes(
   maxAlts = 2,
   preference: { preferredTopicIds?: readonly string[] } = {},
 ): ThemeMatch {
-  const query = normalizeIntentQuery(raw).slice(0, INTENT_QUERY_MAX_LENGTH).toLowerCase();
+  const query = internationalIntentQuery(
+    normalizeIntentQuery(raw).slice(0, INTENT_QUERY_MAX_LENGTH),
+  ).toLowerCase();
   const requestedDays = inferCourseOptions(query).days;
   const topicHits = THEME_KEYWORD_TOPICS.map((topic) => ({
     topic,

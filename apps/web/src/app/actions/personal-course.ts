@@ -16,6 +16,7 @@ import {
   type CoursePlaceSearchResult,
   type CourseSearchKind,
 } from "@/domain/course-place-search";
+import { requestLanguage } from "@/server/request-language";
 import { createCache } from "@/server/cache";
 
 import {
@@ -110,7 +111,7 @@ export async function searchCoursePlacesAction(
   if (!(await repo.getCurrentUser())) throw new Error("로그인이 필요해요.");
   if (parsed.kind === "spot") return courseSpotSearchResult(await repo.searchSpots(parsed.query));
   const catalog = await commerceSearchCache.cached<Array<Eat | Stay>>(
-    `course-search:${parsed.kind}`,
+    `course-search:${parsed.kind}:${await requestLanguage()}`,
     5 * 60 * 1000,
     () => (parsed.kind === "eat" ? repo.listEats() : repo.listStays()),
   );

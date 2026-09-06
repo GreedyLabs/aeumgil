@@ -1,5 +1,6 @@
 "use client";
-
+import { originalText } from "@/lib/original-text";
+import { useUiText } from "@/components/use-ui-text";
 import Link from "next/link";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
@@ -29,15 +30,16 @@ export function MenuRow({
   danger?: boolean;
   last?: boolean;
 }) {
+  const translateUi = useUiText();
   const content = (
     <>
       <span className="menu-ic" style={danger ? { color: "var(--busy)" } : undefined}>
         {icon}
       </span>
       <span className="menu-lbl" style={danger ? { color: "var(--busy)" } : undefined}>
-        {label}
+        {translateUi(label)}
       </span>
-      {value && <span className="menu-val">{value}</span>}
+      {value && <span className="menu-val">{translateUi(value)}</span>}
       {onClick && !danger && <Icon.chevR />}
     </>
   );
@@ -59,16 +61,17 @@ export function ProfileView({
   savedThemes: Theme[];
   reviewsPreview: ReviewWithSpot[];
 }) {
+  const translateUi = useUiText();
   const { lang, logout } = useAppState();
   const { nav } = useAppNav();
   const interests = TRAVEL_INTERESTS.filter((interest) => user?.interests.includes(interest.id));
   return (
     <div className="screen-enter profile-page">
       <UI.TopBar
-        title="내 여행 기록"
+        title={translateUi("내 여행 기록")}
         right={
           user ? (
-            <Link className="icon-btn" aria-label="설정" href="/settings">
+            <Link className="icon-btn" aria-label={translateUi("설정")} href="/settings">
               <Icon.gear />
             </Link>
           ) : (
@@ -78,12 +81,18 @@ export function ProfileView({
       />
       <header className="page-heading">
         <div>
-          <span className="eyebrow">에움길과 함께한 여정</span>
-          <h1>{user ? `${localized(user.name, lang)}님의 여행` : "다음 여행도, 지난 여행도"}</h1>
-          <p>
+          <span className="eyebrow">{translateUi("에움길과 함께한 여정")}</span>
+          <h1>
             {user
-              ? "마음에 담은 코스와 다녀온 곳을 한눈에 살펴보세요."
-              : "관심 있는 테마를 저장하고 나만의 강원 여행을 모아보세요."}
+              ? `${originalText(user.name)} · ${translateUi("내 여행")}`
+              : translateUi("다음 여행도, 지난 여행도")}
+          </h1>
+          <p>
+            {translateUi(
+              user
+                ? "마음에 담은 코스와 다녀온 곳을 한눈에 살펴보세요."
+                : "관심 있는 테마를 저장하고 나만의 강원 여행을 모아보세요.",
+            )}
           </p>
         </div>
       </header>
@@ -92,21 +101,18 @@ export function ProfileView({
           <div className="profile-overview">
             <section className="summary-panel">
               <div className="profile-head">
-                <Avatar
-                  className="avatar-lg"
-                  src={user.avatarUrl}
-                  name={localized(user.name, lang)}
-                />
+                <Avatar className="avatar-lg" src={user.avatarUrl} name={originalText(user.name)} />
                 <div>
-                  <strong>{localized(user.name, lang)}</strong>
+                  <strong>{originalText(user.name)}</strong>
                   <span className="grade-badge">
                     Lv.{user.level} · {localized(user.grade, lang)}
                   </span>
                 </div>
               </div>
-              <p>{user.bio ? localized(user.bio, lang) : "여행의 취향을 프로필에 남겨보세요."}</p>
+              <p>{originalText(user.bio) || translateUi("여행의 취향을 프로필에 남겨보세요.")}</p>
               <Link href="/profile/edit" className="btn btn-secondary btn-block">
-                <Icon.pencil /> 프로필 편집
+                <Icon.pencil />
+                {translateUi(" 프로필 편집")}
               </Link>
             </section>
             <section className="profile-activity">
@@ -117,18 +123,19 @@ export function ProfileView({
                   { label: "내 리뷰", value: user.stats.reviews, href: "/reviews" },
                 ].map((stat) => (
                   <Link className="stat-card" key={stat.href} href={stat.href}>
-                    <div className="stat-num">{stat.value}</div>
+                    <div className="stat-num">{translateUi(stat.value)}</div>
                     <div className="stat-lbl">
-                      {stat.label} <Icon.chevR />
+                      {translateUi(stat.label)} <Icon.chevR />
                     </div>
                   </Link>
                 ))}
               </div>
               <div className="profile-interests">
                 <div className={styles.summaryHeading}>
-                  <h2>나의 여행 취향</h2>
+                  <h2>{translateUi("나의 여행 취향")}</h2>
                   <Link className="text-link" href="/onboarding">
-                    여행 취향 설정 <Icon.chevR />
+                    {translateUi("여행 취향 설정 ")}
+                    <Icon.chevR />
                   </Link>
                 </div>
                 <div className="mood-list">
@@ -139,34 +146,41 @@ export function ProfileView({
                         key={interest.id}
                         href={`/result?q=${encodeURIComponent(interest.query)}`}
                       >
-                        {localized(interest.label, lang)}
+                        {translateUi(localized(interest.label, lang))}
                       </Link>
                     ))
                   ) : (
                     <p className="empty-message">
-                      아직 선택한 관심 분야가 없어요. 여행 취향을 설정하면 추천에 참고해요.
+                      {translateUi(
+                        "아직 선택한 관심 분야가 없어요. 여행 취향을 설정하면 추천에 참고해요.",
+                      )}
                     </p>
                   )}
                 </div>
                 <div className={styles.summaryStyles}>
                   <span>
-                    페이스 · {PACE_LABELS[user.preference?.paceId ?? ""] ?? "그때그때 결정"}
+                    {translateUi("페이스 · ")}
+                    {PACE_LABELS[user.preference?.paceId ?? ""] ?? "그때그때 결정"}
                   </span>
                   <span>
-                    동행 · {COMPANION_LABELS[user.preference?.companionId ?? ""] ?? "그때그때 결정"}
+                    {translateUi("동행 · ")}
+                    {COMPANION_LABELS[user.preference?.companionId ?? ""] ?? "그때그때 결정"}
                   </span>
                 </div>
                 <p className="section-description">
-                  검색한 조건이 우선이고, 비워 둔 코스 조건에는 저장한 페이스와 동행을 적용해요.
+                  {translateUi(
+                    "검색한 조건이 우선이고, 비워 둔 코스 조건에는 저장한 페이스와 동행을 적용해요.",
+                  )}
                 </p>
               </div>
             </section>
           </div>
           <section className="section-block">
             <div className="section-heading">
-              <h2 className="section-title">저장한 추천 테마</h2>
+              <h2 className="section-title">{translateUi("저장한 추천 테마")}</h2>
               <Link href="/saved" className="text-link">
-                전체 보기 <Icon.chevR />
+                {translateUi("전체 보기 ")}
+                <Icon.chevR />
               </Link>
             </div>
             {savedThemes.length ? (
@@ -179,20 +193,21 @@ export function ProfileView({
               <div className="empty-state compact">
                 <Icon.bookmark />
                 <div>
-                  <h2>마음에 드는 추천 테마를 저장해 보세요</h2>
-                  <p>코스 상세에서 저장하면 이곳에서 다시 볼 수 있어요.</p>
+                  <h2>{translateUi("마음에 드는 추천 테마를 저장해 보세요")}</h2>
+                  <p>{translateUi("코스 상세에서 저장하면 이곳에서 다시 볼 수 있어요.")}</p>
                 </div>
                 <Link href="/discover" className="btn btn-secondary">
-                  테마 둘러보기
+                  {translateUi("테마 둘러보기")}
                 </Link>
               </div>
             )}
           </section>
           <section className="section-block">
             <div className="section-heading">
-              <h2 className="section-title">내가 남긴 이야기</h2>
+              <h2 className="section-title">{translateUi("내가 남긴 이야기")}</h2>
               <Link href="/reviews" className="text-link">
-                전체 보기 <Icon.chevR />
+                {translateUi("전체 보기 ")}
+                <Icon.chevR />
               </Link>
             </div>
             {reviewsPreview.length ? (
@@ -209,7 +224,9 @@ export function ProfileView({
               </div>
             ) : (
               <p className="empty-message">
-                아직 작성한 리뷰가 없어요. 다녀온 장소에서 여행 이야기를 남겨보세요.
+                {translateUi(
+                  "아직 작성한 리뷰가 없어요. 다녀온 장소에서 여행 이야기를 남겨보세요.",
+                )}
               </p>
             )}
           </section>
@@ -221,13 +238,14 @@ export function ProfileView({
               <Icon.sparkle />
             </div>
             <h2>
-              나만의 강원을
+              {translateUi("나만의 강원을")}
               <br />
-              차곡차곡 모아보세요
+              {translateUi("차곡차곡 모아보세요")}
             </h2>
-            <p>저장한 테마와 여행 기록을 여러 기기에서 이어볼 수 있어요.</p>
+            <p>{translateUi("저장한 테마와 여행 기록을 여러 기기에서 이어볼 수 있어요.")}</p>
             <Link className="btn btn-primary" href="/login?reason=profile">
-              로그인 / 회원가입 <Icon.chevR />
+              {translateUi("로그인 / 회원가입 ")}
+              <Icon.chevR />
             </Link>
           </section>
           <section className="guest-benefits">
@@ -251,8 +269,8 @@ export function ProfileView({
               <div key={item.title}>
                 <item.icon />
                 <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.body}</p>
+                  <h3>{translateUi(item.title)}</h3>
+                  <p>{translateUi(item.body)}</p>
                 </div>
               </div>
             ))}
@@ -260,10 +278,10 @@ export function ProfileView({
         </div>
       )}
       <footer className="profile-footer">
-        <Link href="/doc?type=support">고객센터</Link>
-        <Link href="/doc?type=terms">이용약관</Link>
-        <Link href="/doc?type=privacy">개인정보처리방침</Link>
-        {user && <button onClick={logout}>로그아웃</button>}
+        <Link href="/doc?type=support">{translateUi("고객센터")}</Link>
+        <Link href="/doc?type=terms">{translateUi("이용약관")}</Link>
+        <Link href="/doc?type=privacy">{translateUi("개인정보처리방침")}</Link>
+        {user && <button onClick={logout}>{translateUi("로그아웃")}</button>}
       </footer>
     </div>
   );

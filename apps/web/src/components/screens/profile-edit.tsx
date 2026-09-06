@@ -1,11 +1,11 @@
 "use client";
-
+import { originalText } from "@/lib/original-text";
+import { useUiText } from "@/components/use-ui-text";
 // 프로필 편집은 표시명·소개만 저장하며 여행 취향은 별도 화면에서 관리한다.
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useHydrated } from "@/lib/use-hydrated";
 import { updateProfileAction } from "@/app/actions/profile";
-import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
 import { Icon } from "./_ui";
@@ -18,11 +18,12 @@ interface Props {
 }
 
 export function ProfileEditView({ user }: Props) {
+  const translateUi = useUiText();
   const ready = useHydrated();
-  const { lang, showToast } = useAppState();
+  const { showToast } = useAppState();
   const { back } = useAppNav();
-  const [name, setName] = useState(localized(user.name, lang));
-  const [bio, setBio] = useState(localized(user.bio, lang));
+  const [name, setName] = useState(originalText(user.name));
+  const [bio, setBio] = useState(originalText(user.bio));
   const [isPending, startTransition] = useTransition();
 
   const save = () => {
@@ -44,17 +45,17 @@ export function ProfileEditView({ user }: Props) {
   return (
     <div className="screen-enter form-page">
       <div className="topbar elev">
-        <button className="icon-btn" onClick={back} aria-label="뒤로 가기">
+        <button className="icon-btn" onClick={back} aria-label={translateUi("뒤로 가기")}>
           <Icon.back />
         </button>
-        <h1>{lang === "ko" ? "프로필 편집" : "Edit profile"}</h1>
+        <h1>{translateUi("프로필 편집")}</h1>
         <button
           className="link-sm"
           style={{ fontWeight: 700, color: "var(--brand)", minWidth: 44, minHeight: 44 }}
           onClick={save}
           disabled={!ready || isPending || name.trim().length === 0}
         >
-          {isPending ? (lang === "ko" ? "저장 중" : "Saving") : lang === "ko" ? "저장" : "Save"}
+          {translateUi(isPending ? "저장 중" : "저장")}
         </button>
       </div>
 
@@ -63,18 +64,18 @@ export function ProfileEditView({ user }: Props) {
           <Avatar
             className="avatar-lg"
             src={user.avatarUrl}
-            name={localized(user.name, lang)}
+            name={originalText(user.name)}
             size={86}
           />
         </div>
       </div>
 
       <p style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 12 }}>
-        프로필 사진은 연결한 로그인 계정에서 관리해요.
+        {translateUi("프로필 사진은 연결한 로그인 계정에서 관리해요.")}
       </p>
       <div style={{ padding: "12px 20px 0" }}>
         <label htmlFor="profile-name" className="field-label">
-          {lang === "ko" ? "닉네임" : "Nickname"}
+          {translateUi("닉네임")}
         </label>
         <input
           id="profile-name"
@@ -86,7 +87,7 @@ export function ProfileEditView({ user }: Props) {
         />
 
         <label htmlFor="profile-bio" className="field-label" style={{ marginTop: 18 }}>
-          {lang === "ko" ? "한 줄 소개" : "Bio"}
+          {translateUi("한 줄 소개")}
         </label>
         <textarea
           id="profile-bio"
@@ -102,15 +103,20 @@ export function ProfileEditView({ user }: Props) {
           style={{ textAlign: "right", fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}
           className="mono"
         >
-          {bio.length}/80
+          {translateUi(bio.length)}/80
         </div>
       </div>
 
       <section className={styles.linkedSetting}>
-        <strong>여행 취향은 따로 관리해요</strong>
-        <p>관심 분야와 여행 페이스, 동행을 바꿔도 닉네임·소개에는 영향을 주지 않아요.</p>
+        <strong>{translateUi("여행 취향은 따로 관리해요")}</strong>
+        <p>
+          {translateUi(
+            "관심 분야와 여행 페이스, 동행을 바꿔도 닉네임·소개에는 영향을 주지 않아요.",
+          )}
+        </p>
         <Link className="text-link" href="/onboarding">
-          여행 취향 설정 <Icon.chevR />
+          {translateUi("여행 취향 설정 ")}
+          <Icon.chevR />
         </Link>
       </section>
     </div>

@@ -9,7 +9,9 @@ for (const width of [390, 1440]) {
     await context.addCookies([await sessionCookie()]);
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/profile");
-    await expect(page.getByRole("heading", { name: "E2E 테스터님의 여행" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "E2E 테스터 · 내 여행", exact: true }),
+    ).toBeVisible();
     await page.getByRole("link", { name: "프로필 편집", exact: true }).click();
     await expect(page).toHaveURL(/\/profile\/edit/);
     for (const route of [

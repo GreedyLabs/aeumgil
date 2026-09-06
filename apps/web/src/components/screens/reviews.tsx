@@ -1,8 +1,14 @@
 "use client";
-
+import { originalText } from "@/lib/original-text";
+import { useUiText } from "@/components/use-ui-text";
 // ReviewsView — Phase 4(부분). 내 리뷰 + 방문 기록. 데이터는 서버에서 주입.
 import { useState, useTransition } from "react";
-import { deleteReviewAction, deleteVisitAction, updateReviewAction, updateVisitAction } from "@/app/actions/reviews";
+import {
+  deleteReviewAction,
+  deleteVisitAction,
+  updateReviewAction,
+  updateVisitAction,
+} from "@/app/actions/reviews";
 import { localized } from "@/lib/i18n";
 import { useAppNav } from "@/lib/nav";
 import { useAppState } from "@/components/app-shell";
@@ -25,21 +31,28 @@ interface Props {
 }
 
 export function ReviewsView({ reviews, visits, initialTab }: Props) {
+  const translateUi = useUiText();
   const { lang, showToast } = useAppState();
   const { nav, back } = useAppNav();
-  const [tab, setTab] = useState<"reviews" | "visits">(initialTab === "visits" ? "visits" : "reviews");
+  const [tab, setTab] = useState<"reviews" | "visits">(
+    initialTab === "visits" ? "visits" : "reviews",
+  );
   const [reviewRows, setReviewRows] = useState(reviews);
   const [visitRows, setVisitRows] = useState(visits);
   const [isPending, startTransition] = useTransition();
 
   const patchReview = (review: Review) => {
-    setReviewRows((prev) => prev.map((row) => (row.review.id === review.id ? { ...row, review } : row)));
+    setReviewRows((prev) =>
+      prev.map((row) => (row.review.id === review.id ? { ...row, review } : row)),
+    );
   };
   const removeReview = (id: string) => {
     setReviewRows((prev) => prev.filter((row) => row.review.id !== id));
   };
   const patchVisit = (visit: Visit) => {
-    setVisitRows((prev) => prev.map((row) => (row.visit.id === visit.id ? { ...row, visit } : row)));
+    setVisitRows((prev) =>
+      prev.map((row) => (row.visit.id === visit.id ? { ...row, visit } : row)),
+    );
   };
   const removeVisit = (id: string) => {
     setVisitRows((prev) => prev.filter((row) => row.visit.id !== id));
@@ -48,23 +61,42 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
   return (
     <div className="screen-enter reading-page">
       <div className="topbar elev">
-        <button className="icon-btn" onClick={back} aria-label="뒤로가기">
+        <button className="icon-btn" onClick={back} aria-label={translateUi("뒤로가기")}>
           <Icon.back />
         </button>
-        <h1>{lang === "ko" ? "리뷰 · 방문 기록" : "Reviews & visits"}</h1>
+        <h1>{translateUi("리뷰 · 방문 기록")}</h1>
         <div style={{ width: 36 }} />
       </div>
 
       <div className="seg-tabs">
-        <button aria-pressed={tab === "reviews"} className={"seg" + (tab === "reviews" ? " on" : "")} onClick={() => setTab("reviews")}>
-          {lang === "ko" ? "리뷰" : "Reviews"} <span className="seg-n">{reviewRows.length}</span>
+        <button
+          aria-pressed={tab === "reviews"}
+          className={"seg" + (tab === "reviews" ? " on" : "")}
+          onClick={() => setTab("reviews")}
+        >
+          {translateUi("리뷰")} <span className="seg-n">{translateUi(reviewRows.length)}</span>
         </button>
-        <button aria-pressed={tab === "visits"} className={"seg" + (tab === "visits" ? " on" : "")} onClick={() => setTab("visits")}>
-          {lang === "ko" ? "방문 기록" : "Visits"} <span className="seg-n">{visitRows.length}</span>
+        <button
+          aria-pressed={tab === "visits"}
+          className={"seg" + (tab === "visits" ? " on" : "")}
+          onClick={() => setTab("visits")}
+        >
+          {translateUi("방문 기록")} <span className="seg-n">{translateUi(visitRows.length)}</span>
         </button>
       </div>
 
-      {(tab === "reviews" ? reviewRows : visitRows).length === 0 && <div className="empty-state" style={{margin:"24px 20px"}}><Icon.pin /><h2>{tab === "reviews" ? "아직 남긴 리뷰가 없어요" : "아직 방문 기록이 없어요"}</h2><p>다녀온 장소의 상세 화면에서 첫 기록을 남겨보세요.</p><button className="btn btn-secondary" onClick={() => nav("discover")}>여행 장소 둘러보기</button></div>}
+      {(tab === "reviews" ? reviewRows : visitRows).length === 0 && (
+        <div className="empty-state" style={{ margin: "24px 20px" }}>
+          <Icon.pin />
+          <h2>
+            {translateUi(tab === "reviews" ? "아직 남긴 리뷰가 없어요" : "아직 방문 기록이 없어요")}
+          </h2>
+          <p>{translateUi("다녀온 장소의 상세 화면에서 첫 기록을 남겨보세요.")}</p>
+          <button className="btn btn-secondary" onClick={() => nav("discover")}>
+            {translateUi("여행 장소 둘러보기")}
+          </button>
+        </div>
+      )}
       {tab === "reviews" ? (
         <div className="desk-2" style={{ padding: "16px 20px 28px", display: "grid", gap: 10 }}>
           {reviewRows.map(({ review, spot }) => (
@@ -77,7 +109,12 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
               onNavSpot={(id) => nav("spot", { spotId: id })}
               onSave={(next) => {
                 startTransition(async () => {
-                  const res = await updateReviewAction({ id: next.id, spotId: next.spotId, rating: next.rating, text: next.text.ko });
+                  const res = await updateReviewAction({
+                    id: next.id,
+                    spotId: next.spotId,
+                    rating: next.rating,
+                    text: next.text.ko,
+                  });
                   if (!res.ok) {
                     showToast(res.error);
                     return;
@@ -114,7 +151,11 @@ export function ReviewsView({ reviews, visits, initialTab }: Props) {
                 onSave={(next) => {
                   if (!next.id) return;
                   startTransition(async () => {
-                    const res = await updateVisitAction({ id: next.id!, spotId: next.spotId, congestionThen: next.congestionThen });
+                    const res = await updateVisitAction({
+                      id: next.id!,
+                      spotId: next.spotId,
+                      congestionThen: next.congestionThen,
+                    });
                     if (!res.ok) {
                       showToast(res.error);
                       return;
@@ -155,19 +196,20 @@ function EditableReviewCard({
 }: {
   review: Review;
   spot: Spot;
-  lang: "ko" | "en";
+  lang: import("@/lib/i18n").Lang;
   disabled: boolean;
   onNavSpot: (id: string) => void;
   onSave: (review: Review) => void;
   onDelete: (review: Review) => void;
 }) {
+  const translateUi = useUiText();
   const [editing, setEditing] = useState(false);
   const [rating, setRating] = useState(review.rating);
-  const [text, setText] = useState(review.text.ko);
+  const [text, setText] = useState(originalText(review.text));
 
   const reset = () => {
     setRating(review.rating);
-    setText(review.text.ko);
+    setText(originalText(review.text));
     setEditing(false);
   };
 
@@ -191,7 +233,18 @@ function EditableReviewCard({
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
-            style={{ marginTop: 10, width: "100%", resize: "vertical", border: "1px solid var(--line)", borderRadius: 10, background: "var(--bg)", color: "var(--ink)", padding: "10px 12px", fontSize: 13, lineHeight: 1.45 }}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              resize: "vertical",
+              border: "1px solid var(--line)",
+              borderRadius: 10,
+              background: "var(--bg)",
+              color: "var(--ink)",
+              padding: "10px 12px",
+              fontSize: 13,
+              lineHeight: 1.45,
+            }}
           />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button
@@ -202,26 +255,36 @@ function EditableReviewCard({
                 setEditing(false);
               }}
             >
-              {lang === "ko" ? "저장" : "Save"}
+              {translateUi("저장")}
             </button>
             <button className="btn btn-secondary btn-sm" disabled={disabled} onClick={reset}>
-              {lang === "ko" ? "취소" : "Cancel"}
+              {translateUi("취소")}
             </button>
           </div>
         </>
       ) : (
         <>
-          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>{localized(review.text, lang)}</p>
+          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>
+            {originalText(review.text)}
+          </p>
           <ReviewHelpful
             helpful={review.helpful}
             lang={lang}
             actions={
               <span style={{ display: "inline-flex", gap: 6 }}>
                 <button className="link-sm" disabled={disabled} onClick={() => setEditing(true)}>
-                  {lang === "ko" ? "수정" : "Edit"}
+                  {translateUi("수정")}
                 </button>
-                <button className="link-sm" disabled={disabled} onClick={() => { if (window.confirm("이 리뷰를 삭제할까요? 삭제한 리뷰는 복구할 수 없어요.")) onDelete(review); }} style={{ color: "var(--busy)" }}>
-                  {lang === "ko" ? "삭제" : "Delete"}
+                <button
+                  className="link-sm"
+                  disabled={disabled}
+                  onClick={() => {
+                    if (window.confirm("이 리뷰를 삭제할까요? 삭제한 리뷰는 복구할 수 없어요."))
+                      onDelete(review);
+                  }}
+                  style={{ color: "var(--busy)" }}
+                >
+                  {translateUi("삭제")}
                 </button>
               </span>
             }
@@ -245,12 +308,13 @@ function EditableVisitRow({
 }: {
   visit: Visit;
   spot: Spot;
-  lang: "ko" | "en";
+  lang: import("@/lib/i18n").Lang;
   disabled: boolean;
   onNavSpot: (id: string) => void;
   onSave: (visit: Visit) => void;
   onDelete: (visit: Visit) => void;
 }) {
+  const translateUi = useUiText();
   const [editing, setEditing] = useState(false);
   const [level, setLevel] = useState<Congestion>(visit.congestionThen);
 
@@ -261,16 +325,30 @@ function EditableVisitRow({
       </span>
       <div className="tl-body">
         <button onClick={() => onNavSpot(spot.id)} style={{ textAlign: "left", width: "100%" }}>
-          <div style={{ fontSize: 11, color: "var(--ink-4)", fontFamily: "SF Mono, monospace" }}>{visit.date}</div>
-          <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 2 }}>{localized(spot.name, lang)}</div>
+          <div style={{ fontSize: 11, color: "var(--ink-4)", fontFamily: "SF Mono, monospace" }}>
+            {translateUi(visit.date)}
+          </div>
+          <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 2 }}>
+            {translateUi(localized(spot.name, lang))}
+          </div>
         </button>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{localized(spot.region, lang)}</span>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}
+        >
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            {translateUi(localized(spot.region, lang))}
+          </span>
           <span style={{ color: "var(--line-2)" }}>·</span>
-          <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{lang === "ko" ? "당시" : "then"}</span>
+          <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{translateUi("당시")}</span>
           {editing ? (
             CONGESTION_LEVELS.map((lv) => (
-              <button key={lv} className={"chip" + (level === lv ? " active" : "")} disabled={disabled} onClick={() => setLevel(lv)} style={{ padding: "8px 10px", minHeight: 44, fontSize: 11 }}>
+              <button
+                key={lv}
+                className={"chip" + (level === lv ? " active" : "")}
+                disabled={disabled}
+                onClick={() => setLevel(lv)}
+                style={{ padding: "8px 10px", minHeight: 44, fontSize: 11 }}
+              >
                 <Signal level={lv} lang={lang} />
               </button>
             ))
@@ -289,19 +367,37 @@ function EditableVisitRow({
                   setEditing(false);
                 }}
               >
-                {lang === "ko" ? "저장" : "Save"}
+                {translateUi("저장")}
               </button>
-              <button className="btn btn-secondary btn-sm" disabled={disabled} onClick={() => { setLevel(visit.congestionThen); setEditing(false); }}>
-                {lang === "ko" ? "취소" : "Cancel"}
+              <button
+                className="btn btn-secondary btn-sm"
+                disabled={disabled}
+                onClick={() => {
+                  setLevel(visit.congestionThen);
+                  setEditing(false);
+                }}
+              >
+                {translateUi("취소")}
               </button>
             </>
           ) : (
             <>
-              <button className="link-sm" disabled={disabled || !visit.id} onClick={() => setEditing(true)}>
-                {lang === "ko" ? "수정" : "Edit"}
+              <button
+                className="link-sm"
+                disabled={disabled || !visit.id}
+                onClick={() => setEditing(true)}
+              >
+                {translateUi("수정")}
               </button>
-              <button className="link-sm" disabled={disabled || !visit.id} onClick={() => { if (window.confirm("이 방문 기록을 삭제할까요?")) onDelete(visit); }} style={{ color: "var(--busy)" }}>
-                {lang === "ko" ? "삭제" : "Delete"}
+              <button
+                className="link-sm"
+                disabled={disabled || !visit.id}
+                onClick={() => {
+                  if (window.confirm("이 방문 기록을 삭제할까요?")) onDelete(visit);
+                }}
+                style={{ color: "var(--busy)" }}
+              >
+                {translateUi("삭제")}
               </button>
             </>
           )}

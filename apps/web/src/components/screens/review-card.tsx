@@ -1,5 +1,6 @@
 "use client";
-
+import { originalText } from "@/lib/original-text";
+import { useUiText } from "@/components/use-ui-text";
 import { localized, type Lang } from "@/lib/i18n";
 import type { Review, Spot } from "@/domain/types";
 import { UI, Icon } from "./_ui";
@@ -22,26 +23,49 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ review, spot, lang, onNavSpot, trailing, children }: ReviewCardProps) {
+  const translateUi = useUiText();
   return (
     <div className="card" style={{ padding: 12 }}>
       <button
         onClick={() => onNavSpot(spot.id)}
-        style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", minWidth: 0, textAlign: "left" }}
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          width: "100%",
+          minWidth: 0,
+          textAlign: "left",
+        }}
       >
-        <Placeholder label={localized(spot.name, lang)} src={spot.imageUrl} h={44} style={{ width: 44, borderRadius: 10, flexShrink: 0 }} />
+        <Placeholder
+          label={translateUi(localized(spot.name, lang))}
+          src={spot.imageUrl}
+          h={44}
+          style={{ width: 44, borderRadius: 10, flexShrink: 0 }}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {localized(spot.name, lang)}
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {translateUi(localized(spot.name, lang))}
           </div>
           <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-            {localized(spot.region, lang)} · {review.date}
+            {translateUi(localized(spot.region, lang))} · {review.date}
           </div>
         </div>
         {trailing ?? <RatingStars value={review.rating} />}
       </button>
       {children ?? (
         <>
-          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>{localized(review.text, lang)}</p>
+          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5, margin: "10px 0 0" }}>
+            {originalText(review.text)}
+          </p>
           <ReviewHelpful helpful={review.helpful} lang={lang} />
         </>
       )}
@@ -49,12 +73,31 @@ export function ReviewCard({ review, spot, lang, onNavSpot, trailing, children }
   );
 }
 
-export function ReviewHelpful({ helpful, lang, actions }: { helpful: number; lang: Lang; actions?: React.ReactNode }) {
+export function ReviewHelpful({
+  helpful,
+  lang,
+  actions,
+}: {
+  helpful: number;
+  lang: Lang;
+  actions?: React.ReactNode;
+}) {
+  const translateUi = useUiText();
   return (
-    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 8, display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+    <div
+      style={{
+        fontSize: 11,
+        color: "var(--ink-4)",
+        marginTop: 8,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        justifyContent: "space-between",
+      }}
+    >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
         <Icon.heart style={{ width: 13, height: 13 }} />
-        {lang === "ko" ? `도움돼요 ${helpful}` : `${helpful} found helpful`}
+        {translateUi("도움돼요")} {helpful}
       </span>
       {actions}
     </div>

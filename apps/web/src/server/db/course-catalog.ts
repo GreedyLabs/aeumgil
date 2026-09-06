@@ -5,7 +5,7 @@
 // 정규화해 `composeCourse`의 입력으로 넘기기 위한 어댑터다.
 // ─────────────────────────────────────────────
 
-import { and, asc, avg, count, desc, eq, sql } from "drizzle-orm";
+import { and, or, inArray, asc, avg, count, desc, eq, sql } from "drizzle-orm";
 import { CURATED_THEME_ORDER, THEME_COPY, THEME_COVER_PRIORITY } from "@/domain/theme-catalog";
 import {
   normalizePlaceQuery,
@@ -259,12 +259,18 @@ export async function saveSpotProfileImageUrl(
 export async function searchSpotProfiles(
   db: Database,
   input: PlaceSearchQuery = {},
+  localizedIds: string[] = [],
 ): Promise<PlaceSearchResult> {
   const query = normalizePlaceQuery(input);
   const text = sql`lower(replace(concat_ws(' ', ${spotProfiles.nameKo}, ${spotProfiles.nameEn}, ${spotProfiles.regionKo}, ${spotProfiles.typeKo}, ${spotProfiles.address}, ${spotProfiles.tagsKo}::text), ' ', ''))`;
   const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
   const where = and(
-    ...terms.map((term) => sql`${text} like ${`%${escapeLike(term)}%`} escape '\\'`),
+    terms.length
+      ? or(
+          and(...terms.map((term) => sql`${text} like ${`%${escapeLike(term)}%`} escape '\\'`)),
+          localizedIds.length ? inArray(spotProfiles.spotId, localizedIds) : undefined,
+        )
+      : undefined,
     query.region ? eq(spotProfiles.regionKo, query.region) : undefined,
     query.category ? eq(spotProfiles.category, query.category) : undefined,
     query.accessibility === "info" ? eq(spotProfiles.hasAccessibilityInfo, true) : undefined,

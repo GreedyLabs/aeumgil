@@ -1,4 +1,5 @@
 // 자연어와 URL에서 받은 여행 조건을 동일한 허용 목록으로 정규화한다.
+import { internationalIntentQuery } from "./international-intent";
 import { GANGWON_REGIONS } from "./place-search";
 import type { ComposeCourseOptions } from "./course-compose";
 
@@ -22,6 +23,7 @@ export function parseCourseOptions(
 
 /** 확실하게 표현된 조건만 옮긴다. 무드 형용사로 동행/교통을 추측하지 않는다. */
 export function inferCourseOptions(query: string): ComposeCourseOptions {
+  query = internationalIntentQuery(query);
   const result: ComposeCourseOptions = {};
   if (/당일/.test(query)) result.days = 1;
   else {

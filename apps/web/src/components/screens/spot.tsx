@@ -1,4 +1,7 @@
 "use client";
+import { useUiText } from "@/components/use-ui-text";
+import type { ReactNode } from "react";
+import { TranslationNotice } from "@/components/translation-notice";
 import Link from "next/link";
 import { ExternalLink } from "@/components/external-link";
 
@@ -19,6 +22,7 @@ const { TopBar: _TopBar, Signal, Chip, Placeholder } = UI;
 
 interface Props {
   spot: Spot;
+  media?: ReactNode;
   alts: Spot[];
   eats: Eat[];
   stays: Stay[];
@@ -26,7 +30,8 @@ interface Props {
 
 // 시간대별 혼잡은 자체 모델, 일별 집중률은 관광공사 API 예측이다.
 
-export function SpotView({ spot: s, alts, eats, stays }: Props) {
+export function SpotView({ spot: s, alts, eats, stays, media }: Props) {
+  const translateUi = useUiText();
   const { lang, requireAuth, showToast } = useAppState();
   const { nav, back } = useAppNav();
   const [rating, setRating] = useState(5);
@@ -54,16 +59,10 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
   const suitabilityLabel = !fitAvailable
     ? "방문 여건 확인 중"
     : s.suitability >= 80
-      ? lang === "ko"
-        ? "매우 적합"
-        : "Excellent"
+      ? "매우 적합"
       : s.suitability >= 65
-        ? lang === "ko"
-          ? "적합"
-          : "Good"
-        : lang === "ko"
-          ? "방문 전 확인이 필요해요"
-          : "Reconsider";
+        ? "적합"
+        : "방문 전 확인이 필요해요";
   const congVar =
     s.congestion === "calm" ? "calm" : s.congestion === "moderate" ? "moderate" : "busy";
 
@@ -89,7 +88,13 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
   return (
     <div className="screen-enter spot-page">
       <div className="spot-hero" style={{ position: "relative" }}>
-        <Placeholder label={localized(s.name, lang)} src={s.imageUrl} h={260} overlay priority />
+        <Placeholder
+          label={translateUi(localized(s.name, lang))}
+          src={s.imageUrl}
+          h={260}
+          overlay
+          priority
+        />
         {s.imageUrl?.includes("visitkorea.or.kr") && (
           // TourAPI(firstimage) 사진은 공공누리 출처표시 조건 — 캡션으로 고지(§7.1).
           <div
@@ -102,7 +107,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               textShadow: "0 1px 2px rgba(0,0,0,0.5)",
             }}
           >
-            {lang === "ko" ? "사진 제공: 한국관광공사" : "Photo: Korea Tourism Organization"}
+            {translateUi("사진 제공: 한국관광공사")}
           </div>
         )}
         <div
@@ -115,13 +120,13 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             justifyContent: "space-between",
           }}
         >
-          <button className="icon-btn filled" onClick={back} aria-label="뒤로가기">
+          <button className="icon-btn filled" onClick={back} aria-label={translateUi("뒤로가기")}>
             <Icon.back />
           </button>
           <div style={{ display: "flex", gap: 6 }}>
             <button
               className="icon-btn filled"
-              aria-label="장소 공유"
+              aria-label={translateUi("장소 공유")}
               onClick={() => void shareCurrentPage(s.name.ko, showToast)}
             >
               <Icon.share />
@@ -129,7 +134,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             <button
               className="icon-btn filled"
               onClick={openCourse}
-              aria-label={lang === "ko" ? "테마 코스 보기" : "View theme course"}
+              aria-label={translateUi("테마 코스 보기")}
             >
               <Icon.plus />
             </button>
@@ -149,20 +154,21 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           }}
         >
           <span className="tag" style={{ whiteSpace: "nowrap" }}>
-            {localized(s.type, lang)}
+            {translateUi(localized(s.type, lang))}
           </span>
           <span style={{ fontSize: 12, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
-            {localized(s.region, lang)}
+            {translateUi(localized(s.region, lang))}
           </span>
         </div>
         <Link
           className="btn btn-secondary btn-sm spot-customize"
           href={`/my-courses/add?spot=${encodeURIComponent(s.id)}`}
         >
-          <Icon.plus /> 내 코스에 담기
+          <Icon.plus />
+          {translateUi(" 내 코스에 담기")}
         </Link>
         <h1 style={{ fontSize: 34, margin: "0 0 12px", lineHeight: 1.1 }}>
-          {localized(s.name, lang)}
+          {translateUi(localized(s.name, lang))}
         </h1>
         <div
           style={{
@@ -174,15 +180,20 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           }}
         >
           <span>
-            <Icon.star style={{ color: "var(--accent)", verticalAlign: "-2px" }} />{" "}
-            {s.reviewCount > 0 ? s.rating : "첫 리뷰를 남겨주세요"}{" "}
-            <span style={{ color: "var(--ink-3)" }}>({s.reviewCount.toLocaleString()})</span>
+            <Icon.star style={{ color: "var(--accent)", verticalAlign: "-2px" }} />
+            {translateUi(" ")}
+            {translateUi(s.reviewCount > 0 ? s.rating : "첫 리뷰를 남겨주세요")}
+            {translateUi(" ")}
+            <span style={{ color: "var(--ink-3)" }}>
+              ({translateUi(s.reviewCount.toLocaleString())})
+            </span>
           </span>
           {s.durationText && (
             <>
               <span style={{ color: "var(--line-2)" }}>·</span>
               <span>
-                <Icon.clock style={{ verticalAlign: "-3px" }} /> {localized(s.durationText, lang)}
+                <Icon.clock style={{ verticalAlign: "-3px" }} />{" "}
+                {translateUi(localized(s.durationText, lang))}
               </span>
             </>
           )}
@@ -202,10 +213,10 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           >
             <div>
               <div className="section-label" style={{ marginBottom: 2 }}>
-                {lang === "ko" ? "현재 방문 여건" : "Right now"}
+                {translateUi("현재 방문 여건")}
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.01em" }}>
-                {suitabilityLabel}
+                {translateUi(suitabilityLabel)}
               </div>
             </div>
             <Signal level={s.congestion} lang={lang} />
@@ -221,9 +232,9 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                 marginBottom: 4,
               }}
             >
-              <span>{lang === "ko" ? "방문 적합성" : "Suitability"}</span>
+              <span>{translateUi("방문 적합성")}</span>
               <span style={{ fontFamily: "SF Mono, monospace", color: "var(--ink-2)" }}>
-                {fitAvailable ? `${s.suitability}/100` : "확인 중"}
+                {translateUi(fitAvailable ? `${s.suitability}/100` : "확인 중")}
               </span>
             </div>
             <div
@@ -249,7 +260,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                 letterSpacing: "0.06em",
               }}
             >
-              {lang === "ko" ? "시간대별 혼잡 · 자체 추정" : "By hour"}
+              {translateUi("시간대별 혼잡 · 자체 추정")}
             </div>
             <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 48 }}>
               {(s.crowdHourly ?? []).map(({ hour, index: v }) => {
@@ -266,8 +277,8 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                 return (
                   <div
                     key={hour}
-                    title={`${hour}시 예상 혼잡 ${v}/100`}
-                    aria-label={`${hour}시 예상 혼잡 ${v}/100`}
+                    title={translateUi(`${hour}시 예상 혼잡 ${v}/100`)}
+                    aria-label={translateUi(`${hour}시 예상 혼잡 ${v}/100`)}
                     style={{
                       flex: 1,
                       height: `${v}%`,
@@ -292,12 +303,12 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                 marginTop: 4,
               }}
             >
-              <span>8시</span>
-              <span>10시</span>
-              <span>12시</span>
-              <span>14시</span>
-              <span>16시</span>
-              <span>20시</span>
+              <span>{translateUi("8시")}</span>
+              <span>{translateUi("10시")}</span>
+              <span>{translateUi("12시")}</span>
+              <span>{translateUi("14시")}</span>
+              <span>{translateUi("16시")}</span>
+              <span>{translateUi("20시")}</span>
             </div>
           </div>
 
@@ -317,7 +328,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               }}
             >
               <Icon.clock />
-              <span>{localized(s.crowdTip, lang)}</span>
+              <span>{translateUi(localized(s.crowdTip, lang))}</span>
             </div>
           )}
 
@@ -340,12 +351,12 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                   letterSpacing: "0.04em",
                 }}
               >
-                {lang === "ko" ? "날씨" : "Weather"}
+                {translateUi("날씨")}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--ink-2)" }}>
                 <WeatherIcon />
                 <span style={{ fontSize: 13, fontWeight: 600 }}>
-                  {weatherAvailable ? `${s.weather.tempC}°C` : "확인 중"}
+                  {translateUi(weatherAvailable ? `${s.weather.tempC}°C` : "확인 중")}
                 </span>
               </div>
               <div
@@ -358,7 +369,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                   textOverflow: "ellipsis",
                 }}
               >
-                {weatherAvailable ? localized(s.weather.desc, lang) : "예보 수신 대기"}
+                {translateUi(weatherAvailable ? localized(s.weather.desc, lang) : "예보 수신 대기")}
               </div>
             </div>
             <div style={{ minWidth: 0 }}>
@@ -370,16 +381,18 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                   letterSpacing: "0.04em",
                 }}
               >
-                {lang === "ko" ? "대기질" : "Air"}
+                {translateUi("대기질")}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--ink-2)" }}>
                 <Icon.wind />
                 <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {airAvailable ? localized(s.air, lang) : "확인 중"}
+                  {translateUi(airAvailable ? localized(s.air, lang) : "확인 중")}
                 </span>
               </div>
               <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
-                {s.conditions?.airStation ?? (airAvailable ? "강원 평균" : "에어코리아")}
+                {translateUi(
+                  s.conditions?.airStation ?? (airAvailable ? "강원 평균" : "에어코리아"),
+                )}
               </div>
             </div>
             <div style={{ minWidth: 0 }}>
@@ -391,7 +404,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                   letterSpacing: "0.04em",
                 }}
               >
-                {lang === "ko" ? "자외선" : "UV index"}
+                {translateUi("자외선")}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--ink-2)" }}>
                 <Icon.sun />
@@ -404,19 +417,19 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {s.uv ? `${s.uv.index} · ${uvLabel}` : "확인 중"}
+                  {translateUi(s.uv ? `${s.uv.index} · ${uvLabel}` : "확인 중")}
                 </span>
               </div>
               <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
-                {s.uv ? "기상청 예측" : "예측 수신 대기"}
+                {translateUi(s.uv ? "기상청 예측" : "예측 수신 대기")}
               </div>
             </div>
           </div>
 
           <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.65 }}>
-            {lang === "ko"
-              ? "혼잡도는 시간대·요일·계절에 따른 모델 추정치예요. 날씨·자외선은 기상청 예측, 대기질은 에어코리아 측정 기준으로 현장 상황과 다를 수 있어요."
-              : "Weather and air data are based on KMA and AirKorea public data and may differ from on-site conditions."}
+            {translateUi(
+              "혼잡도는 시간대·요일·계절에 따른 모델 추정치예요. 날씨·자외선은 기상청 예측, 대기질은 에어코리아 측정 기준으로 현장 상황과 다를 수 있어요.",
+            )}
           </div>
         </div>
         <div className="spot-actions" style={{ padding: "14px 0 0", display: "flex", gap: 10 }}>
@@ -424,36 +437,39 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             className="btn btn-secondary"
             href={`https://map.kakao.com/link/search/${encodeURIComponent(`${s.name.ko} ${s.region.ko}`)}`}
             lang={lang}
-            aria-label={lang === "ko" ? "카카오맵에서 장소 찾기" : "Find this place on KakaoMap"}
+            aria-label={translateUi("카카오맵에서 장소 찾기")}
           >
             <Icon.map />
           </ExternalLink>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={openCourse}>
-            <Icon.plus /> {lang === "ko" ? "테마 코스 보기" : "View theme course"}
+            <Icon.plus /> {translateUi("테마 코스 보기")}
           </button>
         </div>
       </div>
 
       {s.uv && s.uv.index >= 6 && (
         <p className="uv-advice">
-          자외선지수가 높아요. 모자와 자외선 차단제를 준비하고 햇볕이 강한 시간에는 그늘에서
-          쉬어가세요.
+          {translateUi(
+            "자외선지수가 높아요. 모자와 자외선 차단제를 준비하고 햇볕이 강한 시간에는 그늘에서 쉬어가세요.",
+          )}
         </p>
       )}
 
+      <TranslationNotice translation={s.translation} />
       {s.description && (
         <div style={{ padding: "18px 20px 0" }}>
           <div style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55 }}>
-            {localized(s.description, lang)}
+            {translateUi(localized(s.description, lang))}
           </div>
         </div>
       )}
 
       <SpotPublicInfo spot={s} />
+      {media}
 
       <div style={{ padding: "16px 20px 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
         {s.tags.map((tg) => (
-          <Chip key={tg.ko}>{localized(tg, lang)}</Chip>
+          <Chip key={tg.ko}>{translateUi(localized(tg, lang))}</Chip>
         ))}
       </div>
 
@@ -462,28 +478,24 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
           <div className="visit-actions">
             <div>
               <div className="section-label" style={{ marginBottom: 3 }}>
-                {lang === "ko" ? "내 기록" : "My log"}
+                {translateUi("내 기록")}
               </div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>
-                {lang === "ko" ? "다녀온 곳으로 남기기" : "Mark this visit"}
+                {translateUi("다녀온 곳으로 남기기")}
               </div>
               <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.45 }}>
-                {lang === "ko"
-                  ? "방문 기록과 리뷰는 내 정보에서 다시 볼 수 있어요."
-                  : "Visits and reviews appear in your profile."}
+                {translateUi("방문 기록과 리뷰는 내 정보에서 다시 볼 수 있어요.")}
               </div>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={markVisited} disabled={isPending}>
               <Icon.pin />
-              {lang === "ko" ? "방문 기록" : "Visited"}
+              {translateUi("방문 기록")}
             </button>
           </div>
 
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
             <div className="review-heading">
-              <div style={{ fontSize: 13, fontWeight: 700 }}>
-                {lang === "ko" ? "짧은 리뷰" : "Quick review"}
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{translateUi("짧은 리뷰")}</div>
               <RatingStars
                 value={rating}
                 onChange={setRating}
@@ -493,13 +505,11 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               />
             </div>
             <textarea
-              aria-label="짧은 리뷰"
+              aria-label={translateUi("짧은 리뷰")}
               maxLength={2000}
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
-              placeholder={
-                lang === "ko" ? "좋았던 점을 5자 이상 적어주세요" : "Write at least 5 characters"
-              }
+              placeholder={translateUi("좋았던 점을 5자 이상 적어주세요")}
               rows={3}
               style={{
                 marginTop: 10,
@@ -521,7 +531,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               disabled={isPending}
             >
               <Icon.star />
-              {lang === "ko" ? "리뷰 저장·갱신" : "Save or update review"}
+              {translateUi("리뷰 저장·갱신")}
             </button>
           </div>
         </div>
@@ -547,12 +557,10 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
                   textTransform: "uppercase",
                 }}
               >
-                {lang === "ko" ? "비슷한 분위기, 덜 붐빔" : "Same vibe, less busy"}
+                {translateUi("비슷한 분위기, 덜 붐빔")}
               </div>
               <div style={{ fontSize: 13.5, color: "var(--ink-2)", marginTop: 4, lineHeight: 1.5 }}>
-                {lang === "ko"
-                  ? "같은 테마를 유지하면서도 쾌적하게 즐길 수 있는 대체지를 제안해요."
-                  : "Alternatives with the same theme and feel."}
+                {translateUi("같은 테마를 유지하면서도 쾌적하게 즐길 수 있는 대체지를 제안해요.")}
               </div>
             </div>
             <button
@@ -570,8 +578,13 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
               }}
             >
               <span>
-                <Icon.refresh />{" "}
-                {lang === "ko" ? `대체지 ${alts.length}곳 보기` : `See ${alts.length} alternatives`}
+                <Icon.refresh />
+                {translateUi(" ")}
+                {translateUi(
+                  lang === "ko"
+                    ? `대체지 ${alts.length}곳 보기`
+                    : `See ${alts.length} alternatives`,
+                )}
               </span>
               <Icon.chevR />
             </button>
@@ -580,11 +593,13 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
       )}
 
       <div className="spot-nearby" style={{ padding: "24px 20px 0" }}>
-        <div className="section-label">{lang === "ko" ? "근처" : "Nearby"}</div>
-        <h2 className="section-title">{lang === "ko" ? "음식점 · 숙박" : "Eats & stays"}</h2>
+        <div className="section-label">{translateUi("근처")}</div>
+        <h2 className="section-title">{translateUi("음식점 · 숙박")}</h2>
       </div>
       {eats.length === 0 && stays.length === 0 && (
-        <p className="page-section empty-message">이 지역의 음식점·숙박 정보를 준비하고 있어요.</p>
+        <p className="page-section empty-message">
+          {translateUi("이 지역의 음식점·숙박 정보를 준비하고 있어요.")}
+        </p>
       )}
       <div className="hscroll spot-nearby">
         {eats.map((e) => (
@@ -593,7 +608,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             imageLabel="eats"
             imageUrl={e.imageUrl}
             address={e.address}
-            title={localized(e.name, lang)}
+            title={translateUi(localized(e.name, lang))}
             category={localized(e.type, lang)}
             meta={[e.price, e.rating > 0 ? `★${e.rating}` : ""].filter(Boolean).join(" · ")}
             tone="accent"
@@ -606,7 +621,7 @@ export function SpotView({ spot: s, alts, eats, stays }: Props) {
             imageLabel="stays"
             imageUrl={st.imageUrl}
             address={st.address}
-            title={localized(st.name, lang)}
+            title={translateUi(localized(st.name, lang))}
             category={localized(st.type, lang)}
             meta={localized(st.price, lang)}
             tone="brand"
