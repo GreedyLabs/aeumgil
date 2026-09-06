@@ -10,7 +10,9 @@
 - data.go.kr 15종과 도로공사 1종, 총 **16종** 공공 API를 사용한다. 공통 키는 `DATA_GO_KR_SERVICE_KEY`, 도로공사는 별도 `EX_ROAD_SERVICE_KEY`. API별 활용 승인은 따로 필요하다.
 - TourAPI 강원 법정동 코드 `lDongRegnCd=51`, 시군구 `lDongSignguCd` 3자리. 집중률·방문자수의 시군구 코드는 5자리이므로 혼용하지 않는다.
 - 카탈로그 기준선(2026-09-05): 관광지 1,975(사진 1,744)·음식점 1,551·숙소 954·테마 137(다일 편집 코스 18개 포함), 강원 18개 시군, 무장애 안내 연결 661. [선정·갱신 기준](docs/관광카탈로그-탐색-고도화-2026-09-05.md).
-- 최신 운영 앱/image revision `1d6bf04`, Gitops `3128600`. Actions `33970421778` 검사·GHCR 빌드·Dockhand 웹훅 성공, 실제 컨테이너 revision·running/healthy·deep health 정상 확인. 단위 325개·로컬 프로덕션 Chrome 44개 통과. 운영 PC/모바일의 홈 교통 구간·관측 시각·위/좌우 간격과 테마 18→36·여행지 24→48 누적·순서 보존을 확인했다. 로컬 Keycloak 실행 구성은 제거했으며 공용 discovery·앱 provider 진단은 통과했다. 실제 Google 로그인 전체 왕복은 미검증이다. 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
+- 최신 운영(2026-09-06): 앱/image revision `9abc9c38f2b20887ae7987b784ac6002dacc6833`(다국어·관광 미디어), 인증 테마 소스 `e445dd1`, Gitops `f15919b`. Actions `34016203412` 검사·GHCR 빌드·배포 성공. Dockhand의 실제 컨테이너 `6cee5f18b93f`에서 revision 일치·running/healthy·재시작 0·연속 health 실패 0을 확인했으며 운영 deep health도 HTTP 200, `ok:true`, `db:ok`였다.
+- 최신 검증: 단위 414개 통과·실 LLM 평가 1개 건너뜀, TypeScript·lint·프로덕션 빌드 통과. 로컬 프로덕션 Chrome E2E는 고유 54개를 16+38개로 나누어 통과했으며 실제 `eumgil_dev` DB의 전용 `e2e-playwright` 데이터 6개 테이블 잔여 0을 확인했다. 로컬 읽기 전용 검사에서 언어별 교통 시각 31개의 SSR/DOM 일치(7언어), 빠른 EN→KO 전환 3/3·탭 복귀 3/3, 오죽헌 사진·해설의 PC/모바일 표시를 확인했다. 운영 Keycloak은 7언어×3화면×3화면폭 63조합 통과. 실제 Google 전체 로그인 왕복·메일 발송은 미검증이다. 로컬·운영별 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
+- 운영 앱 읽기 전용 검사에서는 언어별 교통 시각 29개의 SSR/DOM 일치(7언어), EN→KO 복원 1/1·탭 복귀 1/1, 브라우저 오류 0을 확인했다. 오죽헌 추가 관광사진은 원천 요청의 일시적 8초 시간 초과 뒤 실패 재요청 제한(30초)이 지난 재조회에서 복구됐다. 운영 응답 HTML의 사진 6개와 촬영자·공공누리 제1유형 출처 마크업을 확인했다.
 - GitHub `main/dev` push → Actions 타입·단위 게이트 → GHCR 이미지 → Dockhand 스택 7. 현재 두 브랜치 모두 latest에 영향을 준다. 별도 Gitops 저장소의 Compose로 pull하며 서비스 기동 때 수집·시드를 실행하지 않는다.
 
 ## 제품 계약과 보류 결정
@@ -68,7 +70,7 @@ DB 설정·스키마 적용은 [인증·DB](docs/Phase4-인증DB-셋업.md), 테
 - 사용자 데이터의 `user_id`는 Keycloak `sub`다. 모든 개인 데이터 조회/수정/삭제는 소유자를 검사한다. `personal_course`는 수정 버전도 비교해 다른 탭의 변경을 덮어쓰지 않는다.
 - 로그아웃은 서버에서 ID 토큰 확보 → Auth.js 쿠키 제거 → Keycloak end-session 순서다. HTTPS 접두사·분할 쿠키를 처리한다.
 - 일반 OAuth Client Secret, Auth.js `AUTH_SECRET`, Keycloak 관리 Client Secret은 용도가 다르다. Google 자격증명은 Keycloak에만 둔다.
-- 운영 테마·한국어/영어·Google 버튼은 확인했다. 실제 Google 전체 왕복·SMTP·인증 계정 삭제 검증은 앱 세션 픽스처 검사로 대체하지 않는다.
+- 운영 테마의 7언어 로그인·회원가입·비밀번호 찾기 화면과 앱의 `ui_locales` 전달·Google 버튼을 확인했다. 실제 Google 전체 왕복·SMTP·인증 계정 삭제 검증은 앱 세션 픽스처 검사로 대체하지 않는다.
 - 탈퇴 시 앱 데이터 6종을 삭제하고 Keycloak 계정 삭제를 시도한다. 관리 Client 미설정/실패 시 인증 계정은 수동 정리가 필요하다.
 
 ## 작업 규칙
