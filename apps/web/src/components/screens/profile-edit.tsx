@@ -4,6 +4,7 @@ import { useUiText } from "@/components/use-ui-text";
 // 프로필 편집은 표시명·소개만 저장하며 여행 취향은 별도 화면에서 관리한다.
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useSession } from "next-auth/react";
 import { useHydrated } from "@/lib/use-hydrated";
 import { updateProfileAction } from "@/app/actions/profile";
 import { useAppNav } from "@/lib/nav";
@@ -21,6 +22,7 @@ export function ProfileEditView({ user }: Props) {
   const translateUi = useUiText();
   const ready = useHydrated();
   const { showToast } = useAppState();
+  const { update } = useSession();
   const { back } = useAppNav();
   const [name, setName] = useState(originalText(user.name));
   const [bio, setBio] = useState(originalText(user.bio));
@@ -34,6 +36,7 @@ export function ProfileEditView({ user }: Props) {
           showToast(res.error);
           return;
         }
+        await update().catch(() => null);
         back();
         showToast("프로필을 저장했어요");
       } catch {
@@ -83,8 +86,16 @@ export function ProfileEditView({ user }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={20}
+          autoComplete="nickname"
+          aria-describedby="profile-nickname-hint"
           disabled={!ready || isPending}
         />
+        <p
+          id="profile-nickname-hint"
+          style={{ margin: "8px 0 0", color: "var(--ink-3)", fontSize: 13 }}
+        >
+          {translateUi("실명 없이 이용할 수 있어요. 닉네임은 언제든 바꿀 수 있어요.")}
+        </p>
 
         <label htmlFor="profile-bio" className="field-label" style={{ marginTop: 18 }}>
           {translateUi("한 줄 소개")}

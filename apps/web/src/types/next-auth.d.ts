@@ -15,6 +15,8 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    /** 실명·이메일 대신 사용하는 검증된 로그인 별명. 기존 쿠키에는 없을 수 있다. */
+    nickname?: string;
     /** Keycloak realm/client role 을 평탄화한 앱 권한. */
     roles?: string[];
     /** Keycloak access token. 서버 콜백/서버 코드에서만 사용하고 client session 에 노출하지 않는다. */

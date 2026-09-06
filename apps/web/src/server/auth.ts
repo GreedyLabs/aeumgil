@@ -15,6 +15,9 @@ import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import type { JWT } from "next-auth/jwt";
 import { assertProductionEnv, env, isProductionRuntime, requireEnv } from "@/lib/env";
+import { nicknameFromClaims, nicknameFromToken } from "./auth-nickname";
+import { getDb } from "./db";
+import { fetchUserProfile } from "./db/user-data";
 
 // 운영 런타임 방어선 — instrumentation(부팅 검증)을 우회해 이 모듈이 먼저 로드되더라도
 // 아래 개발용 폴백 값으로 서비스가 뜨는 일이 없게 한다. (운영-준비-플랜 §1.1)
@@ -122,6 +125,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: KEYCLOAK_CLIENT_ID,
       clientSecret: KEYCLOAK_CLIENT_SECRET,
       issuer: KEYCLOAK_ISSUER,
+      profile(profile) {
+        return {
+          id: profile.sub,
+          name: nicknameFromClaims(profile),
+          email: profile.email,
+          image: profile.picture,
+        };
+      },
     }),
   ],
   callbacks: {
@@ -130,12 +141,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, account, profile }) {
       if (account) {
         token.sub = profile?.sub ?? token.sub;
+        token.nickname = nicknameFromClaims({ ...profile, sub: token.sub });
         token.accessToken = account.access_token;
         token.idToken = account.id_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpiresAt = account.expires_at;
         token.roles = rolesFromProfile(profile);
       }
+      token.name = nicknameFromToken(token);
       const expiresAt =
         typeof token.accessTokenExpiresAt === "number" ? token.accessTokenExpiresAt : 0;
       if (expiresAt > Math.floor(Date.now() / 1000) + TOKEN_REFRESH_MARGIN_SECONDS) return token;
@@ -143,9 +156,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     // 브라우저가 읽는 세션에는 식별자와 표시 정보, 권한만 둔다. 민감한 provider token 은 제외한다.
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user) {
         if (token.sub) session.user.id = token.sub;
+        session.user.name = nicknameFromToken(token);
+        // 사용자 지정 닉네임은 현재 계정에서만 조회하며 공유 캐시·IdP에 복사하지 않는다.
+        // 앱 DB 장애가 소셜 인증 자체를 막지 않도록 안전한 별명으로 유지한다.
+        if (token.sub) {
+          try {
+            const db = getDb();
+            const profile = db ? await fetchUserProfile(db, token.sub) : null;
+            if (profile?.displayName) session.user.name = profile.displayName;
+          } catch {
+            console.warn("[auth] 앱 닉네임 조회 실패, 로그인 별명 사용");
+          }
+        }
         session.user.roles = stringArray(token.roles);
       }
       session.authError = typeof token.error === "string" ? token.error : undefined;

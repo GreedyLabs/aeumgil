@@ -1389,6 +1389,14 @@ export const PLANNING_SCREEN_MESSAGES: Record<string, ScreenTranslations> = {
     "Votre photo de profil se gère dans votre compte de connexion associé.",
   ],
   닉네임: ["Nickname", "昵称", "暱稱", "ニックネーム", "Spitzname", "Pseudo"],
+  "실명 없이 이용할 수 있어요. 닉네임은 언제든 바꿀 수 있어요.": [
+    "No real name is needed. You can change your nickname anytime.",
+    "无需提供真实姓名，您可以随时更改昵称。",
+    "無需提供真實姓名，您可以隨時變更暱稱。",
+    "本名は不要です。ニックネームはいつでも変更できます。",
+    "Dein echter Name ist nicht nötig. Deinen Spitznamen kannst du jederzeit ändern.",
+    "Votre vrai nom n’est pas nécessaire. Vous pouvez modifier votre pseudo à tout moment.",
+  ],
   "한 줄 소개": [
     "Short bio",
     "一句话简介",

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { sessionCookie } from "./helpers/session";
+import { sessionCookie, TEST_USER } from "./helpers/session";
 
 for (const width of [390, 1440]) {
   test(`${width}px 회원 화면에서 기록·취향·설정 흐름과 폼 레이아웃이 동작한다`, async ({
@@ -10,7 +10,7 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/profile");
     await expect(
-      page.getByRole("heading", { name: "E2E 테스터 · 내 여행", exact: true }),
+      page.getByRole("heading", { name: /^여행자-[a-f0-9]{8} · 내 여행$/ }),
     ).toBeVisible();
     await page.getByRole("link", { name: "프로필 편집", exact: true }).click();
     await expect(page).toHaveURL(/\/profile\/edit/);
@@ -117,3 +117,49 @@ for (const width of [390, 1440]) {
     );
   });
 }
+
+// 소셜 제공자의 실제 왕복이 아닌, 이전 full name이 든 세션 픽스처로 앱 저장 경로를 검증한다.
+test("닉네임을 저장하면 프로필·공통 메뉴·세션에 반영되고 새 로그인에도 복원한다", async ({
+  page,
+  context,
+}) => {
+  const nickname = "설악길 산책자";
+  const bio = "느긋하게 강원의 골목을 걸어요.";
+  await context.addCookies([await sessionCookie()]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/profile");
+  await expect(page.getByRole("heading", { name: /^여행자-[a-f0-9]{8} · 내 여행$/ })).toBeVisible();
+  await page.getByRole("link", { name: "프로필 편집", exact: true }).click();
+  await page.getByRole("textbox", { name: "닉네임", exact: true }).fill(nickname);
+  await page.getByRole("textbox", { name: "한 줄 소개", exact: true }).fill(bio);
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(
+    page.getByRole("heading", { name: `${nickname} · 내 여행`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `${nickname} · 내 정보`, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".profile-overview")).toContainText(bio);
+  const updatedSession = await page.request.get("/api/auth/session");
+  expect(updatedSession.ok()).toBe(true);
+  expect(await updatedSession.json()).toMatchObject({ user: { id: TEST_USER.id, name: nickname } });
+
+  // 새 쿠키는 여전히 기존 full name만 담는다. 표시명이 유지되면 앱 DB에서 복원한 것이다.
+  await context.addCookies([await sessionCookie()]);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: `${nickname} · 내 여행`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `${nickname} · 내 정보`, exact: true }),
+  ).toBeVisible();
+  const restoredSession = await page.request.get("/api/auth/session");
+  expect(restoredSession.ok()).toBe(true);
+  expect(await restoredSession.json()).toMatchObject({
+    user: { id: TEST_USER.id, name: nickname },
+  });
+  await page.getByRole("link", { name: "프로필 편집", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "닉네임", exact: true })).toHaveValue(nickname);
+  await expect(page.getByRole("textbox", { name: "한 줄 소개", exact: true })).toHaveValue(bio);
+});

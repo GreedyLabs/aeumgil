@@ -70,6 +70,8 @@ DB 설정·스키마 적용은 [인증·DB](docs/Phase4-인증DB-셋업.md), 테
 - 사용자 데이터의 `user_id`는 Keycloak `sub`다. 모든 개인 데이터 조회/수정/삭제는 소유자를 검사한다. `personal_course`는 수정 버전도 비교해 다른 탭의 변경을 덮어쓰지 않는다.
 - 로그아웃은 서버에서 ID 토큰 확보 → Auth.js 쿠키 제거 → Keycloak end-session 순서다. HTTPS 접두사·분할 쿠키를 처리한다.
 - 일반 OAuth Client Secret, Auth.js `AUTH_SECRET`, Keycloak 관리 Client Secret은 용도가 다르다. Google 자격증명은 Keycloak에만 둔다.
+- 앱 표시명은 저장한 닉네임 → OIDC `nickname` → 실명·이메일과 다른 짧은 `preferred_username` → `sub` 기반 별명 순서다. 기존 JWT의 full name은 재사용하지 않으며 닉네임 변경이 계정 소유자 `sub`나 여행 취향을 바꾸지 않는다. 세션의 앱 닉네임은 현재 소유자로 조회하고 공유 캐시에 저장하지 않는다.
+- 소셜 로그인 닉네임 전환은 앱 단위 431개·빌드 검증을 통과했으나 **Keycloak 운영 프로필/first broker 설정은 관리자 접근 대기 중으로 미적용**이다. 적용 절차는 [닉네임 정책](infra/keycloak/NICKNAME.md): 이름/성 required 제거·admin-only, nickname 선택사항, Review Profile은 `missing`; 계정 연결 확인·이메일 검증·Verify Profile은 유지한다. 앱 수정만으로 운영의 추가 입력 단계가 사라졌다고 판단하지 않는다.
 - 운영 테마의 7언어 로그인·회원가입·비밀번호 찾기 화면과 앱의 `ui_locales` 전달·Google 버튼을 확인했다. 실제 Google 전체 왕복·SMTP·인증 계정 삭제 검증은 앱 세션 픽스처 검사로 대체하지 않는다.
 - 탈퇴 시 앱 데이터 6종을 삭제하고 Keycloak 계정 삭제를 시도한다. 관리 Client 미설정/실패 시 인증 계정은 수동 정리가 필요하다.
 

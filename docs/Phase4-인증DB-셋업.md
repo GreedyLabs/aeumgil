@@ -33,6 +33,14 @@ OAuth Client Secret은 앱이 Keycloak에 자신의 신원을 증명하는 값�
 
 보호 화면과 쓰기 액션은 서버에서 사용자 `sub`를 요구한다. 개인 코스 조회/수정/삭제는 DB에서도 사용자 조건을 적용한다. 로그인 복귀 URL은 허용된 앱 경로만 사용하며 개인 코스·행사 경로를 포함한다.
 
+표시명은 **앱에 저장한 닉네임 → OIDC `nickname` → 실명·이메일과 다른 짧은 `preferred_username` → `sub` 기반 별명** 순서로 정한다. [auth-nickname.ts](../apps/web/src/server/auth-nickname.ts)는 기존 JWT의 full name을 재사용하지 않고, 별명이 없으면 같은 계정에서 일정한 `여행자-xxxxxxxx`를 만든다. 별명은 고유 계정 식별자가 아니며 실제 소유권·로그인은 계속 `sub`를 사용한다. 기존 사용자 지정 닉네임과 소개를 자동 덮어쓰지 않는다.
+
+세션에서 현재 소유자의 앱 프로필만 조회하여 메뉴와 프로필 표시명을 맞춘다. DB 조회 실패 시 인증은 로그인 별명으로 유지하며, 사용자 데이터를 공유 캐시에 저장하지 않는다. 프로필의 닉네임 저장 후 세션을 다시 읽고 여행 취향은 변경하지 않는다.
+
+소셜 로그인에서 이름·성 입력을 없애려면 Keycloak User Profile도 변경해야 한다. 이름/성은 필수 조건을 제거하고 관리자만 볼 수 있게 하며, `nickname`은 입력하지 않아도 되는 선택사항으로 둔다. 실제 Google provider의 First broker login 흐름에서 Review Profile을 `missing`으로 유지하고 기존 계정 연결 확인·이메일 검증·Verify Profile을 보존한다. [닉네임 정책과 적용 도구](../infra/keycloak/NICKNAME.md)에 GET 기반 dry-run, 명시적 적용과 재조회 확인 절차가 있다. 전체 realm을 재import하지 않으며 기존 사용자 이름/성 값도 일괄 삭제하지 않는다.
+
+**현재 검증 상태:** 앱 단위 테스트 431개와 프로덕션 빌드는 통과했다. Keycloak 운영 User Profile·First broker 설정은 관리자 접근 대기 중으로 아직 적용하지 않았으며, 실제 Google 신규 로그인 전체 왕복도 확인하지 않았다. 상세 실행·배포 상태는 [검증 기록](검증.md)을 따른다.
+
 [logoutAction](../apps/web/src/app/actions/logout.ts)은 다음 순서로 동작한다.
 
 1. 앱 쿠키를 제거하기 전에 서버에서 ID 토큰을 읽는다.

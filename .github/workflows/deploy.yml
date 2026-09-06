@@ -40,6 +40,9 @@ jobs:
       - name: Unit tests
         run: pnpm --filter @eumgil/web test
 
+      - name: Keycloak nickname policy tests
+        run: node --test infra/keycloak/nickname-policy.test.mjs
+
   build:
     needs: test
     uses: ./.github/workflows/_build-image.yml
