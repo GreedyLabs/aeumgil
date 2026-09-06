@@ -72,3 +72,17 @@ a:focus-visible, button:focus-visible { outline: 2px solid #236773; outline-offs
 /* PatternFly의 컨테이너 기본 안쪽 여백을 제거해 두 패널이 맞닿게 한다. */
 .pf-v5-c-login__container { padding: 0; }
 .pf-v5-c-button.pf-m-primary { border-radius: 25px; }
+
+/* 언어 선택과 제목을 나눠 긴 번역문도 폼의 가로 폭을 밀어내지 않게 한다. */
+.pf-v5-c-login__main-header { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.pf-v5-c-login__main-header-utilities { order: -1; justify-self: end; width: min(180px, 100%); min-width: 0; margin: 0; }
+#login-select-toggle { width: 100%; min-width: 0; min-height: 44px; padding-left: 12px; }
+#kc-page-title { word-break: normal; overflow-wrap: anywhere; hyphens: auto; }
+#kc-header-wrapper, .eumgil-tagline, .pf-v5-c-form__label, .pf-v5-c-check__label,
+.pf-v5-c-login__main-footer-band, .eumgil-footer, .pf-v5-c-form__helper-text {
+  min-width: 0; overflow-wrap: anywhere; hyphens: auto;
+}
+.pf-v5-c-button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#kc-social-providers a { min-width: 0; gap: 10px; }
+#kc-social-providers img { flex-shrink: 0; }
+.eumgil-footer nav { column-gap: 16px; row-gap: 4px; }

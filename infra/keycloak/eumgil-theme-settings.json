@@ -1,6 +1,6 @@
 {
   "loginTheme": "eumgil",
   "internationalizationEnabled": true,
-  "supportedLocales": ["ko", "en"],
+  "supportedLocales": ["ko", "en", "zh-CN", "zh-TW", "ja", "de", "fr"],
   "defaultLocale": "ko"
 }
