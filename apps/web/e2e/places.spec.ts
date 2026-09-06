@@ -109,34 +109,85 @@ test("추가 조회 실패는 기존 여행지를 보존하고 명시적으로 �
   await expect(page.locator("#places-load-more").getByRole("alert")).toHaveCount(0);
 });
 
-test("모바일 지도 보기 중에는 목록을 추가하지 않고 닫은 뒤 스크롤을 이어간다", async ({ page }) => {
+test("모바일 지도 패널은 목록 위치·선택·누적 결과를 보존하며 열고 닫힌다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/map?region=양양", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/discover\?tab=places/);
-  await expect(page.locator(".places-map")).toHaveCount(1);
-  await expect(page.locator(".place-card").first()).toBeVisible();
+  await expect(page.locator(".places-map-sheet")).toHaveCount(1);
   await expect(page.locator(".place-card")).toHaveCount(24);
-  await expect(page.locator(".places-map")).not.toBeVisible();
-  await page.locator(".place-card-select").first().click();
-  await expect(page.locator(".places-map")).toBeVisible();
-  await page.locator("#places-load-more").scrollIntoViewIfNeeded();
-  // 지도를 펼쳐 둔 상태에서는 관찰 영역이 보여도 목록이 계속 늘어나지 않는다.
-  await page.waitForTimeout(500);
-  await expect(page.locator(".place-card")).toHaveCount(24);
-  await page.getByRole("button", { name: "지도 닫기" }).click();
-  await expect(page.locator(".places-map")).not.toBeVisible();
   await page.locator("#places-load-more").scrollIntoViewIfNeeded();
   await expect(page.locator(".place-card")).toHaveCount(48);
+  const places = await page
+    .locator(".place-card-actions a")
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  const card = page.locator(".place-card-select").nth(30);
+  await card.scrollIntoViewIfNeeded();
+  const originalY = await page.evaluate(() => window.scrollY);
+  const originalBox = await card.boundingBox();
+  await card.click();
+  const panel = page.getByRole("dialog");
+  await expect(panel).toBeVisible();
+  await expect(card).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.locator(".places-map-heading h2")).toHaveText(
+    (await card.locator(".place-card-title").innerText()).trim(),
+  );
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - originalY)).toBeLessThan(2);
+  await page.mouse.move(20, 20);
+  await page.mouse.wheel(0, 700);
+  await page.waitForTimeout(300);
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - originalY)).toBeLessThan(2);
+  await expect(page.locator(".place-card")).toHaveCount(48);
+  await page.screenshot({
+    path: "/private/tmp/eumgil-places-mobile-sheet.png",
+    animations: "disabled",
+  });
+  await panel.getByRole("button", { name: "지도 닫기" }).click();
+  await expect(panel).not.toBeVisible();
+  await expect(card).toBeFocused();
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - originalY)).toBeLessThan(2);
+  expect(await card.boundingBox()).toEqual(originalBox);
+  expect(
+    await page
+      .locator(".place-card-actions a")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+  ).toEqual(places);
+  const reopen = page.locator(".places-map-reopen");
+  await reopen.click();
+  await expect(panel).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).not.toBeVisible();
+  await expect(reopen).toBeFocused();
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - originalY)).toBeLessThan(2);
+  await reopen.click();
+  await expect(panel).toBeVisible();
+  await page.mouse.click(10, 10);
+  await expect(panel).not.toBeVisible();
+  await page.locator("#places-load-more").scrollIntoViewIfNeeded();
+  await expect(page.locator(".place-card")).toHaveCount(72);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(
     false,
   );
-  await expect(page.locator(".place-card img").first()).toBeVisible();
-  await page.locator(".place-card").first().scrollIntoViewIfNeeded();
+  await reopen.click();
+  await expect(panel).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator(".places-map-sheet")).toHaveCount(0);
+  await expect(page.locator("aside.places-map")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).not.toBe("hidden");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await expect(panel).toBeVisible();
+  const panelBox = await panel.boundingBox();
+  expect(panelBox?.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox?.y).toBeGreaterThanOrEqual(0);
+  expect(panelBox?.width).toBeLessThanOrEqual(320);
+  expect((panelBox?.y ?? 0) + (panelBox?.height ?? 0)).toBeLessThanOrEqual(641);
+  await expect(panel.getByRole("button", { name: "지도 닫기" })).toBeInViewport();
   await page.screenshot({
-    path: "/private/tmp/eumgil-places-mobile.png",
-    fullPage: false,
+    path: "/private/tmp/eumgil-places-mobile-sheet-320.png",
     animations: "disabled",
   });
+  await page.keyboard.press("Escape");
+  await expect(panel).not.toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).not.toBe("hidden");
 });
 
 test("새 지역 테마는 실제 장소로 구성되고 검색할 수 있다", async ({ page }) => {

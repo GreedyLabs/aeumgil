@@ -5,7 +5,7 @@ import { Select } from "@/components/select";
 import { InfiniteScroll } from "@/components/infinite-scroll";
 import { searchPlacesAction } from "@/app/actions/search-places";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useRouter } from "next/navigation";
@@ -67,7 +67,24 @@ export function MapView({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const composing = useRef(false);
   const previousQuery = useRef(result.query.q);
-  const mapRef = useRef<HTMLElement>(null);
+  const mapDialog = useRef<HTMLDialogElement>(null);
+  const mapHeadingId = useId();
+  useEffect(() => {
+    const dialog = mapDialog.current;
+    if (!compactLayout || !showMap || !dialog) return;
+    // 문서 위치는 그대로 두고 지도 패널이 열린 동안 배경 스크롤만 잠근다.
+    const rootOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.documentElement.style.overflow = rootOverflow;
+      document.body.style.overflow = bodyOverflow;
+      lastMapButton.current?.focus({ preventScroll: true });
+    };
+  }, [compactLayout, showMap]);
   const filterKey = placeSearchParams(result.query).toString();
   const searchKey = `${lang}:${filterKey}`;
   const activeSearchKey = useRef(searchKey);
@@ -198,6 +215,42 @@ export function MapView({
     }
   };
   const selected = listing.items.find((p) => p.id === selectedId) ?? listing.items[0];
+  const mapContent = selected && (
+    <>
+      <div className="places-map-heading">
+        <div>
+          <span className="eyebrow">{translateUi("선택한 여행지")}</span>
+          <h2 id={mapHeadingId}>{translateUi(localized(selected.name, lang))}</h2>
+        </div>
+        {compactLayout && (
+          <button
+            className="icon-btn filled places-map-close"
+            aria-label={translateUi("지도 닫기")}
+            title={translateUi("지도 닫기")}
+            onClick={() => setShowMap(false)}
+          >
+            <Icon.close aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <div className="places-map-content">
+        {selected.lat !== undefined && selected.lon !== undefined ? (
+          <LocationMap
+            lat={selected.lat}
+            lon={selected.lon}
+            name={localized(selected.name, lang)}
+          />
+        ) : (
+          <p>{translateUi("위치 정보를 준비하고 있어요.")}</p>
+        )}
+        <p>{translateUi(selected.address)}</p>
+        <Link className="btn btn-primary" href={`/spot/${selected.id}`}>
+          {translateUi("사진·이용 안내 보기 ")}
+          <Icon.chevR />
+        </Link>
+      </div>
+    </>
+  );
   return (
     <div className="screen-enter places-page">
       {!embedded && (
@@ -349,14 +402,11 @@ export function MapView({
                       disabled={!ready}
                       aria-label={translateUi(`${localized(p.name, lang)} 지도 보기`)}
                       aria-pressed={selected?.id === p.id}
+                      aria-haspopup={compactLayout ? "dialog" : undefined}
                       onClick={(e) => {
                         lastMapButton.current = e.currentTarget;
                         setSelectedId(p.id);
                         setShowMap(true);
-                        if (window.innerWidth < 1100)
-                          requestAnimationFrame(() =>
-                            mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                          );
                       }}
                     >
                       <span className="place-card-photo">
@@ -437,48 +487,49 @@ export function MapView({
             )}
           </p>
         </section>
-        <aside
-          ref={mapRef}
-          className={`places-map${showMap ? " is-open" : ""}`}
-          aria-label={translateUi("선택한 여행지 위치")}
-        >
-          {selected && (
-            <>
-              <div className="places-map-heading">
-                <div>
-                  <span className="eyebrow">{translateUi("선택한 여행지")}</span>
-                  <h2>{translateUi(localized(selected.name, lang))}</h2>
-                </div>
-                <button
-                  className="btn btn-sm btn-secondary places-map-close"
-                  onClick={() => {
-                    setShowMap(false);
-                    requestAnimationFrame(() => {
-                      lastMapButton.current?.focus({ preventScroll: true });
-                      lastMapButton.current?.scrollIntoView({ block: "center" });
-                    });
-                  }}
-                >
-                  {translateUi("지도 닫기")}
-                </button>
-              </div>
-              {selected.lat !== undefined && selected.lon !== undefined ? (
-                <LocationMap
-                  lat={selected.lat}
-                  lon={selected.lon}
-                  name={localized(selected.name, lang)}
-                />
-              ) : (
-                <p>{translateUi("위치 정보를 준비하고 있어요.")}</p>
-              )}
-              <p>{translateUi(selected.address)}</p>
-              <Link className="btn btn-primary" href={`/spot/${selected.id}`}>
-                {translateUi("사진·이용 안내 보기 ")}
-                <Icon.chevR />
-              </Link>
-            </>
-          )}
-        </aside>
+        {compactLayout ? (
+          <dialog
+            ref={mapDialog}
+            className="places-map places-map-sheet"
+            aria-labelledby={mapHeadingId}
+            onCancel={(event) => {
+              event.preventDefault();
+              setShowMap(false);
+            }}
+            onClick={(event) => {
+              if (event.target !== event.currentTarget) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              if (
+                event.clientX < bounds.left ||
+                event.clientX > bounds.right ||
+                event.clientY < bounds.top ||
+                event.clientY > bounds.bottom
+              )
+                setShowMap(false);
+            }}
+          >
+            {mapContent}
+          </dialog>
+        ) : (
+          <aside className="places-map" aria-label={translateUi("선택한 여행지 위치")}>
+            {mapContent}
+          </aside>
+        )}
+        {compactLayout && selectedId && selected && (
+          <button
+            className="btn btn-primary places-map-reopen"
+            hidden={showMap}
+            aria-label={translateUi(`${localized(selected.name, lang)} 지도 보기`)}
+            aria-haspopup="dialog"
+            onClick={(event) => {
+              lastMapButton.current = event.currentTarget;
+              setShowMap(true);
+            }}
+          >
+            <Icon.map />
+            {translateUi("지도 보기")}
+          </button>
+        )}
       </div>
     </div>
   );
