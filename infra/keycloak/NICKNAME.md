@@ -2,6 +2,10 @@
 
 Google 로그인은 이름·성·닉네임이 없어도 완료할 수 있어야 한다. 에움길은 Keycloak의 `sub`를 계정 식별자로 유지하고, 화면에는 앱에 저장한 닉네임을 우선 표시한다. 저장한 값이 없으면 OIDC `nickname`, 개인정보와 다른 짧은 `preferred_username`, `sub` 기반 별명 순서로 사용한다. 이메일·성·이름은 자동 표시명으로 사용하지 않는다.
 
+운영 상태(2026-09-06): User Profile은 아래 정책으로 관리 콘솔에서 저장하고 JSON을 재조회해 일치를 확인했다. Google은 first login flow override 없이 기본 first broker 흐름을 사용하며 Review Profile의 기존 `Required`/`missing`과 계정 연결 확인·이메일/재인증 검증을 유지했다. 기존 `profile` scope의 nickname 매퍼(ID token·UserInfo On)를 사용하므로 새 매퍼는 추가하지 않았다.
+
+nickname 7언어 Realm override를 관리 콘솔에서 저장·재조회했다: `ko=닉네임`, `en=Nickname`, `de=Spitzname`, `fr=Pseudo`, `ja=ニックネーム`, `zh-CN=昵称`, `zh-TW=暱稱`. 실제 운영 회원가입 화면에서도 언어 선택으로 7언어를 전환해 닉네임 현지화와 이름·성 입력 없음을 확인했다. Gitops `11b6ad4`의 테마 파일 동기화는 미확인이므로 이 결과를 테마 파일 배포 확인으로 해석하지 않는다. 가입 제출·실제 Google 로그인 전체 왕복은 아직 미검증이다.
+
 ## User Profile 갱신
 
 [update-nickname-policy.mjs](update-nickname-policy.mjs)는 **기존 eumgil realm**의 `/admin/realms/eumgil/users/profile`만 읽고 갱신한다. realm 재import, 사용자 생성·수정·삭제, Google 자격증명 변경은 하지 않는다. 이름/성의 기존 사용자 값도 삭제하지 않는다.

@@ -37,9 +37,9 @@ OAuth Client Secret은 앱이 Keycloak에 자신의 신원을 증명하는 값�
 
 세션에서 현재 소유자의 앱 프로필만 조회하여 메뉴와 프로필 표시명을 맞춘다. DB 조회 실패 시 인증은 로그인 별명으로 유지하며, 사용자 데이터를 공유 캐시에 저장하지 않는다. 프로필의 닉네임 저장 후 세션을 다시 읽고 여행 취향은 변경하지 않는다.
 
-소셜 로그인에서 이름·성 입력을 없애려면 Keycloak User Profile도 변경해야 한다. 이름/성은 필수 조건을 제거하고 관리자만 볼 수 있게 하며, `nickname`은 입력하지 않아도 되는 선택사항으로 둔다. 실제 Google provider의 First broker login 흐름에서 Review Profile을 `missing`으로 유지하고 기존 계정 연결 확인·이메일 검증·Verify Profile을 보존한다. [닉네임 정책과 적용 도구](../infra/keycloak/NICKNAME.md)에 GET 기반 dry-run, 명시적 적용과 재조회 확인 절차가 있다. 전체 realm을 재import하지 않으며 기존 사용자 이름/성 값도 일괄 삭제하지 않는다.
+운영 Keycloak User Profile은 이름/성의 필수 조건을 제거하고 관리자만 view/edit하도록 설정했다. `nickname`은 최대20자의 선택사항이며, `username`·`email`과 기타 속성·그룹·검증은 보존했다. Google의 First login flow override는 없고 기본 first broker의 Review Profile은 기존 `Required`/`missing`을 유지한다. 기존 계정 연결 확인·이메일/재인증 검증을 변경하지 않았다. 기존 `profile` scope에 nickname 매퍼(ID token·UserInfo On)가 있어 별도 매퍼를 추가하지 않았다. [닉네임 정책과 적용 도구](../infra/keycloak/NICKNAME.md)에 GET 기반 dry-run, 명시적 적용과 재조회 확인 절차가 있다. 전체 realm 재import나 기존 사용자 이름/성 일괄 삭제는 수행하지 않았다.
 
-**현재 검증 상태:** 앱 단위 테스트 431개와 프로덕션 빌드는 통과했다. Keycloak 운영 User Profile·First broker 설정은 관리자 접근 대기 중으로 아직 적용하지 않았으며, 실제 Google 신규 로그인 전체 왕복도 확인하지 않았다. 상세 실행·배포 상태는 [검증 기록](검증.md)을 따른다.
+**현재 검증 상태:** 앱 단위 테스트 431개·정책 도구 오프라인 테스트 8개·프로덕션 빌드·로컬 지도/프로필 E2E 10개를 통과했다. `3684890` 배포(Actions `34019816290`) 후 공개 deep health HTTP 200·DB 정상을 확인했다. 운영 User Profile과 nickname 7언어 Realm override를 관리 콘솔에서 저장·재조회했고 실제 회원가입 화면의 7언어 전환으로 닉네임 현지화와 이름·성 입력 없음을 확인했다. 이번 컨테이너 revision·digest와 Gitops `11b6ad4`의 운영 테마 파일 동기화는 미확인이다. 가입 제출·실제 Google 신규 로그인 전체 왕복도 아직 미검증이며 상세 실행·배포 상태는 [검증 기록](검증.md)을 따른다.
 
 [logoutAction](../apps/web/src/app/actions/logout.ts)은 다음 순서로 동작한다.
 

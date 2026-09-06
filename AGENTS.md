@@ -10,9 +10,8 @@
 - data.go.kr 15종과 도로공사 1종, 총 **16종** 공공 API를 사용한다. 공통 키는 `DATA_GO_KR_SERVICE_KEY`, 도로공사는 별도 `EX_ROAD_SERVICE_KEY`. API별 활용 승인은 따로 필요하다.
 - TourAPI 강원 법정동 코드 `lDongRegnCd=51`, 시군구 `lDongSignguCd` 3자리. 집중률·방문자수의 시군구 코드는 5자리이므로 혼용하지 않는다.
 - 카탈로그 기준선(2026-09-05): 관광지 1,975(사진 1,744)·음식점 1,551·숙소 954·테마 137(다일 편집 코스 18개 포함), 강원 18개 시군, 무장애 안내 연결 661. [선정·갱신 기준](docs/관광카탈로그-탐색-고도화-2026-09-05.md).
-- 최신 운영(2026-09-06): 앱/image revision `9abc9c38f2b20887ae7987b784ac6002dacc6833`(다국어·관광 미디어), 인증 테마 소스 `e445dd1`, Gitops `f15919b`. Actions `34016203412` 검사·GHCR 빌드·배포 성공. Dockhand의 실제 컨테이너 `6cee5f18b93f`에서 revision 일치·running/healthy·재시작 0·연속 health 실패 0을 확인했으며 운영 deep health도 HTTP 200, `ok:true`, `db:ok`였다.
-- 최신 검증: 단위 414개 통과·실 LLM 평가 1개 건너뜀, TypeScript·lint·프로덕션 빌드 통과. 로컬 프로덕션 Chrome E2E는 고유 54개를 16+38개로 나누어 통과했으며 실제 `eumgil_dev` DB의 전용 `e2e-playwright` 데이터 6개 테이블 잔여 0을 확인했다. 로컬 읽기 전용 검사에서 언어별 교통 시각 31개의 SSR/DOM 일치(7언어), 빠른 EN→KO 전환 3/3·탭 복귀 3/3, 오죽헌 사진·해설의 PC/모바일 표시를 확인했다. 운영 Keycloak은 7언어×3화면×3화면폭 63조합 통과. 실제 Google 전체 로그인 왕복·메일 발송은 미검증이다. 로컬·운영별 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
-- 운영 앱 읽기 전용 검사에서는 언어별 교통 시각 29개의 SSR/DOM 일치(7언어), EN→KO 복원 1/1·탭 복귀 1/1, 브라우저 오류 0을 확인했다. 오죽헌 추가 관광사진은 원천 요청의 일시적 8초 시간 초과 뒤 실패 재요청 제한(30초)이 지난 재조회에서 복구됐다. 운영 응답 HTML의 사진 6개와 촬영자·공공누리 제1유형 출처 마크업을 확인했다.
+- 최신 운영(2026-09-06): 앱 커밋 `3684890`, Actions `34019816290` 검사·GHCR 빌드·배포 성공. 공개 deep health HTTP 200·DB 정상을 확인했으며 이번 컨테이너 revision·image digest는 직접 대조하지 않았다. Gitops `11b6ad4`는 push했으나 운영 테마 파일 동기화는 미확인이다. 운영 Keycloak User Profile과 7언어 닉네임 Realm override를 저장·재조회하고 실제 7언어 회원가입 화면에서 현지화된 닉네임·이름/성 입력 없음을 확인했다.
+- 최신 검증은 앱 단위 431개·정책 도구 오프라인 8개·프로덕션 빌드·로컬 지도/프로필 E2E 10개(20.7초) 통과다. 운영 320/1440px 기본 검사와 390px 스크롤·선택 진단을 확인했다. 390px 전체 DOM 카드 48→24는 숨은 SSR 중복 제거로 실제 보이는24개는 유지됐으며 원 검사 전체3/3 통과로 합산하지 않는다. 이전 다국어 릴리스의 54개 E2E·63조합 인증 화면 검사를 이번 변경 후 모두 재실행한 것으로 간주하지 않는다. 실제 가입 제출·Google 전체 로그인 왕복·메일 발송은 미검증이며 릴리스별 상세 범위는 [검증 기록](docs/검증.md)을 따른다.
 - GitHub `main/dev` push → Actions 타입·단위 게이트 → GHCR 이미지 → Dockhand 스택 7. 현재 두 브랜치 모두 latest에 영향을 준다. 별도 Gitops 저장소의 Compose로 pull하며 서비스 기동 때 수집·시드를 실행하지 않는다.
 
 ## 제품 계약과 보류 결정
@@ -66,12 +65,12 @@ DB 설정·스키마 적용은 [인증·DB](docs/Phase4-인증DB-셋업.md), 테
 
 ## 인증과 개인 데이터
 
-- Keycloak `https://auth.greedylabs.kr/realms/eumgil`, Client ID `eumgil`을 로컬 앱 개발과 운영에서 함께 사용한다. 로컬 Keycloak 서버는 운영하지 않는다. `infra/keycloak`은 운영 인증 테마 소스만 유지한다. Auth.js는 JWT 세션, Keycloak은 신원과 SSO를 관리한다. 앱 DB에 Auth.js adapter 테이블은 없다.
+- Keycloak `https://auth.greedylabs.kr/realms/eumgil`, Client ID `eumgil`을 로컬 앱 개발과 운영에서 함께 사용한다. 로컬 Keycloak 서버는 운영하지 않는다. `infra/keycloak`은 운영 인증 테마와 기존 realm의 설정 관리 자료를 유지한다. Auth.js는 JWT 세션, Keycloak은 신원과 SSO를 관리한다. 앱 DB에 Auth.js adapter 테이블은 없다.
 - 사용자 데이터의 `user_id`는 Keycloak `sub`다. 모든 개인 데이터 조회/수정/삭제는 소유자를 검사한다. `personal_course`는 수정 버전도 비교해 다른 탭의 변경을 덮어쓰지 않는다.
 - 로그아웃은 서버에서 ID 토큰 확보 → Auth.js 쿠키 제거 → Keycloak end-session 순서다. HTTPS 접두사·분할 쿠키를 처리한다.
 - 일반 OAuth Client Secret, Auth.js `AUTH_SECRET`, Keycloak 관리 Client Secret은 용도가 다르다. Google 자격증명은 Keycloak에만 둔다.
 - 앱 표시명은 저장한 닉네임 → OIDC `nickname` → 실명·이메일과 다른 짧은 `preferred_username` → `sub` 기반 별명 순서다. 기존 JWT의 full name은 재사용하지 않으며 닉네임 변경이 계정 소유자 `sub`나 여행 취향을 바꾸지 않는다. 세션의 앱 닉네임은 현재 소유자로 조회하고 공유 캐시에 저장하지 않는다.
-- 소셜 로그인 닉네임 전환은 앱 단위 431개·빌드 검증을 통과했으나 **Keycloak 운영 프로필/first broker 설정은 관리자 접근 대기 중으로 미적용**이다. 적용 절차는 [닉네임 정책](infra/keycloak/NICKNAME.md): 이름/성 required 제거·admin-only, nickname 선택사항, Review Profile은 `missing`; 계정 연결 확인·이메일 검증·Verify Profile은 유지한다. 앱 수정만으로 운영의 추가 입력 단계가 사라졌다고 판단하지 않는다.
+- 운영 닉네임 정책은 이름/성 required 제거·admin-only, nickname 선택사항·최대20자다. Google의 first login override는 없고 기본 first broker의 Review Profile `Required`/`missing` 및 기존 계정 연결 확인·이메일/재인증 검증을 유지했다. 기존 `profile` scope의 nickname 매퍼(ID token·UserInfo On)를 사용하므로 중복 매퍼를 추가하지 않았다. 7언어 nickname Realm override의 관리 콘솔 저장·재조회와 실제 회원가입 화면의 닉네임 현지화·이름/성 제거를 확인했다. 가입 제출·실제 Google 전체 왕복은 미검증이며 재현 절차는 [닉네임 정책](infra/keycloak/NICKNAME.md)을 따른다.
 - 운영 테마의 7언어 로그인·회원가입·비밀번호 찾기 화면과 앱의 `ui_locales` 전달·Google 버튼을 확인했다. 실제 Google 전체 왕복·SMTP·인증 계정 삭제 검증은 앱 세션 픽스처 검사로 대체하지 않는다.
 - 탈퇴 시 앱 데이터 6종을 삭제하고 Keycloak 계정 삭제를 시도한다. 관리 Client 미설정/실패 시 인증 계정은 수동 정리가 필요하다.
 
